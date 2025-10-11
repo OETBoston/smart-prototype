@@ -40,4 +40,4 @@ Are there any follow up actions that should happen as a result of this Pull Requ
 - [ ] Self-review completed 
 - [ ] Linter / formatter checks are passing
 - [ ] Supporting documentation updated
-- [ ] Tickets updated or created as required.
+- [ ] Tickets updated or created as required
