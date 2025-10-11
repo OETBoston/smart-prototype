@@ -34,7 +34,9 @@ Learn more about CDS at the [official specification repository](https://github.c
 
 ## Status
 
-This project is in early development. Documentation and code will be added as the system is built and tested.
+
+## Contributing
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for notes on consistent style and tooling for developers of the SMART Grant codebases.
 
 ---
 
