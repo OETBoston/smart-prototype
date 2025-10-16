@@ -72,6 +72,7 @@ This is the central landing page for the SMART Grant project as a whole. Current
  
 1. [Curb Geometry Creation](https://github.com/OETBoston/smart-curb-geometry-creation) - Code for generating base geometries for the blockfaces in Boston
 1. [Curb Segementation](https://github.com/OETBoston/smart-curb-segmentation) - Intitial segmentation of curbs into zones based into on GIS feature layers
+1. [Image Extraction](https://github.com/OETBoston/smart-curb-image-extraction) - Tools for extracting sign images from imagery APIs (initially Cyclomedia). 
 1. [Sign Reader](https://github.com/OETBoston/smart-curb-sign-reader) - AI components for interpreting parking regulations from sign images.
 1. [Policy Handling](https://github.com/OETBoston/smart-curb-policy-handling) - Code for assigning interpreted policies to CDS Curb Zones. 
 1. [Workflows](https://github.com/OETBoston/smart-curb-workflows) - Automations and pipelining.
