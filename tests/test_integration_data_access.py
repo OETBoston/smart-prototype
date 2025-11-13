@@ -15,6 +15,7 @@ from utilities.data.queries_and_contracts import (
 )
 
 
+
 # --- 1. CONFIG VARIABLES ---
 TEST_PROJECT_ID = os.environ.get("TEST_GCP_PROJECT_ID", "default-test-project") 
 TEST_DATASET_ID = os.environ.get("TEST_BQ_DATASET_ID", "default-dataset-id")
@@ -167,3 +168,94 @@ class TestDataAccessorOperations:
         assert len(retrieved_data) == 0
         
         print(f"\n✅ Success: GET correctly returned an empty list for a non-matching filter.")
+
+
+    # tests/integration/test_data_accessor.py (Add to TestDataAccessorOperations class)
+
+    def test_03_filter_data_with_time_after(self, data_accessor: DataAccessor):
+        """
+        Tests filtering data using the time_after field, which requires
+        translation to a > operator on the 'time' column.
+        """
+        # ARRANGE 1: Define key times
+        unique_id_base = str(uuid.uuid4())
+        # The split point: we want records AFTER this time (i.e., row_B)
+        split_time = datetime(2025, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
+        
+        # Test rows: Row A (before split), Row B (after split)
+        TEST_ROWS = [
+            TestEntityModel(
+                id=f"{unique_id_base}-A", type="Old", 
+                time=datetime(2025, 1, 1, 9, 0, 0, tzinfo=timezone.utc), 
+                location="POINT(1 1)"
+            ),
+            TestEntityModel(
+                id=f"{unique_id_base}-B", type="New", 
+                time=datetime(2025, 1, 1, 11, 0, 0, tzinfo=timezone.utc), # <-- This should be returned
+                location="POINT(2 2)"
+            ),
+        ]
+        data_accessor.put(TEST_ROWS)
+
+        # ARRANGE 2: Define the filter criteria (time_after uses the > operator)
+        filter_criteria = TestEntityFilter(
+            time_after=split_time, 
+            id_prefix=unique_id_base
+        )
+        
+        # ACT: Retrieve the data
+        retrieved_data: List[TestEntityModel] = data_accessor.get(
+            entity_model=TestEntityModel, 
+            filter=filter_criteria
+        ) 
+        
+        # ASSERT: Only one record (the one after the split_time) should be returned
+        assert len(retrieved_data) == 1
+        assert retrieved_data[0].id == f"{unique_id_base}-B"
+        
+        print(f"\n✅ Success: Filtered GET with time_after (>) retrieved the expected single record.")
+
+
+    def test_04_filter_data_with_time_before(self, data_accessor: DataAccessor):
+        """
+        Tests filtering data using the time_before field, which requires
+        translation to a < operator on the 'time' column.
+        (Assumes time_before is added to TestEntityFilter)
+        """
+        # ARRANGE 1: Define key times
+        unique_id_base = str(uuid.uuid4())
+        # The split point: we want records BEFORE this time (i.e., row_A)
+        split_time = datetime(2025, 2, 1, 10, 0, 0, tzinfo=timezone.utc)
+        
+        # Test rows: Row A (before split), Row B (after split)
+        TEST_ROWS = [
+            TestEntityModel(
+                id=f"{unique_id_base}-C", type="Old", 
+                time=datetime(2025, 2, 1, 9, 0, 0, tzinfo=timezone.utc), # <-- This should be returned
+                location="POINT(1 1)"
+            ),
+            TestEntityModel(
+                id=f"{unique_id_base}-D", type="New", 
+                time=datetime(2025, 2, 1, 11, 0, 0, tzinfo=timezone.utc), 
+                location="POINT(2 2)"
+            ),
+        ]
+        data_accessor.put(TEST_ROWS)
+
+        # ARRANGE 2: Define the filter criteria (time_before uses the < operator)
+        filter_criteria = TestEntityFilter(
+            time_before=split_time,
+            id_prefix=unique_id_base
+        )
+        
+        # ACT: Retrieve the data
+        retrieved_data: List[TestEntityModel] = data_accessor.get(
+            entity_model=TestEntityModel, 
+            filter=filter_criteria
+        ) 
+        
+        # ASSERT: Only one record (the one before the split_time) should be returned
+        assert len(retrieved_data) == 1
+        assert retrieved_data[0].id == f"{unique_id_base}-C"
+        
+        print(f"\n✅ Success: Filtered GET with time_before (<) retrieved the expected single record.")
