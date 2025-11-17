@@ -21,14 +21,16 @@ class BigQueryProfile(BaseModel):
 # Model for the application's global settings
 class AppSettings(BaseSettings):
     bigquery_profiles: Dict[str, BigQueryProfile] = {}
-    active_profile: Optional[str] = "default" 
+    active_profile: Optional[str] = "default_profile" 
     # Configuration for how to load these settings
     model_config = SettingsConfigDict(
         env_file_encoding='utf-8',
         env_prefix='db_access_', 
         extra='ignore'
     )
-    active_client: str = "default"
+    active_client: str = "default_client"
+    active_environment: str = "default_env"
+    environment_prefixes: Dict[str, str] = {}
 
 DEFAULT_PROFILE = BigQueryProfile()
 
@@ -376,34 +378,46 @@ def initialize_accessor_client_from_config(settings: AppSettings, client_key: st
 
 class DataAccessor:
     def __init__(
-        self, 
-        table_prefix_map: Dict[Type[BaseEntity], str], 
-        client: Optional[DataClient] = None,
-        config_path: Optional[str] = None 
+        self,
+        table_prefix_map: Optional [Dict[str, str]]= None,
+        current_prefix: Optional [str] = None,
+        client: Optional["DataClient"] = None,
+        config_path: Optional[str] = None
     ):
         """
         Initializes the accessor with the table prefix map and a client.
         """
-        self.table_prefix_map = table_prefix_map 
-        
+        settings = None # Initialize settings variable for potential use later
+
         if client:
             self.client = client
         else:
-            settings = AppSettings(_env_file=config_path)
+            settings = AppSettings(_env_file=config_path) # Assumes AppSettings is defined
             client_key = settings.active_client
             self.client = initialize_accessor_client_from_config(settings, client_key)
+
+        if settings is None and (table_prefix_map is None or current_prefix is None):
+             settings = AppSettings(_env_file=config_path)
+
+        if table_prefix_map:
+            self.table_prefix_map = table_prefix_map
+        else:
+            self.table_prefix_map = settings.environment_prefixes
+
+        if current_prefix:
+            self.current_prefix = current_prefix
+        else:
+            env_key = f"{settings.active_environment}_prefix"
+            prefix = self.table_prefix_map.get(env_key)
+            if not prefix:
+                raise ValueError(f"No database prefix found for environment: '{env_key}' in settings.")
+            self.current_prefix = prefix
             
     def _get_table_fqn(self, entity_model: Type[BaseEntity]) -> str:
         """Internal helper to resolve the FQN from the provided model type."""
         
         # 1. Get the prefix (project.dataset) from the accessor's configuration
-        try:
-            prefix = self.table_prefix_map[entity_model]
-        except KeyError:
-            raise ValueError(
-                f"Table prefix not found for model type: {entity_model.__name__}. "
-                "Ensure it is included in the table_prefix_map dictionary."
-            )
+        prefix = self.current_prefix
         
         # 2. Get the logical table name from the Pydantic model class
         # Note: We access the class attribute defined on the Pydantic model

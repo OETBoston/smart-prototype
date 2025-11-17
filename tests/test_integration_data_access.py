@@ -60,12 +60,9 @@ class TestDataAccessorOperations:
         """
         Provides an initialized DataAccessor instance using the connected BigQueryClient.
         """
-        table_prefix_map = {
-            SimpleEntityModel: f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}"
-        }
         
         # Pass the connected client instance directly to DataAccessor
-        return DataAccessor(client=bigquery_client_wrapper, table_prefix_map=table_prefix_map)
+        return DataAccessor(client=bigquery_client_wrapper, current_prefix=f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}")
 
     # --- REMOVED: setup_and_cleanup_write_table fixture ---
 
@@ -309,16 +306,12 @@ class TestConfigDrivenInit:
         Provides a DataAccessor instance that forces client initialization 
         via the AppSettings/Config path (no 'client' argument provided).
         """
-        table_prefix_map = {
-            SimpleEntityModel: f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}"
-        }
         
         # 🔑 Assume 'config/config.test.toml' is the real path
         CONFIG_FILE_PATH = 'settings/config.toml'
         
         # Ensure the DataAccessor's __init__ is updated to call AppSettings.load(CONFIG_FILE_PATH)
         return DataAccessor(
-            table_prefix_map=table_prefix_map, 
             config_path=CONFIG_FILE_PATH
         )
     def test_06_config_initialization_works(self, config_driven_data_accessor: DataAccessor):
