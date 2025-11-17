@@ -63,7 +63,6 @@ def test_fetch_generic_data_constructs_correct_spec():
         status: Optional[str] = Field(None, description="Filter by status.")
 
     expected_limit = 20
-    # FIX: Initialize the mock client
     mock_client = MockDataClient()
     table_prefix_map = {
         UserTestModel: f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}"
@@ -79,7 +78,6 @@ def test_fetch_generic_data_constructs_correct_spec():
     expected_fqn = f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}.{UserTestModel._TABLE_NAME}"
 
     # --- ACT ---
-    # FIX: Call accessor.get. The result should be an empty list of Pydantic models.
     result = accessor.get(
         entity_model=UserTestModel, 
         filter=input_filter, 
