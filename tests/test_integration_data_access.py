@@ -6,10 +6,10 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 # --- Import from your project files ---
-from utilities.data.accessor import BigQueryClient, BigQueryProfile, DataAccessor, QuerySpec
-from utilities.data.queries_and_contracts import (
-    TestEntityModel, 
-    TestEntityFilter, 
+from utilities.data_utilities.accessor import BigQueryClient, BigQueryProfile, DataAccessor, QuerySpec
+from utilities.data_utilities.queries_and_contracts import (
+    SimpleEntityModel, 
+    SimpleEntityFilter, 
     TEST_TABLE_NAME, 
     BaseEntity 
 )
@@ -33,7 +33,7 @@ def setup_profile_env():
 
     MOCK_PROFILE_INSTANCE = BigQueryProfile(credentials_path=expanded_test_creds_path)
     
-    with patch(f'utilities.data.accessor.AppSettings') as MockAppSettings:
+    with patch(f'utilities.data_utilities.accessor.AppSettings') as MockAppSettings:
         
         mock_settings = MagicMock(
             active_profile='ci_test',
@@ -61,7 +61,7 @@ class TestDataAccessorOperations:
         Provides an initialized DataAccessor instance using the connected BigQueryClient.
         """
         table_prefix_map = {
-            TestEntityModel: f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}"
+            SimpleEntityModel: f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}"
         }
         
         # Pass the connected client instance directly to DataAccessor
@@ -81,9 +81,9 @@ class TestDataAccessorOperations:
         unique_id_base = str(uuid.uuid4())
         insert_time = datetime.now(timezone.utc).isoformat()
         
-        valid_data: List[TestEntityModel] = [
-            TestEntityModel(id=f"{unique_id_base}-1", type="Sign", time=insert_time, location="POINT(1 1)"),
-            TestEntityModel(id=f"{unique_id_base}-2", type="Pole", time=insert_time, location="POINT(2 2)"),
+        valid_data: List[SimpleEntityModel] = [
+            SimpleEntityModel(id=f"{unique_id_base}-1", type="Sign", time=insert_time, location="POINT(1 1)"),
+            SimpleEntityModel(id=f"{unique_id_base}-2", type="Pole", time=insert_time, location="POINT(2 2)"),
         ]
         
         # ACT 1: Use the accessor's put method
@@ -107,7 +107,7 @@ class TestDataAccessorOperations:
         
     def test_02_filter_data_via_model_get(self, data_accessor: DataAccessor):
         """
-        Tests retrieving a filtered subset of data using DataAccessor.get with a TestEntityFilter model.
+        Tests retrieving a filtered subset of data using DataAccessor.get with a SimpleEntityFilter model.
         (Made independent by inserting data within the test).
         """
         
@@ -118,15 +118,15 @@ class TestDataAccessorOperations:
         insert_time = datetime.now(timezone.utc)
         
         TEST_ROWS = [
-            TestEntityModel(id=f"{unique_id_base}-A", type="Sign", time=insert_time, location="POINT(1 1)"),
-            TestEntityModel(id=target_id, type="Pole", time=insert_time, location="POINT(2 2)"), # Target
-            TestEntityModel(id=f"{unique_id_base}-C", type="Light", time=insert_time, location="POINT(3 3)"),
+            SimpleEntityModel(id=f"{unique_id_base}-A", type="Sign", time=insert_time, location="POINT(1 1)"),
+            SimpleEntityModel(id=target_id, type="Pole", time=insert_time, location="POINT(2 2)"), # Target
+            SimpleEntityModel(id=f"{unique_id_base}-C", type="Light", time=insert_time, location="POINT(3 3)"),
         ]
         data_accessor.put(TEST_ROWS) # Insert the data
 
         # ARRANGE 2: Define the filter model (we want only the 'Pole' asset)
-        # Filter using the full ID, as 'id_prefix' is not a field on TestEntityFilter.
-        filter_criteria = TestEntityFilter(
+        # Filter using the full ID, as 'id_prefix' is not a field on SimpleEntityFilter.
+        filter_criteria = SimpleEntityFilter(
             # Use the full ID to uniquely identify the target row.
             id=target_id,             # <-- FIXED: Use the 'id' field
             type="Pole",
@@ -134,8 +134,8 @@ class TestDataAccessorOperations:
         )
         
         # ACT: Use the model-based get method
-        retrieved_data: List[TestEntityModel] = data_accessor.get(
-            entity_model=TestEntityModel, 
+        retrieved_data: List[SimpleEntityModel] = data_accessor.get(
+            entity_model=SimpleEntityModel, 
             filter=filter_criteria
         ) 
         
@@ -146,7 +146,7 @@ class TestDataAccessorOperations:
         assert retrieved_data[0].id == target_id
         assert retrieved_data[0].type == "Pole"
         
-        print(f"\n✅ Success: Filtered GET retrieved 1 valid TestEntityModel using filter model.")
+        print(f"\n✅ Success: Filtered GET retrieved 1 valid SimpleEntityModel using filter model.")
 
     def test_06_get_with_no_results(self, data_accessor: DataAccessor):
         """
@@ -155,11 +155,11 @@ class TestDataAccessorOperations:
         
         # ARRANGE: Create a filter criteria that is guaranteed not to match existing data
         unique_id = str(uuid.uuid4())
-        filter_criteria = TestEntityFilter(id=f"Z999999-{unique_id}", type=None) 
+        filter_criteria = SimpleEntityFilter(id=f"Z999999-{unique_id}", type=None) 
         
         # ACT: Use the model-based get method
-        retrieved_data: List[TestEntityModel] = data_accessor.get(
-            entity_model=TestEntityModel, 
+        retrieved_data: List[SimpleEntityModel] = data_accessor.get(
+            entity_model=SimpleEntityModel, 
             filter=filter_criteria
         ) 
         
@@ -184,12 +184,12 @@ class TestDataAccessorOperations:
         
         # Test rows: Row A (before split), Row B (after split)
         TEST_ROWS = [
-            TestEntityModel(
+            SimpleEntityModel(
                 id=f"{unique_id_base}-A", type="Old", 
                 time=datetime(2025, 1, 1, 9, 0, 0, tzinfo=timezone.utc), 
                 location="POINT(1 1)"
             ),
-            TestEntityModel(
+            SimpleEntityModel(
                 id=f"{unique_id_base}-B", type="New", 
                 time=datetime(2025, 1, 1, 11, 0, 0, tzinfo=timezone.utc), # <-- This should be returned
                 location="POINT(2 2)"
@@ -198,14 +198,14 @@ class TestDataAccessorOperations:
         data_accessor.put(TEST_ROWS)
 
         # ARRANGE 2: Define the filter criteria (time_after uses the > operator)
-        filter_criteria = TestEntityFilter(
+        filter_criteria = SimpleEntityFilter(
             time_after=split_time, 
             id_prefix=unique_id_base
         )
         
         # ACT: Retrieve the data
-        retrieved_data: List[TestEntityModel] = data_accessor.get(
-            entity_model=TestEntityModel, 
+        retrieved_data: List[SimpleEntityModel] = data_accessor.get(
+            entity_model=SimpleEntityModel, 
             filter=filter_criteria
         ) 
         
@@ -220,7 +220,7 @@ class TestDataAccessorOperations:
         """
         Tests filtering data using the time_before field, which requires
         translation to a < operator on the 'time' column.
-        (Assumes time_before is added to TestEntityFilter)
+        (Assumes time_before is added to SimpleEntityFilter)
         """
         # ARRANGE 1: Define key times
         unique_id_base = str(uuid.uuid4())
@@ -229,12 +229,12 @@ class TestDataAccessorOperations:
         
         # Test rows: Row A (before split), Row B (after split)
         TEST_ROWS = [
-            TestEntityModel(
+            SimpleEntityModel(
                 id=f"{unique_id_base}-C", type="Old", 
                 time=datetime(2025, 2, 1, 9, 0, 0, tzinfo=timezone.utc), # <-- This should be returned
                 location="POINT(1 1)"
             ),
-            TestEntityModel(
+            SimpleEntityModel(
                 id=f"{unique_id_base}-D", type="New", 
                 time=datetime(2025, 2, 1, 11, 0, 0, tzinfo=timezone.utc), 
                 location="POINT(2 2)"
@@ -243,14 +243,14 @@ class TestDataAccessorOperations:
         data_accessor.put(TEST_ROWS)
 
         # ARRANGE 2: Define the filter criteria (time_before uses the < operator)
-        filter_criteria = TestEntityFilter(
+        filter_criteria = SimpleEntityFilter(
             time_before=split_time,
             id_prefix=unique_id_base
         )
         
         # ACT: Retrieve the data
-        retrieved_data: List[TestEntityModel] = data_accessor.get(
-            entity_model=TestEntityModel, 
+        retrieved_data: List[SimpleEntityModel] = data_accessor.get(
+            entity_model=SimpleEntityModel, 
             filter=filter_criteria
         ) 
         

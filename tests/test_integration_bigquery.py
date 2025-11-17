@@ -3,10 +3,10 @@ import os
 from unittest.mock import patch, MagicMock
 import uuid
 from datetime import datetime, timezone
-from utilities.data.accessor import BigQueryClient, BigQueryProfile, QuerySpec
-from utilities.data.queries_and_contracts import (
-    TestEntityModel, 
-    TestEntityFilter, 
+from utilities.data_utilities.accessor import BigQueryClient, BigQueryProfile, QuerySpec
+from utilities.data_utilities.queries_and_contracts import (
+    SimpleEntityModel, 
+    SimpleEntityFilter, 
     TEST_TABLE_NAME, 
     BaseEntity
 )
@@ -30,7 +30,7 @@ def setup_profile_env():
     MOCK_PROFILE_INSTANCE = BigQueryProfile(credentials_path=expanded_test_creds_path)
     
     # --- 2. Patch Pydantic to return the profile data when run. ---
-    with patch(f'utilities.data.accessor.AppSettings') as MockAppSettings:
+    with patch(f'utilities.data_utilities.accessor.AppSettings') as MockAppSettings:
         
         mock_profile_dict = {'ci_test': MOCK_PROFILE_INSTANCE}
 
@@ -118,7 +118,7 @@ class TestBigQueryClientEnvConfig:
             # ARRANGE 1: Initialize the client
             client_wrapper = BigQueryClient.initialize()
             
-            # ARRANGE 2: Define unique rows to insert based on TestEntityModel schema
+            # ARRANGE 2: Define unique rows to insert based on SimpleEntityModel schema
             unique_id_base = str(uuid.uuid4())
             insert_time = datetime.now(timezone.utc)
 
@@ -127,13 +127,13 @@ class TestBigQueryClientEnvConfig:
             EU_LOCATION_WKT = "POINT(2 48)" 
 
             ROWS_TO_INSERT = [
-                TestEntityModel(
+                SimpleEntityModel(
                     id=f"{unique_id_base}-1",
                     type="test_insert",
                     time=insert_time,
                     location=US_LOCATION_WKT 
                 ),
-                TestEntityModel(
+                SimpleEntityModel(
                     id=f"{unique_id_base}-2",
                     type="test_insert",
                     time=insert_time,

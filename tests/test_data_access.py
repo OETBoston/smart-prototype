@@ -1,4 +1,4 @@
-from utilities.data.accessor import DataAccessor, DataClient, QuerySpec
+from utilities.data_utilities.accessor import DataAccessor, DataClient, QuerySpec
 from typing import Any
 
 # --- New Mock Implementation ---
