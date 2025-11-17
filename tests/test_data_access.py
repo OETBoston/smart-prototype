@@ -1,46 +1,104 @@
 from utilities.data_utilities.accessor import DataAccessor, DataClient, QuerySpec
-from typing import Any
+from typing import Any, Optional, List, Dict, Any, Union, ClassVar
+from pydantic import BaseModel, Field
+# Assuming utilities.data_utilities.queries_and_contracts is where BaseEntity lives
+# from utilities.data_utilities.queries_and_contracts import BaseEntity 
+# Since BaseEntity definition is missing, defining a simple mock here for completeness
+class BaseEntity(BaseModel):
+    @classmethod
+    def get_table_name_cls(cls):
+        # Accesses the ClassVar defined below
+        return getattr(cls, '_TABLE_NAME', cls.__name__.lower())
+    
+from google.cloud.bigquery import SchemaField
 
 # --- New Mock Implementation ---
 
 class MockDataClient:
     """
     A mock that implements the DataClient protocol (execute_query and raw_sql).
-    It returns the received QuerySpec object for verification.
+    It stores the last QuerySpec it received for assertion purposes.
     """
+    def __init__(self):
+        # Store the received spec here
+        self.last_query_spec: Optional[QuerySpec] = None
+
     def execute_query(self, query_spec: QuerySpec) -> Any:
-        # The mock returns the received QuerySpec object
-        return {"result": "success", "received_spec": query_spec}
+        # 1. Store the received spec for assertion
+        self.last_query_spec = query_spec
+        # 2. Return the format expected by DataAccessor.get (a list of data dictionaries)
+        # We return an empty list since we are testing the query construction, not data flow.
+        return []
 
     def raw_sql(self, sql_query: str) -> Any:
-        # Implementation for raw_sql is not needed for this test
-        pass
+        # Implementation for raw_sql is not needed for this test scenario
+        return []
+
+
+# Assuming you define TEST_PROJECT_ID and TEST_DATASET_ID somewhere, or use placeholders.
+TEST_PROJECT_ID = "mock_project"
+TEST_DATASET_ID = "mock_dataset"
 
 # --- Test ---
 
-def test_fetch_users_constructs_correct_query_spec():
+def test_fetch_generic_data_constructs_correct_spec():
     """
-    Tests that DataAccessor correctly creates and passes the QuerySpec 
-    object, including all its parameters, to the client.
+    Tests the DataAccessor.get method correctly translates Pydantic models 
+    into a fully qualified QuerySpec.
     """
-    # ARRANGE
+    
+    # --- ARRANGE ---
+    
+    # 1. Define a simple test model and filter
+    class UserTestModel(BaseEntity):
+        _TABLE_NAME: ClassVar[str] = "users_table"
+        _ENTITY_SCHEMA: ClassVar[list[SchemaField]] = [
+            SchemaField("user_id", "STRING"),
+            SchemaField("status", "STRING"),
+        ]
+        user_id: str
+        status: str
+
+    class UserTestFilter(BaseEntity):
+        status: Optional[str] = Field(None, description="Filter by status.")
+
     expected_limit = 20
+    # FIX: Initialize the mock client
     mock_client = MockDataClient()
-    # The accessor is initialized with the mock client
-    accessor = DataAccessor(client=mock_client)
+    table_prefix_map = {
+        UserTestModel: f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}"
+    }
+
+    # 1. Instantiate DataAccessor with the required map
+    accessor = DataAccessor(client=mock_client, table_prefix_map=table_prefix_map)
+
+    # 2. Instantiate the filter
+    input_filter = UserTestFilter(status="active")
     
-    # ACT
-    result = accessor.fetch_users(limit=expected_limit)
+    # Determine the expected FQN (project.dataset.table)
+    expected_fqn = f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}.{UserTestModel._TABLE_NAME}"
+
+    # --- ACT ---
+    # FIX: Call accessor.get. The result should be an empty list of Pydantic models.
+    result = accessor.get(
+        entity_model=UserTestModel, 
+        filter=input_filter, 
+        limit=expected_limit
+    )
     
-    # ASSERT
-    # 1. Check if a QuerySpec object was received
-    assert "received_spec" in result
-    received_spec = result["received_spec"]
-    assert isinstance(received_spec, QuerySpec)
-    assert result["result"] == "success"
+    # --- ASSERT ---
+    # 1. Check the return value (should be an empty list since the mock returned an empty list)
+    assert result == []
     
-    # 2. Verify the contents of the received QuerySpec object
-    assert received_spec.table == "users"
+    # 2. Check the spec that was captured by the mock client
+    received_spec = mock_client.last_query_spec
+    assert received_spec is not None
+    
+    # Assert against the full qualified table name (FQN)
+    assert received_spec.table == expected_fqn 
+    assert received_spec.columns == ["user_id", "status"] 
     assert received_spec.limit == expected_limit
-    assert received_spec.columns == ["user_id", "email", "status"]
+    
+    # Verify the filter was translated correctly
+    # Note: AccessorSelectQueryBuilder maps 'status' -> ('status', '=', 'active')
     assert received_spec.filters == [("status", "=", "active")]
