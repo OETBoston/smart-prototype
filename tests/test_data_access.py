@@ -64,12 +64,9 @@ def test_fetch_generic_data_constructs_correct_spec():
 
     expected_limit = 20
     mock_client = MockDataClient()
-    table_prefix_map = {
-        UserTestModel: f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}"
-    }
 
     # 1. Instantiate DataAccessor with the required map
-    accessor = DataAccessor(client=mock_client, table_prefix_map=table_prefix_map)
+    accessor = DataAccessor(client=mock_client, current_prefix=f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}")
 
     # 2. Instantiate the filter
     input_filter = UserTestFilter(status="active")
