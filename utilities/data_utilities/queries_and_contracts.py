@@ -11,19 +11,18 @@ class BaseEntity(BaseModel):
     Custom Base Model for all project-specific Pydantic entity and filter models.
     """
     
-    _ENTITY_SCHEMA: ClassVar[list[SchemaField]]
+    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] 
     _TABLE_NAME: ClassVar[str]
 
     model_config = ConfigDict(extra='forbid')
-
-
+    
     @property
     def table_name(self) -> str:
         """The primary, instance-friendly way to get the table name."""
         return self._TABLE_NAME
 
     @property
-    def entity_schema(self) -> list[SchemaField]:
+    def entity_schema(self) -> Dict[str, str]:
         """The primary, instance-friendly way to get the schema."""
         return self._ENTITY_SCHEMA
     
@@ -33,7 +32,7 @@ class BaseEntity(BaseModel):
         return cls._TABLE_NAME
     
     @classmethod
-    def get_entity_schema_cls(cls) -> list[SchemaField]:
+    def get_entity_schema_cls(self) -> Dict[str, str]:
         """Safe getter for class-level access (e.g., DataAccessor)."""
         return cls._ENTITY_SCHEMA
 
@@ -45,12 +44,12 @@ class SimpleEntityModel(BaseEntity):
     _TABLE_NAME: ClassVar[str] = TEST_TABLE_NAME
     
     # BigQuery Schema definition (using ClassVar for clarity)
-    _ENTITY_SCHEMA: ClassVar[list[SchemaField]] = [
-        SchemaField("id", "STRING"),
-        SchemaField("type", "STRING"),
-        SchemaField("time", "TIMESTAMP"), 
-        SchemaField("location", "GEOGRAPHY"),
-    ]
+    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = { 
+        "id": "STRING",
+        "type": "STRING",
+        "time": "TIMESTAMP", 
+        "location": "GEOGRAPHY",
+    }
     
     # Instance Fields (data types for Python/Pydantic validation)
     id: str

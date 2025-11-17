@@ -146,7 +146,6 @@ class BigQueryClient:
     def _build_sql(self, query_spec: QuerySpec) -> str:
         """Internal: Builds BigQuery-specific SQL from QuerySpec (assumes SELECT or DELETE)."""
         
-        # Example: Building SELECT/DELETE SQL here based on query_spec fields (table, filters, etc.)
         if query_spec.operation == 'SELECT':
             
             # 1. Select Columns
@@ -218,6 +217,14 @@ class BigQueryClient:
             rows_to_insert,
             selected_fields=schema
         )
+
+    def _translate_schema(self, generic_schema_map: Dict[str, str]) -> List[SchemaField]:
+        """Translates a generic schema map into BigQuery SchemaField objects."""
+        bq_schema = []
+        for name, type_str in generic_schema_map.items():
+            # Use the provided type string directly
+            bq_schema.append(SchemaField(name, type_str.upper())) 
+        return bq_schema
     
     def execute_query(self, query_spec: QuerySpec) -> int | List[Dict[str, Any]]:
         """
@@ -238,24 +245,28 @@ class BigQueryClient:
             if not query_spec.payload:
                 return 0
                 
-            model_class = query_spec.payload[0]
+            model_class = type(query_spec.payload[0]) # Get the class from the first item
+            
+            # 1. Retrieve the generic schema map
             try:
-                target_schema = query_spec.payload[0].entity_schema
+                generic_schema_map = query_spec.payload[0].entity_schema
             except AttributeError:
                 raise ValueError(
-                    f"Model '{model_class.__name__}' used in payload does not have a "
-                    "working entity_schema."
+                    f"Model '{model_class.__name__}' used in payload does not define a "
+                    "working entity_schema_map." # 📝 CHANGED: Updated error message
                 )
+            
+            # 1b. Translate the generic schema map to BQ-specific SchemaField list
+            target_schema_bq = self._translate_schema(generic_schema_map)
 
             # 2. Convert BaseEntity models to raw dictionaries for BigQuery API
-            # NOTE: Use model_dump() instead of the deprecated dict()
             raw_data = [d.model_dump() for d in query_spec.payload]
             
-            # 3. Use the dedicated streaming API, passing the retrieved schema
+            # 3. Use the dedicated streaming API, passing the translated schema
             errors = self.streaming_insert(
                 table_fqn=query_spec.table, 
                 rows_to_insert=raw_data,
-                schema=target_schema
+                schema=target_schema_bq
             )
             
             inserted_count = len(raw_data) - len(errors)
