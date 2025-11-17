@@ -1,5 +1,5 @@
 # utilities/data/accessor.py
-from typing import Optional, Protocol, List, Dict, Any, Type, Union, Tuple, Literal
+from typing import Optional, Protocol, List, Dict, Any, Type, Union, Tuple, Literal, Callable
 from google.cloud import bigquery
 from google.oauth2 import service_account
 import os 
@@ -24,9 +24,11 @@ class AppSettings(BaseSettings):
     active_profile: Optional[str] = "default" 
     # Configuration for how to load these settings
     model_config = SettingsConfigDict(
-        env_file='config.toml', 
-        env_file_encoding='utf-8' 
+        env_file_encoding='utf-8',
+        env_prefix='db_access_', 
+        extra='ignore'
     )
+    active_client: str = "default"
 
 DEFAULT_PROFILE = BigQueryProfile()
 
@@ -98,7 +100,7 @@ class BigQueryClient:
         profile_name = settings.active_profile
         profile_config = settings.bigquery_profiles.get(
             profile_name, 
-            DEFAULT_PROFILE # Use the empty default profile if name not found
+            BigQueryProfile() 
         )
 
         client = None
@@ -358,25 +360,38 @@ class AccessorSelectQueryBuilder:
         )
 
 
+CLIENT_REGISTRY: Dict[str, Callable[..., DataClient]] = {
+    "bigquery": BigQueryClient.initialize,
+}
+
+def initialize_accessor_client_from_config(settings: AppSettings, client_key: str) -> DataClient:
+    """Uses the client key to find and execute the correct initializer."""
+    initializer = CLIENT_REGISTRY.get(client_key)
+    
+    if initializer is None:
+        raise ValueError(f"Unknown client specified in config: '{client_key}'")
+        
+    return initializer(settings=settings)
+
+
 class DataAccessor:
     def __init__(
         self, 
         table_prefix_map: Dict[Type[BaseEntity], str], 
-        client: Optional[DataClient] = None, 
-        config_path: Optional[str] = None
+        client: Optional[DataClient] = None,
+        config_path: Optional[str] = None 
     ):
         """
-        Initializes the accessor with the table prefix map and a BQ client.
+        Initializes the accessor with the table prefix map and a client.
         """
         self.table_prefix_map = table_prefix_map 
         
         if client:
             self.client = client
-        elif config_path:
-            # Assuming BigQueryClient has an appropriate class method for loading config
-            self.client = BigQueryClient.initialize()
         else:
-            self.client = BigQueryClient.initialize()
+            settings = AppSettings(_env_file=config_path)
+            client_key = settings.active_client
+            self.client = initialize_accessor_client_from_config(settings, client_key)
             
     def _get_table_fqn(self, entity_model: Type[BaseEntity]) -> str:
         """Internal helper to resolve the FQN from the provided model type."""

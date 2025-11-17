@@ -24,7 +24,7 @@ TEST_TABLE_FQN = f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}.{TEST_TABLE_NAME}"
 
 
 # --- 2. WORKING CLIENT FIXTURE ---
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="class")
 def setup_profile_env():
     """Uses the working profile/patch setup for client initialization."""
     test_creds_path = os.environ.get("REAL_CREDS_PATH", TEST_CREDS_PATH)
@@ -259,3 +259,86 @@ class TestDataAccessorOperations:
         assert retrieved_data[0].id == f"{unique_id_base}-C"
         
         print(f"\n✅ Success: Filtered GET with time_before (<) retrieved the expected single record.")
+
+    def test_05_get_with_limit_one_returns_single_model(self, data_accessor: DataAccessor):
+        """
+        Tests retrieving data with limit=1, verifying a single SimpleEntityModel is returned, 
+        not a list containing one model.
+        """
+        
+        # ARRANGE 1: Insert independent test data
+        unique_id_base = str(uuid.uuid4())
+        target_id = f"{unique_id_base}-TARGET" 
+        insert_time = datetime.now(timezone.utc)
+        
+        TEST_ROWS = [
+            SimpleEntityModel(id=target_id, type="Target", time=insert_time, location="POINT(1 1)"),
+            SimpleEntityModel(id=f"{unique_id_base}-Extra", type="Extra", time=insert_time, location="POINT(2 2)"),
+        ]
+        data_accessor.put(TEST_ROWS)
+
+        # ARRANGE 2: Filter criteria that would match multiple rows
+        filter_criteria = SimpleEntityFilter(
+            id_prefix=unique_id_base,
+            type=None
+        )
+        
+        # ACT: Use the model-based get method with limit=1
+        retrieved_data = data_accessor.get(
+            entity_model=SimpleEntityModel, 
+            filter=filter_criteria,
+            limit=1 # <-- Crucial test point
+        ) 
+        
+        # ASSERT 1: Verify the result is a single model, NOT a list
+        assert isinstance(retrieved_data, SimpleEntityModel)
+        
+        # ASSERT 2: Verify the data is correct
+        assert retrieved_data.type == "Target"
+        
+        print(f"\n✅ Success: GET with limit=1 returned a single SimpleEntityModel object.")
+
+
+
+@pytest.mark.integration
+class TestConfigDrivenInit:
+    
+    @pytest.fixture(scope="class")
+    def config_driven_data_accessor(self) -> DataAccessor:
+        """
+        Provides a DataAccessor instance that forces client initialization 
+        via the AppSettings/Config path (no 'client' argument provided).
+        """
+        table_prefix_map = {
+            SimpleEntityModel: f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}"
+        }
+        
+        # 🔑 Assume 'config/config.test.toml' is the real path
+        CONFIG_FILE_PATH = 'settings/config.toml'
+        
+        # Ensure the DataAccessor's __init__ is updated to call AppSettings.load(CONFIG_FILE_PATH)
+        return DataAccessor(
+            table_prefix_map=table_prefix_map, 
+            config_path=CONFIG_FILE_PATH
+        )
+    def test_06_config_initialization_works(self, config_driven_data_accessor: DataAccessor):
+        """
+        Verifies that the DataAccessor successfully initialized its client 
+        via the configuration pathway and can perform basic operations.
+        """
+        # ARRANGE 1: Use a unique ID 
+        unique_id_base = str(uuid.uuid4())
+        insert_time = datetime.now(timezone.utc).isoformat()
+        
+        valid_data: List[SimpleEntityModel] = [
+            SimpleEntityModel(id=f"{unique_id_base}-10", type="Test", time=insert_time, location="POINT(1 1)"),
+        ]
+        
+        # ACT: Use the accessor's put method
+        inserted_count = config_driven_data_accessor.put(valid_data)
+
+        # ASSERT: Verify the operation succeeded
+        assert inserted_count == len(valid_data)
+        assert isinstance(config_driven_data_accessor.client, BigQueryClient)
+        
+        print(f"\n✅ Success: DataAccessor initialized client via config and performed PUT.")
