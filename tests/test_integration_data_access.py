@@ -308,7 +308,7 @@ class TestConfigDrivenInit:
         """
         
         # 🔑 Assume 'config/config.test.toml' is the real path
-        CONFIG_FILE_PATH = 'settings/config.toml'
+        CONFIG_FILE_PATH = '.env'
         
         # Ensure the DataAccessor's __init__ is updated to call AppSettings.load(CONFIG_FILE_PATH)
         return DataAccessor(

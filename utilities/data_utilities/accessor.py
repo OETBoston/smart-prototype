@@ -379,25 +379,26 @@ def initialize_accessor_client_from_config(settings: AppSettings, client_key: st
 class DataAccessor:
     def __init__(
         self,
-        table_prefix_map: Optional [Dict[str, str]]= None,
-        current_prefix: Optional [str] = None,
+        table_prefix_map: Optional[Dict[str, str]] = None,
+        current_prefix: Optional[str] = None,
         client: Optional["DataClient"] = None,
         config_path: Optional[str] = None
     ):
         """
-        Initializes the accessor with the table prefix map and a client.
+        Initializes the accessor with the standard priority:
+        1. Explicit arguments
+        2. OS Environment Variables (via AppSettings)
+        3. Config File (via config_path, loaded by AppSettings)
         """
-        settings = None # Initialize settings variable for potential use later
+        
+
+        settings = AppSettings(_env_file=config_path)
 
         if client:
             self.client = client
         else:
-            settings = AppSettings(_env_file=config_path) # Assumes AppSettings is defined
             client_key = settings.active_client
             self.client = initialize_accessor_client_from_config(settings, client_key)
-
-        if settings is None and (table_prefix_map is None or current_prefix is None):
-             settings = AppSettings(_env_file=config_path)
 
         if table_prefix_map:
             self.table_prefix_map = table_prefix_map
@@ -409,9 +410,32 @@ class DataAccessor:
         else:
             env_key = f"{settings.active_environment}_prefix"
             prefix = self.table_prefix_map.get(env_key)
+            
             if not prefix:
-                raise ValueError(f"No database prefix found for environment: '{env_key}' in settings.")
+                raise ValueError(
+                    f"No database prefix found for environment: '{env_key}'. "
+                    f"Check DB_ACCESS_ACTIVE_ENVIRONMENT setting and the environment_prefixes map."
+                )
             self.current_prefix = prefix
+
+    def load_persistence_config(config_path="persistence_config.yaml"):
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        # Dynamically map the string keys to the actual Python classes
+        registry = {}
+        for entity_name, data in config['entities'].items():
+            # This assumes your entity classes are in scope (e.g., globals() or a defined module)
+            entity_class = globals().get(entity_name) # Or use importlib
+            if entity_class:
+                registry[entity_class] = data
+                
+        return registry
+
+    
+    def register_entity_fqn(self, entity_model: Type[BaseEntity], fqn: str) -> str:
+        """allows for dynamicly registering or re-registering entity fqn"""
+        pass
             
     def _get_table_fqn(self, entity_model: Type[BaseEntity]) -> str:
         """Internal helper to resolve the FQN from the provided model type."""
