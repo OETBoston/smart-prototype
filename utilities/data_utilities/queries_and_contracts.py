@@ -48,8 +48,6 @@ class BaseEntity(BaseModel):
         return cls._SQL_QUERY
 
 
-
-
 class SimpleEntityModel(BaseEntity):
     """Pydantic model representing a single record from the test table."""
     
@@ -70,24 +68,25 @@ class SimpleEntityModel(BaseEntity):
     time: datetime
     location: str
     
-# --- 2. Filter Model (No Change Needed for Table FQN) ---
-# Filters apply to an EntityModel, so they don't need the table FQN themselves.
 class SimpleEntityFilter(BaseEntity):
-    """Pydantic model for filtering criteria for the SimpleEntityModel."""
-    
-    # We still need to inherit from BaseEntity to get the config/setup
-    # but we don't need _table_name here.
-    id_prefix: Optional[str] = None
+    """
+    Pydantic model for filtering criteria for a SimpleEntityModel.
+    """
     
     # Override config to be strict on filter inputs
     model_config = ConfigDict(extra='forbid')
     
-    id: Optional[str] = Field(None, description="Filter by unique record ID.")
-    type: Optional[str] = Field(None, description="Filter by the 'type' field.")
-    time_after: Optional[datetime] = Field(None, description="Records created after this time.")
-    time_before: Optional[datetime] = Field(None, description="Records created before this time.")
+    # --- Exact Match Filters (Maps to column = value) ---
+    id: Optional[str] = Field(None, description="Filter by exact record ID (column: 'id', operator: '=').")
+    type: Optional[str] = Field(None, description="Filter by the exact type value (column: 'type', operator: '=').")
+    
+    # --- Prefix Match Filter (Maps to column LIKE value%) ---
+    id_prefix: Optional[str] = Field(None, description="Filter where 'id' starts with this string (operator: 'LIKE').")
+    
+    # --- Range Filters (Maps to column > value or column < value) ---
+    time_after: Optional[datetime] = Field(None, description="Records created strictly after this time (column: 'time', operator: '>').")
+    time_before: Optional[datetime] = Field(None, description="Records created strictly before this time (column: 'time', operator: '<').")
 
-# --- 3. Raw Data Model (No Change) ---
 class RawData(RootModel): # Inherit from RootModel
     # Use 'root' instead of '__root__'
     root: Dict[str, Any] 
@@ -220,50 +219,45 @@ class StreetSegmentEntityModel(StreetSegmentEntityBase):
     geom: Optional[str]
 
 
+
 class StreetSegmentFilterModel(BaseEntity):
     """
     Pydantic model for filtering criteria for the StreetSegmentEntityModel.
-
-    Filters apply to an EntityModel, so they don't need the table FQN themselves.
     """
-    
-    # We still need to inherit from BaseEntity to get the config/setup
-    # but we don't need _table_name or _ENTITY_SCHEMA here.
     
     # Override config to be strict on filter inputs
     model_config = ConfigDict(extra='forbid')
     
-    # --- Exact Match Filters (for primary identifiers) ---
+    # --- 1. Exact Match Filters (Maps to column = value) ---
     objectid: Optional[int] = Field(None, description="Filter by exact OBJECTID.")
     segment_id: Optional[int] = Field(None, description="Filter by exact segment_id.")
     street_id: Optional[int] = Field(None, description="Filter by exact street_id.")
-
-    # --- String/Text Filters (for name and type fields) ---
-    st_name: Optional[str] = Field(None, description="Filter by exact street name (st_name).")
-    st_name_contains: Optional[str] = Field(None, description="Filter where street name contains this substring (LIKE %value%).")
-    st_type: Optional[str] = Field(None, description="Filter by exact street type (st_type).")
-    cfcc: Optional[str] = Field(None, description="Filter by exact CFCC code.")
-    oneway: Optional[str] = Field(None, description="Filter by ONESWAY status ('Y', 'N', etc.).")
+    cfcc: Optional[str] = Field(None, description="Filter by exact Functional Class Code (CFCC).")
+    oneway: Optional[str] = Field(None, description="Filter by exact ONESWAY status (e.g., 'Y' or 'N').")
     
-    # --- Numeric Range Filters (for speed limit and length) ---
+    # --- 2. Numeric Range Filters (Maps to >= and <=) ---
     speed_limit_min: Optional[int] = Field(None, description="Records with speed_limit greater than or equal to this value.")
     speed_limit_max: Optional[int] = Field(None, description="Records with speed_limit less than or equal to this value.")
+    
     length_m_min: Optional[float] = Field(None, description="Records with length_m greater than or equal to this value.")
     length_m_max: Optional[float] = Field(None, description="Records with length_m less than or equal to this value.")
 
-    # --- Timestamp Range Filters (for audit fields) ---
-    batch_timestamp_after: Optional[datetime] = Field(None, description="Records batched after this time.")
-    batch_timestamp_before: Optional[datetime] = Field(None, description="Records batched before this time.")
-    ingested_at_after: Optional[datetime] = Field(None, description="Records ingested after this time.")
-    ingested_at_before: Optional[datetime] = Field(None, description="Records ingested before this time.")
+    # --- 3. Timestamp Range Filters (Maps to > and <) ---
+    batch_timestamp_after: Optional[datetime] = Field(None, description="Records batched strictly after this time.")
+    batch_timestamp_before: Optional[datetime] = Field(None, description="Records batched strictly before this time.")
     
-    # --- Spatial/Boundary Filters (common BigQuery/GIS pattern) ---
-    # Although the geometry itself is a complex field, filters often involve
-    # bounding box coordinates or spatial relationships.
-    # A simple example: filtering by state/county names on the left side
+    ingested_at_after: Optional[datetime] = Field(None, description="Records ingested strictly after this time.")
+    ingested_at_before: Optional[datetime] = Field(None, description="Records ingested strictly before this time.")
+    
+    # --- 4. Text Search Filters (Maps to LIKE) ---
+    st_name_prefix: Optional[str] = Field(None, description="Filter where st_name starts with this string (LIKE value%).")
+    st_name_contains: Optional[str] = Field(None, description="Filter where st_name contains this string (LIKE %value%).")
+
+    alternate_name_contains: Optional[str] = Field(None, description="Filter where alternate_name contains this string (LIKE %value%).")
+    
+    # --- 5. Geography/Metadata Filters (Exact match) ---
     state00_l: Optional[str] = Field(None, description="Filter by state code on the left side.")
     county00_l: Optional[str] = Field(None, description="Filter by county code on the left side.")
-
 
 
 class RawSignAssetEntityBase(BaseEntity):
@@ -378,7 +372,50 @@ class RawSignAssetEntityModel(RawSignAssetEntityBase):
     schema_version: Optional[str]
 
 
+class RawSignAssetFilterModel(BaseEntity):
+    """
+    Pydantic model for filtering criteria for the RawSignAsset entity.
+    
+    Uses standard suffixes for automatic mapping to SQL operators (e.g., LIKE, >=).
+    """
+    
+    # Override config to be strict on filter inputs
+    model_config = ConfigDict(extra='forbid')
+    
+    # --- 1. Exact Match Filters (Maps to column = value) ---
+    oid: Optional[int] = Field(None, description="Filter by exact unique ID.")
+    asset_status_field: Optional[str] = Field(None, description="Filter by exact asset status.")
+    lifecycle_status: Optional[str] = Field(None, description="Filter by exact lifecycle status.")
+    sign_direction_field: Optional[str] = Field(None, description="Filter by exact sign direction.")
+    support_field: Optional[str] = Field(None, description="Filter by exact support type.")
+    
+    # --- 2. Numeric Range Filters (Maps to >= and <=) ---
+    age_days_min: Optional[int] = Field(None, description="Assets older than or equal to this many days.")
+    age_days_max: Optional[int] = Field(None, description="Assets newer than or equal to this many days.")
+    
+    height_field_amount_min: Optional[float] = Field(None, description="Minimum sign height amount.")
+    width_field_amount_max: Optional[float] = Field(None, description="Maximum sign width amount.")
 
+    latitude_min: Optional[float] = Field(None, description="Minimum latitude bound.")
+    latitude_max: Optional[float] = Field(None, description="Maximum latitude bound.")
+    longitude_min: Optional[float] = Field(None, description="Minimum longitude bound.")
+    longitude_max: Optional[float] = Field(None, description="Maximum longitude bound.")
+
+    # --- 3. Timestamp Range Filters (Maps to > and <) ---
+    cg_last_modified_field_after: Optional[datetime] = Field(None, description="Records last modified strictly after this time.")
+    cg_last_modified_field_before: Optional[datetime] = Field(None, description="Records last modified strictly before this time.")
+    
+    entry_date_field_after: Optional[datetime] = Field(None, description="Records entered strictly after this time.")
+    entry_date_field_before: Optional[datetime] = Field(None, description="Records entered strictly before this time.")
+    
+    # --- 4. Text Search Filters (Maps to LIKE) ---
+    cartegraph_id_prefix: Optional[str] = Field(None, description="Filter where cartegraph_id starts with this string (LIKE value%).")
+    
+    mutcd_code_field_contains: Optional[str] = Field(None, description="Filter where MUTCD code contains this substring (LIKE %value%).")
+    
+    locator_street_field_contains: Optional[str] = Field(None, description="Filter where street name contains this substring (LIKE %value%).")
+    
+    notes_field_contains: Optional[str] = Field(None, description="Filter where notes contain this substring (LIKE %value%).")
 
 
 class RawSignAssetEntityModelWithAttachments(BaseEntity):

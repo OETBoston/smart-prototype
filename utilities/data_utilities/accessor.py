@@ -292,22 +292,30 @@ class BigQueryClient:
 class AccessorSelectQueryBuilder:
     """
     Helper class responsible for translating Pydantic Models 
-    (Filter, Entity) into the client's internal QuerySpec.
+    (Filter, Entity) into the client's internal QuerySpec using 
+    a convention-based, maintainable approach.
     """
-    
-    # 1. Define the Suffix-Operator Map
-    _SUFFIX_MAP = {
-        '_gt': '>',
-        '_gte': '>=',
-        '_lt': '<',
-        '_lte': '<='
-    }
 
-    _CUSTOM_RANGE_MAP = {
-        'time_after': 'time_gt',
-        'time_before': 'time_lt',
-        'id_prefix': 'id_like', 
-    }
+    # Define a single source of truth for all range/special filters.
+    # Sorted by length (descending) to ensure that longer suffixes 
+    # (like '_gte') are checked before shorter ones (like '_gt').
+    _FILTER_CONVENTIONS = sorted(
+        {
+            '_min': '>=',    # Descriptive: e.g., speed_limit_min
+            '_max': '<=',    # Descriptive: e.g., speed_limit_max
+            '_gte': '>=',    # Standard: Greater Than or Equal To
+            '_lte': '<=',    # Standard: Less Than or Equal To
+            '_gt': '>',
+            '_lt': '<',
+            '_after': '>',   # Descriptive: e.g., batch_timestamp_after
+            '_before': '<',  # Descriptive: e.g., batch_timestamp_before
+            '_contains': 'LIKE', # Requires value modification: %value%
+            '_prefix': 'LIKE',   # Requires value modification: value%
+            '_suffix': 'LIKE',   # Requires value modification: %value
+        }.items(), 
+        key=lambda item: len(item[0]), 
+        reverse=True
+    )
     
     @staticmethod
     def build_query_spec(
@@ -324,35 +332,41 @@ class AccessorSelectQueryBuilder:
 
         # 2. Filters: Map non-None fields from the Filter instance to QuerySpec filters
         filters = []
+        
+        # Iterate over all fields passed in the filter instance that are not None
         for field_name, value in filter_instance.model_dump(exclude_none=True).items():
             
-            # 1. Map custom descriptive fields to standard internal fields
-            if field_name in AccessorSelectQueryBuilder._CUSTOM_RANGE_MAP:
-                field_name = AccessorSelectQueryBuilder._CUSTOM_RANGE_MAP[field_name]
-            
-            # 2. Determine Column and Operator
+            # Default to exact match
             column_name = field_name
             operator = '='
+            final_value = value
+            matched_convention = False
             
-            # Handle LIKE operator for id_prefix (mapped to id_like)
-            if field_name == 'id_like':
-                column_name = 'id'
-                operator = 'LIKE'
-                value = f"{value}%" # Add SQL wildcard for prefix match
-            
-            # Check for range filter suffixes (_gt, _lt, etc.)
-            else:
-                for suffix, op in AccessorSelectQueryBuilder._SUFFIX_MAP.items():
-                    if field_name.endswith(suffix):
-                        # Found a range filter
-                        column_name = field_name.removesuffix(suffix)
-                        operator = op
-                        break # Exit the suffix check loop
+            # Check Conventions (Longest suffix first)
+            for suffix, op in AccessorSelectQueryBuilder._FILTER_CONVENTIONS:
+                if field_name.endswith(suffix):
+                    
+                    # 1. Determine Column Name and Operator
+                    column_name = field_name.removesuffix(suffix)
+                    operator = op
+                    matched_convention = True
+                    
+                    # 2. Apply Value Transformation for LIKE operators
+                    if suffix == '_contains':
+                        final_value = f"%{value}%"
+                    elif suffix == '_prefix':
+                        final_value = f"{value}%"
+                    elif suffix == '_suffix':
+                        final_value = f"%{value}"
+                        
+                    break # Stop checking suffixes once a match is found
             
             # Final filter addition
-            filters.append((column_name, operator, value))
+            # If no suffix was matched, it automatically uses the default operator='=' 
+            # and column_name = field_name (exact match).
+            filters.append((column_name, operator, final_value))
 
-        # 3. Handle Offset (BigQuery supports LIMIT and OFFSET)
+        # 3. Handle Limit
         final_limit = limit
 
         return QuerySpec(
@@ -362,6 +376,7 @@ class AccessorSelectQueryBuilder:
             filters=filters,
             limit=final_limit
         )
+
 
 
 CLIENT_REGISTRY: Dict[str, Callable[..., DataClient]] = {
@@ -420,25 +435,7 @@ class DataAccessor:
                 )
             self.current_prefix = prefix
 
-    def load_persistence_config(config_path="persistence_config.yaml"):
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-        
-        # Dynamically map the string keys to the actual Python classes
-        registry = {}
-        for entity_name, data in config['entities'].items():
-            # This assumes your entity classes are in scope (e.g., globals() or a defined module)
-            entity_class = globals().get(entity_name) # Or use importlib
-            if entity_class:
-                registry[entity_class] = data
-                
-        return registry
 
-    
-    def register_entity_fqn(self, entity_model: Type[BaseEntity], fqn: str) -> str:
-        """allows for dynamicly registering or re-registering entity fqn"""
-        pass
-            
     def _get_table_fqn(self, entity_model: Type[BaseEntity]) -> str:
         """Internal helper to resolve the FQN from the provided model type."""
         

@@ -17,7 +17,8 @@ from utilities.data_utilities.queries_and_contracts import (
     StreetSegmentEntityModel,
     StreetSegmentFilterModel,
     RawSignAssetEntityModel,
-    RawSignAssetEntityModelWithAttachments
+    RawSignAssetEntityModelWithAttachments,
+    RawSignAssetFilterModel
 )
 
 
@@ -360,16 +361,24 @@ class TestConfigDrivenInit:
         """
         Verifies schema match across all records and asserts that at least two records are returned.
         """
+        expected_prefix = "Traffic_Sign"
         results = config_driven_data_accessor.get(
             entity_model=RawSignAssetEntityModel,
-            filter=BaseEntity())
+            filter=RawSignAssetFilterModel(cartegraph_id_prefix=expected_prefix))
             
         # Check that 'results' is not empty and is a list/tuple.
         assert isinstance(results, list)
         assert len(results) > 0
-        
-        # Optional: Check the type of the returned object
         assert isinstance(results[0], RawSignAssetEntityModel)
+        for result in results:
+            # Check the type of the returned object
+            assert isinstance(result, RawSignAssetEntityModel), "Returned object is not the correct entity model type."
+            
+            # Verify that the actual 'cartegraph_id' starts with the expected prefix
+            assert result.cartegraph_id.startswith(expected_prefix), (
+                f"Filter validation failed: Expected cartegraph_id to start with '{expected_prefix}', "
+                f"but found '{result.cartegraph_id}'."
+            )
 
     def test_raw_sign_with_attachments_entity(self, config_driven_data_accessor: DataAccessor):
         """
