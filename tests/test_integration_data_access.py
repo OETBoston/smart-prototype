@@ -11,7 +11,9 @@ from utilities.data_utilities.queries_and_contracts import (
     SimpleEntityModel, 
     SimpleEntityFilter, 
     TEST_TABLE_NAME, 
-    BaseEntity 
+    BaseEntity,
+    StreetSegmentEntityModel,
+    StreetSegmentFilterModel,
 )
 
 
@@ -296,7 +298,6 @@ class TestDataAccessorOperations:
         print(f"\n✅ Success: GET with limit=1 returned a single SimpleEntityModel object.")
 
 
-
 @pytest.mark.integration
 class TestConfigDrivenInit:
     
@@ -335,3 +336,19 @@ class TestConfigDrivenInit:
         assert isinstance(config_driven_data_accessor.client, BigQueryClient)
         
         print(f"\n✅ Success: DataAccessor initialized client via config and performed PUT.")
+
+    def test_street_segment_entity(self, config_driven_data_accessor: DataAccessor):
+        """
+        Verifies schema match and asserts that at least one record is returned.
+        """
+        results = config_driven_data_accessor.get(
+            entity_model=StreetSegmentEntityModel,
+            filter=StreetSegmentFilterModel(),
+            limit=2)
+            
+        # 💡 ASSERTION ADDED: Check that 'results' is not empty and is a list/tuple.
+        assert isinstance(results, list)
+        assert len(results) > 0
+        
+        # Optional: Check the type of the returned object
+        assert isinstance(results[0], StreetSegmentEntityModel)

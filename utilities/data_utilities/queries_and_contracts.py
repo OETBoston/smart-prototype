@@ -149,32 +149,29 @@ class StreetSegmentEntityModel(BaseEntity):
         "length_m": "FLOAT",
     }
     
-    # Instance Fields (data types for Python/Pydantic validation)
-    # Mapping BigQuery types to Python types: INTEGER -> int, STRING -> str, 
-    # FLOAT -> float, TIMESTAMP -> datetime, GEOGRAPHY -> str
     objectid: int
     segment_id: int
-    l_f_add: str
-    l_t_add: str
-    r_f_add: str
-    r_t_add: str
+    l_f_add: Optional[str] 
+    l_t_add: Optional[str] 
+    r_f_add: Optional[str] 
+    r_t_add: Optional[str] 
     street_id: int
-    pre_dir: str
-    st_name: str
-    st_type: str
-    suf_dir: str
-    alternate_name: str
-    cfcc: str
+    pre_dir: Optional[str] 
+    st_name: Optional[str] 
+    st_type: Optional[str] 
+    suf_dir: Optional[str] 
+    alternate_name: str 
+    cfcc: str           
     speed_limit: int
-    oneway: str
+    oneway: str         
     f_zlev: int
     t_zlev: int
     ft_cost: float
     tf_cost: float
-    ft_dir: str
-    tf_dir: str
-    shield: str
-    hwy_num: str
+    ft_dir: Optional[str] 
+    tf_dir: Optional[str] 
+    shield: Optional[str] 
+    hwy_num: Optional[str] 
     mun_l: str
     mun_r: str
     nbhd_l: str
@@ -186,8 +183,8 @@ class StreetSegmentEntityModel(BaseEntity):
     mcd00_l: str
     mcd00_r: str
     shape_length_src: float
-    shape_wkt: str
-    geom: str # GEOGRAPHY type mapped to Python string
+    shape_wkt: Optional[str] # MODIFIED: was failing because it was None
+    geom: str # GEOGRAPHY type mapped to Python string (Assuming this is required)
     batch_timestamp: datetime
     ingested_at: datetime
     batch: str
@@ -195,7 +192,6 @@ class StreetSegmentEntityModel(BaseEntity):
     source_file: str
     schema_version: str
     length_m: float
-
 
 
 class StreetSegmentFilterModel(BaseEntity):
