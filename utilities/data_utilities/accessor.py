@@ -8,7 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from google.cloud import bigquery
 from google.cloud.bigquery import QueryJobConfig, SchemaField
 from datetime import datetime, date
-
+import pandas as pd
+import geopandas as gpd
+from shapely import wkt
 
 from .queries_and_contracts import BaseEntity
 
@@ -451,7 +453,38 @@ class DataAccessor:
         return f"{prefix}.{table_name}"
 
 
-    # --- 1. PRIMARY TYPE-SAFE GET METHOD ---
+    def get_as_geo_data_frame(
+        self, 
+        entity_model: Type[BaseEntity],
+        filter: BaseEntity,
+        limit: Optional[int] = None,
+        crs:Optional[str]="EPSG:4326"
+    ) -> gpd.GeoDataFrame:
+        """
+        Retrieves data by translating the filter into a query, ensuring results 
+        are validated against the specified entity_model.
+        """
+        raw_results = self.get(
+            entity_model = entity_model,
+            filter=filter,
+            limit=limit)
+        
+        raw_list_of_dicts: List[dict] = [r.model_dump() for r in raw_results]
+        data_df = pd.DataFrame(raw_list_of_dicts)
+
+        # 3. GeoDataFrame Conversion & Initial Projection
+        #    - Parse the WKT string field into Shapely geometry objects
+        #    - Set initial CRS to 4326 (common for WKT data)
+        data_df["geometry"] = data_df["shape_wkt"].apply(
+            lambda x: wkt.loads(x) if x else None
+        )
+
+        # Drop rows where geometry failed to load (if geom was NULL/bad string)
+        data_df.dropna(subset=["geometry"], inplace=True)
+
+        output = gpd.GeoDataFrame(data_df, geometry="geometry", crs=crs)
+        return output
+
     def get(
         self, 
         entity_model: Type[BaseEntity],
@@ -486,7 +519,6 @@ class DataAccessor:
         return pydantic_results
 
 
-    # --- 2. RAW SQL ESCAPE HATCH ---
     def get_raw_sql(self, sql_query: str) -> List[Dict[str, Any]]:
         """
         Fetches raw data using a custom SQL query. 
@@ -497,7 +529,6 @@ class DataAccessor:
         return self.client.raw_sql(sql_query)
 
 
-    # --- 3. PUT METHOD ---
     def put(self, data: List[BaseEntity]) -> int:
         """
         Inserts data rows using the table name resolved from the entity model. 

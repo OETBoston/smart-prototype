@@ -4,6 +4,8 @@ from unittest.mock import patch, MagicMock
 import uuid
 from datetime import datetime, timezone
 from typing import List, Dict, Any
+import geopandas as gpd
+from shapely.geometry import Point
 
 # --- Import from your project files ---
 from utilities.data_utilities.accessor import BigQueryClient, BigQueryProfile, DataAccessor, QuerySpec
@@ -351,3 +353,38 @@ class TestConfigDrivenInit:
         
         # Optional: Check the type of the returned object
         assert isinstance(results[0], StreetSegmentEntityModel)
+
+
+    def test_get_as_geo_data_frame_validity(self, config_driven_data_accessor: DataAccessor):
+        """
+        Verifies that get_as_geo_data_frame successfully retrieves data, 
+        converts it to a GeoDataFrame, and contains valid geometry.
+        """
+        # 1. Call the new method
+        roads_gdf = config_driven_data_accessor.get_as_geo_data_frame(
+            entity_model=StreetSegmentEntityModel,
+            filter=StreetSegmentFilterModel(), 
+            limit=10 
+        )
+        
+        # 2. CRITICAL ASSERTIONS: Check Type and Data Presence
+        
+        # A. Must be a GeoDataFrame
+        assert isinstance(roads_gdf, gpd.GeoDataFrame), \
+            "Result is not a GeoDataFrame."
+            
+        # B. Must contain data (at least one row)
+        assert len(roads_gdf) > 0, \
+            "GeoDataFrame is empty; check data source or filter."
+            
+        # C. Must have a geometry column
+        assert roads_gdf.geometry.name == 'geometry', \
+            "GeoDataFrame geometry column is misnamed or missing."
+            
+        # 3. GEOMETRY ASSERTIONS: Check validity and CRS
+        # todo: create reasonable assertions
+        
+        # D. Check CRS: Verify the CRS was applied correctly (default is EPSG:4326)
+        assert roads_gdf.crs is not None
+        assert roads_gdf.crs.to_epsg() == 4326, \
+            "CRS was not correctly set to EPSG:4326."
