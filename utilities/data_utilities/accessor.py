@@ -464,13 +464,10 @@ class DataAccessor:
         Retrieves data by translating the filter into a query, ensuring results 
         are validated against the specified entity_model.
         """
-        raw_results = self.get(
+        data_df = self.get_as_data_frame(
             entity_model = entity_model,
             filter=filter,
             limit=limit)
-        
-        raw_list_of_dicts: List[dict] = [r.model_dump() for r in raw_results]
-        data_df = pd.DataFrame(raw_list_of_dicts)
 
         # 3. GeoDataFrame Conversion & Initial Projection
         #    - Parse the WKT string field into Shapely geometry objects
@@ -484,6 +481,26 @@ class DataAccessor:
 
         output = gpd.GeoDataFrame(data_df, geometry="geometry", crs=crs)
         return output
+
+    def get_as_data_frame(
+        self, 
+        entity_model: Type[BaseEntity],
+        filter: BaseEntity,
+        limit: Optional[int] = None,
+    ) -> pd.DataFrame:
+        """
+        Retrieves data by translating the filter into a query, ensuring results 
+        are validated against the specified entity_model.
+        """
+        raw_results = self.get(
+            entity_model = entity_model,
+            filter=filter,
+            limit=limit)
+        
+        raw_list_of_dicts: List[dict] = [r.model_dump() for r in raw_results]
+        data_df = pd.DataFrame(raw_list_of_dicts)
+        return data_df
+ 
 
     def get(
         self, 
