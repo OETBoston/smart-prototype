@@ -459,7 +459,8 @@ class DataAccessor:
         filter: BaseEntity,
         limit: Optional[int] = None,
         initial_crs:Optional[str]="EPSG:4326",
-        target_crs:Optional[str]="EPSG:4326"
+        target_crs:Optional[str]="EPSG:4326",
+        split_multiline_string:Optional[boolean]=False
     ) -> gpd.GeoDataFrame:
         """
         Retrieves data by translating the filter into a query, ensuring results 
@@ -484,6 +485,8 @@ class DataAccessor:
         geodataframe = gpd.GeoDataFrame(data_df, geometry="geometry", crs=initial_crs)
         if geodataframe.crs.to_string() != target_crs:
             geodataframe = geodataframe.to_crs(epsg=target_crs)
+        if split_multiline_string:
+            geodataframe = geodataframe.explode(ignore_index=True)
         return geodataframe
 
     def get_as_data_frame(
