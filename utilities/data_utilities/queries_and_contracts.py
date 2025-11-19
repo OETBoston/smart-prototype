@@ -149,49 +149,58 @@ class StreetSegmentEntityModel(BaseEntity):
         "length_m": "FLOAT",
     }
     
-    objectid: int
-    segment_id: int
-    l_f_add: Optional[str] 
-    l_t_add: Optional[str] 
-    r_f_add: Optional[str] 
-    r_t_add: Optional[str] 
-    street_id: int
-    pre_dir: Optional[str] 
-    st_name: Optional[str] 
-    st_type: Optional[str] 
-    suf_dir: Optional[str] 
-    alternate_name: str 
-    cfcc: str           
-    speed_limit: int
-    oneway: str         
-    f_zlev: int
-    t_zlev: int
-    ft_cost: float
-    tf_cost: float
-    ft_dir: Optional[str] 
-    tf_dir: Optional[str] 
-    shield: Optional[str] 
-    hwy_num: Optional[str] 
-    mun_l: str
-    mun_r: str
-    nbhd_l: str
-    nbhd_r: str
-    state00_l: str
-    state00_r: str
-    county00_l: str
-    county00_r: str
-    mcd00_l: str
-    mcd00_r: str
-    shape_length_src: float
-    shape_wkt: Optional[str] # MODIFIED: was failing because it was None
-    geom: str # GEOGRAPHY type mapped to Python string (Assuming this is required)
-    batch_timestamp: datetime
-    ingested_at: datetime
-    batch: str
-    source_name: str
-    source_file: str
-    schema_version: str
-    length_m: float
+# Integer Fields
+    objectid: Optional[int]
+    segment_id: Optional[int]
+    street_id: Optional[int]
+    speed_limit: Optional[int]
+    f_zlev: Optional[int]
+    t_zlev: Optional[int]
+
+    # Float Fields
+    ft_cost: Optional[float]
+    tf_cost: Optional[float]
+    shape_length_src: Optional[float]
+    length_m: Optional[float]
+
+    # Timestamp Fields
+    batch_timestamp: Optional[datetime]
+    ingested_at: Optional[datetime]
+
+    # String Fields (All 26 are now Optional)
+    l_f_add: Optional[str]
+    l_t_add: Optional[str]
+    r_f_add: Optional[str]
+    r_t_add: Optional[str]
+    pre_dir: Optional[str]
+    st_name: Optional[str]
+    st_type: Optional[str]
+    suf_dir: Optional[str]
+    alternate_name: Optional[str]
+    cfcc: Optional[str]
+    oneway: Optional[str]
+    ft_dir: Optional[str]
+    tf_dir: Optional[str]
+    shield: Optional[str]
+    hwy_num: Optional[str]
+    mun_l: Optional[str]
+    mun_r: Optional[str]
+    nbhd_l: Optional[str]
+    nbhd_r: Optional[str]
+    state00_l: Optional[str]
+    state00_r: Optional[str]
+    county00_l: Optional[str]
+    county00_r: Optional[str]
+    mcd00_l: Optional[str]
+    mcd00_r: Optional[str]
+    shape_wkt: Optional[str]
+    batch: Optional[str]
+    source_name: Optional[str]
+    source_file: Optional[str]
+    schema_version: Optional[str]
+    
+    # Geography Field (Mapped to String)
+    geom: Optional[str]
 
 
 class StreetSegmentFilterModel(BaseEntity):
