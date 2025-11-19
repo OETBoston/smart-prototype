@@ -460,7 +460,7 @@ class DataAccessor:
         limit: Optional[int] = None,
         initial_crs:Optional[str]="EPSG:4326",
         target_crs:Optional[str]="EPSG:4326",
-        split_multiline_string:Optional[boolean]=False
+        split_multiline_string:Optional[bool]=False
     ) -> gpd.GeoDataFrame:
         """
         Retrieves data by translating the filter into a query, ensuring results 
