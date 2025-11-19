@@ -13,6 +13,7 @@ class BaseEntity(BaseModel):
     
     _ENTITY_SCHEMA: ClassVar[Dict[str, str]] 
     _TABLE_NAME: ClassVar[str]
+    _SQL_QUERY: ClassVar[str] = None
 
     model_config = ConfigDict(extra='forbid')
     
@@ -26,15 +27,27 @@ class BaseEntity(BaseModel):
         """The primary, instance-friendly way to get the schema."""
         return self._ENTITY_SCHEMA
     
+    @property
+    def sql_query(self) -> str:
+        """None in normal circumstances, will replace normal search for model data"""
+        return self._SQL_QUERY
+
     @classmethod
     def get_table_name_cls(cls) -> str:
         """Safe getter for class-level access (e.g., DataAccessor)."""
         return cls._TABLE_NAME
     
     @classmethod
-    def get_entity_schema_cls(self) -> Dict[str, str]:
+    def get_entity_schema_cls(cls) -> Dict[str, str]:
         """Safe getter for class-level access (e.g., DataAccessor)."""
         return cls._ENTITY_SCHEMA
+    
+    @classmethod
+    def get_sql_query(cls) -> str:
+        """None in normal circumstances, will replace normal search for model data"""
+        return cls._SQL_QUERY
+
+
 
 
 class SimpleEntityModel(BaseEntity):
@@ -363,3 +376,52 @@ class RawSignAssetEntityModel(RawSignAssetEntityBase):
     source_name: Optional[str]
     source_file: Optional[str]
     schema_version: Optional[str]
+
+
+
+
+
+class RawSignAssetEntityModelWithAttachments(BaseEntity):
+    """
+    Model for a single Sign Asset record, derived from a JOIN 
+    between stg_cartegraph and stg_cartegraph_attachments.
+
+    NOTE: This model uses the _SQL_QUERY class variable for reading 
+    and is NOT intended for single-table INSERT/DELETE operations.
+    """
+
+    asset_status_field: Optional[str]
+    attachment_public_url: Optional[str]
+    cartegraph_id: Optional[str]
+    latitude: Optional[float]
+    longitude: Optional[float]
+
+    attachment_cg_last_modified_field: Optional[datetime]
+
+    _TABLE_NAME: ClassVar[str] = "JOINED_ASSET_ATTACHMENTS"
+    
+    _SQL_QUERY: ClassVar[str] = """
+        SELECT
+            t1.asset_status_field,
+            t1.cartegraph_id,
+            t1.latitude,
+            t1.longitude,
+            t2.attachment_cg_last_modified_field,
+            t2.attachment_public_url
+        FROM
+            `{table_prefix}.stg_cartegraph` AS t1
+        LEFT JOIN (
+            SELECT
+                cartegraph_id,
+                attachment_cg_last_modified_field,
+                attachment_public_url,
+                ROW_NUMBER() OVER (PARTITION BY cartegraph_id ORDER BY attachment_cg_last_modified_field DESC) AS rn
+            FROM
+                `{table_prefix}.stg_cartegraph_attachments`
+        ) AS t2
+            ON t1.cartegraph_id = t2.cartegraph_id
+        WHERE t2.rn = 1 OR t2.rn IS NULL
+    """
+
+    # Strict configuration
+    model_config = ConfigDict(extra='forbid')

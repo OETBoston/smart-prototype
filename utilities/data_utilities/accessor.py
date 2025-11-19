@@ -495,19 +495,26 @@ class DataAccessor:
         Retrieves data by translating the filter into a query, ensuring results 
         are validated against the specified entity_model.
         """
-        # 1. Resolve table FQN
-        table_fqn = self._get_table_fqn(entity_model)
-        
-        # 2. Build QuerySpec from Pydantic inputs
-        query_spec = AccessorSelectQueryBuilder.build_query_spec(
-            table_fqn,
-            entity_model,
-            filter,
-            limit
-        )
-        
-        # 3. Execute query (BigQueryClient handles the translation from QuerySpec to SQL)
-        raw_results: List[Dict[str, Any]] = self.client.execute_query(query_spec)
+
+        raw_results = None
+        if(entity_model.get_sql_query()==None):
+            # 1. Resolve table FQN
+            table_fqn = self._get_table_fqn(entity_model)
+            
+            # 2. Build QuerySpec from Pydantic inputs
+            query_spec = AccessorSelectQueryBuilder.build_query_spec(
+                table_fqn,
+                entity_model,
+                filter,
+                limit
+            )
+            
+            # 3. Execute query (BigQueryClient handles the translation from QuerySpec to SQL)
+            raw_results: List[Dict[str, Any]] = self.client.execute_query(query_spec)
+        else:
+            raw_sql_template = entity_model.get_sql_query()
+            final_sql = raw_sql_template.format(table_prefix=self.current_prefix) 
+            raw_results = self.get_raw_sql(final_sql)
         
         # 4. Validate and return 
         pydantic_results = [entity_model.model_validate(row) for row in raw_results]
