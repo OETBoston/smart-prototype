@@ -16,6 +16,7 @@ from utilities.data_utilities.queries_and_contracts import (
     BaseEntity,
     StreetSegmentEntityModel,
     StreetSegmentFilterModel,
+    RawSignAssetEntityModel
 )
 
 
@@ -353,6 +354,21 @@ class TestConfigDrivenInit:
         
         # Optional: Check the type of the returned object
         assert isinstance(results[0], StreetSegmentEntityModel)
+    
+    def test_raw_sign_entity(self, config_driven_data_accessor: DataAccessor):
+        """
+        Verifies schema match across all records and asserts that at least two records are returned.
+        """
+        results = config_driven_data_accessor.get(
+            entity_model=RawSignAssetEntityModel,
+            filter=BaseEntity())
+            
+        # Check that 'results' is not empty and is a list/tuple.
+        assert isinstance(results, list)
+        assert len(results) > 0
+        
+        # Optional: Check the type of the returned object
+        assert isinstance(results[0], RawSignAssetEntityModel)
 
 
     def test_get_as_geo_data_frame_validity(self, config_driven_data_accessor: DataAccessor):

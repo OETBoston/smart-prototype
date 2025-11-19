@@ -93,9 +93,9 @@ GetReturnType = Union[List[EntityModel], EntityModel, List[RawData], RawData]
 
 
 
-class StreetSegmentEntityModel(BaseEntity):
+class StreetSegmentEntityBase(BaseEntity):
     """
-    Pydantic model representing street segments
+    Pydantic model representing schema and table name for street segments
     """
     
     # Static metadata for the BigQuery table
@@ -148,8 +148,12 @@ class StreetSegmentEntityModel(BaseEntity):
         "schema_version": "STRING",
         "length_m": "FLOAT",
     }
-    
-# Integer Fields
+
+class StreetSegmentEntityModel(StreetSegmentEntityBase):
+    """
+    Pydantic model representing street segments
+    """
+    # Integer Fields
     objectid: Optional[int]
     segment_id: Optional[int]
     street_id: Optional[int]
@@ -246,3 +250,116 @@ class StreetSegmentFilterModel(BaseEntity):
     # A simple example: filtering by state/county names on the left side
     state00_l: Optional[str] = Field(None, description="Filter by state code on the left side.")
     county00_l: Optional[str] = Field(None, description="Filter by county code on the left side.")
+
+
+
+class RawSignAssetEntityBase(BaseEntity):
+    """
+    Pydantic model representing schema and table name for Raw Sign Asset data.
+    """
+    
+    # --- Static metadata for the BigQuery table (following the sample structure) ---
+    _TABLE_NAME: ClassVar[str] = "stg_cartegraph"  # Example table name
+    
+    # BigQuery Schema definition (Field Name: BigQuery Data Type)
+    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = { 
+        "oid": "INTEGER",
+        "cartegraph_id": "STRING",
+        "locator_address_number_field": "STRING",
+        "locator_street_field": "STRING",
+        "locator_city_field": "STRING",
+        "address_number_field": "FLOAT",
+        "street_field": "STRING",
+        "neighborhood_field": "STRING",
+        "city_field": "STRING",
+        "county_field": "STRING",
+        "state_field": "STRING",
+        "height_field_amount": "FLOAT",
+        "height_field_unit": "STRING",
+        "width_field_amount": "FLOAT",
+        "width_field_unit": "STRING",
+        "mutcd_code_field": "STRING",
+        "directionof_sign_arrow_field": "STRING",
+        "sign_direction_field": "STRING",
+        "sign_orientation_field": "STRING",
+        "cg_last_modified_field": "TIMESTAMP",
+        "entry_date_field": "TIMESTAMP",
+        "replaced_field": "TIMESTAMP",
+        "retired_field": "TIMESTAMP",
+        "signalized_intersections_id_field": "STRING",
+        "support_field": "STRING",
+        "asset_status_field": "STRING",
+        "special_sign_description_field": "STRING",
+        "notes_field": "STRING",
+        "geom": "GEOGRAPHY",
+        "latitude": "FLOAT",
+        "longitude": "FLOAT",
+        "arrow_dir": "STRING",
+        "geom_quality": "STRING",
+        "address_quality": "STRING",
+        "lifecycle_status": "STRING",
+        "age_days": "INTEGER",
+        "ingested_at": "TIMESTAMP",
+        "batch_timestamp": "TIMESTAMP",
+        "source_name": "STRING",
+        "source_file": "STRING",
+        "schema_version": "STRING",
+    }
+
+
+class RawSignAssetEntityModel(RawSignAssetEntityBase):
+    """
+    Pydantic model representing Raw Sign Asset data.
+    """
+    # --- Pydantic Field Definitions ---
+    # All fields are Optional as per the 'NULLABLE' mode in the schema.
+
+    # 1. Integer Fields (BigQuery: INTEGER)
+    oid: Optional[int]
+    age_days: Optional[int]
+
+    # 2. Float Fields (BigQuery: FLOAT)
+    address_number_field: Optional[float]
+    height_field_amount: Optional[float]
+    width_field_amount: Optional[float]
+    latitude: Optional[float]
+    longitude: Optional[float]
+
+    # 3. Timestamp Fields (BigQuery: TIMESTAMP)
+    cg_last_modified_field: Optional[datetime]
+    entry_date_field: Optional[datetime]
+    replaced_field: Optional[datetime]
+    retired_field: Optional[datetime]
+    ingested_at: Optional[datetime]
+    batch_timestamp: Optional[datetime]
+
+    # 4. String/Geography Fields (BigQuery: STRING, GEOGRAPHY)
+    # GEOGRAPHY is typically mapped to a string (WKT/GeoJSON) in Pydantic models.
+    cartegraph_id: Optional[str]
+    locator_address_number_field: Optional[str]
+    locator_street_field: Optional[str]
+    locator_city_field: Optional[str]
+    street_field: Optional[str]
+    neighborhood_field: Optional[str]
+    city_field: Optional[str]
+    county_field: Optional[str]
+    state_field: Optional[str]
+    height_field_unit: Optional[str]
+    width_field_unit: Optional[str]
+    mutcd_code_field: Optional[str]
+    directionof_sign_arrow_field: Optional[str]
+    sign_direction_field: Optional[str]
+    sign_orientation_field: Optional[str]
+    signalized_intersections_id_field: Optional[str]
+    support_field: Optional[str]
+    asset_status_field: Optional[str]
+    special_sign_description_field: Optional[str]
+    notes_field: Optional[str]
+    geom: Optional[str]  # GEOGRAPHY type handled as string
+    arrow_dir: Optional[str]
+    geom_quality: Optional[str]
+    address_quality: Optional[str]
+    lifecycle_status: Optional[str]
+    source_name: Optional[str]
+    source_file: Optional[str]
+    schema_version: Optional[str]
