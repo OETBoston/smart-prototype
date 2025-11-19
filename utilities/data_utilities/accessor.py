@@ -458,7 +458,8 @@ class DataAccessor:
         entity_model: Type[BaseEntity],
         filter: BaseEntity,
         limit: Optional[int] = None,
-        crs:Optional[str]="EPSG:4326"
+        initial_crs:Optional[str]="EPSG:4326",
+        target_crs:Optional[str]="EPSG:4326"
     ) -> gpd.GeoDataFrame:
         """
         Retrieves data by translating the filter into a query, ensuring results 
@@ -471,7 +472,7 @@ class DataAccessor:
 
         # 3. GeoDataFrame Conversion & Initial Projection
         #    - Parse the WKT string field into Shapely geometry objects
-        #    - Set initial CRS to 4326 (common for WKT data)
+        #    - Set initial CRS to 4326 )
         data_df["geometry"] = data_df["shape_wkt"].apply(
             lambda x: wkt.loads(x) if x else None
         )
@@ -479,8 +480,11 @@ class DataAccessor:
         # Drop rows where geometry failed to load (if geom was NULL/bad string)
         data_df.dropna(subset=["geometry"], inplace=True)
 
-        output = gpd.GeoDataFrame(data_df, geometry="geometry", crs=crs)
-        return output
+
+        geodataframe = gpd.GeoDataFrame(data_df, geometry="geometry", crs=initial_crs)
+        if geodataframe.crs.to_string() != target_crs:
+            geodataframe = geodataframe.to_crs(epsg=target_crs)
+        return geodataframe
 
     def get_as_data_frame(
         self, 
