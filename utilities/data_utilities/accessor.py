@@ -97,26 +97,26 @@ class BigQueryClient:
     def initialize(cls, settings: Optional[AppSettings] = None):
         """Initializes the client by loading settings and selecting the active profile."""
         
-            settings = settings or AppSettings()
+        settings = settings or AppSettings()
 
-            profile = settings.bigquery_profiles.get(settings.active_profile, BigQueryProfile())
+        profile = settings.bigquery_profiles.get(settings.active_profile, BigQueryProfile())
 
-            # If the user explicitly gave a service-account file:
-            if profile.credentials_path:
-                expanded = os.path.expanduser(profile.credentials_path)
-                return cls(
-                    bigquery.Client.from_service_account_json(
-                        expanded,
-                        project=profile.project_id,
-                    )
-                )
-
-            # Otherwise: rely fully on ADC
+        # If the user explicitly gave a service-account file:
+        if profile.credentials_path:
+            expanded = os.path.expanduser(profile.credentials_path)
             return cls(
-                bigquery.Client(
+                bigquery.Client.from_service_account_json(
+                    expanded,
                     project=profile.project_id,
                 )
             )
+
+        # Otherwise: rely fully on ADC
+        return cls(
+            bigquery.Client(
+                project=profile.project_id,
+            )
+        )
     
     def _build_sql(self, query_spec: QuerySpec) -> str:
         """Internal: Builds BigQuery-specific SQL from QuerySpec (assumes SELECT or DELETE)."""
@@ -160,12 +160,12 @@ class BigQueryClient:
                     bq_type = "TIMESTAMP"
                 elif isinstance(value, date):
                     bq_type = "DATE"
-                elif isinstance(value, bool):
-                    bq_type = "BOOL"
                 elif isinstance(value, int):
                     bq_type = "INT64"
                 elif isinstance(value, float):
                     bq_type = "FLOAT64"
+                elif isinstance(value, bool):
+                    bq_type = "BOOL"
                 query_params.append(
                     # NOTE: We pass the BQ type as a string
                     bigquery.ScalarQueryParameter(name, bq_type, value) # <--- FIXED
@@ -450,11 +450,7 @@ class DataAccessor:
 
         geodataframe = gpd.GeoDataFrame(data_df, geometry="geometry", crs=initial_crs)
         if geodataframe.crs.to_string() != target_crs:
-            if target_crs.startswith("EPSG:"):
-                epsg_code = int(target_crs.split(":")[1])
-                geodataframe = geodataframe.to_crs(epsg=epsg_code)
-            else:
-                geodataframe = geodataframe.to_crs(target_crs)
+            geodataframe = geodataframe.to_crs(epsg=target_crs)
         if split_multiline_string:
             geodataframe = geodataframe.explode(ignore_index=True)
         return geodataframe
