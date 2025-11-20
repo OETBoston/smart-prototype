@@ -97,57 +97,26 @@ class BigQueryClient:
     def initialize(cls, settings: Optional[AppSettings] = None):
         """Initializes the client by loading settings and selecting the active profile."""
         
-        # 1. Load configuration: Use the injected settings or load defaults (from toml/env).
-        settings = settings if settings is not None else AppSettings()
-        
-        # 2. Get the specific profile config
-        profile_name = settings.active_profile
-        profile_config = settings.bigquery_profiles.get(
-            profile_name, 
-            BigQueryProfile() 
+        settings = settings or AppSettings()
+
+        profile = settings.bigquery_profiles.get(settings.active_profile, BigQueryProfile())
+
+        # If the user explicitly gave a service-account file:
+        if profile.credentials_path:
+            expanded = os.path.expanduser(profile.credentials_path)
+            return cls(
+                bigquery.Client.from_service_account_json(
+                    expanded,
+                    project=profile.project_id,
+                )
+            )
+
+        # Otherwise: rely fully on ADC
+        return cls(
+            bigquery.Client(
+                project=profile.project_id,
+            )
         )
-
-        client = None
-
-        # --- 3. Try to load from the profile's specified path (Credentials) ---
-        if profile_config.credentials_path:
-            expanded_path = os.path.expanduser(profile_config.credentials_path)
-            if os.path.exists(expanded_path):
-                # Check if it's the standard user ADC file path
-                is_user_adc = expanded_path.endswith('application_default_credentials.json')
-
-                if is_user_adc:
-                    # Skip loading this file explicitly and fall back to the generic ADC flow (Step 4),
-                    # which is what Google recommends for user credentials.
-                    print("Note: Skipping explicit load of user ADC file, relying on standard ADC flow.")
-                    
-                else:
-                    # This must be a proper Service Account Key file (the original intent)
-                    try:
-                        credentials = service_account.Credentials.from_service_account_file(
-                            expanded_path 
-                        )
-                        client = bigquery.Client(
-                            credentials=credentials, 
-                            project=profile_config.project_id or credentials.project_id,
-                            default_dataset=profile_config.default_dataset 
-                        )
-                        print(f"Client initialized using Service Account from profile: '{profile_name}'")
-                    except Exception as e:
-                        # Log the MalformedError
-                        print(f"Warning: Failed to load credentials from profile path. Falling back to ADC: {e}")
-            
-        # --- 4. Fallback (ADC) if client wasn't created above or was skipped (is_user_adc) ---
-        if client is None:
-            # Use the simple ADC call. This relies on the environment or the ADC file existing.
-            client = bigquery.Client() 
-            if profile_config.project_id:
-                client.project = profile_config.project_id
-            if profile_config.default_dataset:
-                client.default_dataset = profile_config.default_dataset
-            print("Client initialized using Application Default Credentials (ADC).")
-
-        return cls(client=client)
     
     def _build_sql(self, query_spec: QuerySpec) -> str:
         """Internal: Builds BigQuery-specific SQL from QuerySpec (assumes SELECT or DELETE)."""
@@ -425,7 +394,7 @@ class DataAccessor:
         if current_prefix:
             self.current_prefix = current_prefix
         else:
-            env_key = f"{settings.active_environment}_prefix"
+            env_key = settings.active_environment
             prefix = self.table_prefix_map.get(env_key)
             
             if not prefix:

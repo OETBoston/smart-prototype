@@ -5,6 +5,15 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 
+dependencies = [
+    "google-cloud-bigquery>=3.0.0",
+    "geopandas>=0.14.0",
+    "pytest",
+    "pydantic",
+    "pydantic_settings",
+    
+]
+
 [dependency-groups]
 dev = [
     "pre-commit>=4.3.0",
