@@ -462,3 +462,353 @@ class RawSignAssetEntityModelWithAttachments(BaseEntity):
 
     # Strict configuration
     model_config = ConfigDict(extra='forbid')
+
+
+
+
+
+
+
+
+
+
+
+
+class RoadInventoryBBox(BaseModel):
+    """
+    Pydantic model for the nested BigQuery RECORD field `bbox`.
+    """
+    xmin: Optional[float] = None
+    ymin: Optional[float] = None
+    xmax: Optional[float] = None
+    ymax: Optional[float] = None
+
+
+class RoadInventoryEntityBase(BaseEntity):
+    """
+    Pydantic base model representing schema and table name for road inventory.
+    """
+
+    # Static metadata for the BigQuery table
+    _TABLE_NAME: ClassVar[str] = "stg_road_inventory"
+
+    # BigQuery Schema definition (Field Name: BigQuery Data Type)
+    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = {
+        "objectid": "INTEGER",
+        "route_id": "STRING",
+        "from_measure": "FLOAT",
+        "to_measure": "FLOAT",
+        "route_system": "STRING",
+        "route_number": "STRING",
+        "route_direction": "STRING",
+        "rd_seg_id": "INTEGER",
+        "facility": "FLOAT",
+        "mile_count": "FLOAT",
+        "urban_area": "STRING",
+        "urban_type": "FLOAT",
+        "f_f_class": "INTEGER",
+        "jurisdictn": "STRING",
+        "nhs": "FLOAT",
+        "fd_aid_rd": "FLOAT",
+        "control": "FLOAT",
+        "num_lanes": "FLOAT",
+        "opp_lanes": "FLOAT",
+        "surface_tp": "FLOAT",
+        "surface_wd": "FLOAT",
+        "shldr_lt_w": "FLOAT",
+        "shldr_lt_t": "FLOAT",
+        "shldr_rt_w": "FLOAT",
+        "shldr_rt_t": "FLOAT",
+        "shldr_ul_w": "FLOAT",
+        "shldr_ul_t": "FLOAT",
+        "med_width": "FLOAT",
+        "med_type": "FLOAT",
+        "curb": "FLOAT",
+        "lt_sidewlk": "FLOAT",
+        "rt_sidewlk": "FLOAT",
+        "pd_sf_type": "FLOAT",
+        "pd_fc_type": "FLOAT",
+        "path_width": "INTEGER",
+        "operation": "FLOAT",
+        "speed_lim": "FLOAT",
+        "op_dir_sl": "FLOAT",
+        "speed_reg": "FLOAT",
+        "t_exc_type": "FLOAT",
+        "t_exc_time": "FLOAT",
+        "trk_permit": "STRING",
+        "trk_netwrk": "FLOAT",
+        "truck_rte": "FLOAT",
+        "row_width": "FLOAT",
+        "toll_road": "FLOAT",
+        "mhs": "FLOAT",
+        "city": "INTEGER",
+        "mun_type": "INTEGER",
+        "county": "INTEGER",
+        "hwy_dist": "INTEGER",
+        "rpa": "STRING",
+        "rta": "STRING",
+        "mpo": "INTEGER",
+        "st_name": "STRING",
+        "city_maint": "FLOAT",
+        "length": "FLOAT",
+        "created_user": "STRING",
+        "created_date": "TIMESTAMP",
+        "last_edited_user": "STRING",
+        "last_edited_date": "TIMESTAMP",
+        "record_id": "STRING",
+        "globalid": "STRING",
+        "oneway": "STRING",
+        "shape_length": "FLOAT",
+        "geometry": "GEOGRAPHY",
+        "bbox": "RECORD",  # nested RECORD with xmin/ymin/xmax/ymax
+        "measure_length": "FLOAT",
+        "total_lanes": "FLOAT",
+        "road_classification": "STRING",
+        "is_nhs": "BOOLEAN",
+        "is_toll_road": "BOOLEAN",
+        "is_oneway": "BOOLEAN",
+        "centroid": "GEOGRAPHY",
+        "geometry_length_miles": "FLOAT",
+        "batch_timestamp": "TIMESTAMP",
+        "ingested_at": "TIMESTAMP",
+        "batch": "STRING",
+        "source_name": "STRING",
+        "source_file": "STRING",
+        "schema_version": "STRING",
+    }
+
+
+class RoadInventoryEntityModel(RoadInventoryEntityBase):
+    """
+    Pydantic model representing a single record from `stg_road_inventory`.
+    All fields are Optional to match the warehouse reality and allow partial
+    projections.
+    """
+
+    # Integer fields
+    objectid: Optional[int] = None
+    rd_seg_id: Optional[int] = None
+    path_width: Optional[int] = None
+    city: Optional[int] = None
+    mun_type: Optional[int] = None
+    county: Optional[int] = None
+    hwy_dist: Optional[int] = None
+    mpo: Optional[int] = None
+    f_f_class: Optional[int] = None
+
+    # Float fields
+    from_measure: Optional[float] = None
+    to_measure: Optional[float] = None
+    facility: Optional[float] = None
+    mile_count: Optional[float] = None
+    urban_type: Optional[float] = None
+    nhs: Optional[float] = None
+    fd_aid_rd: Optional[float] = None
+    control: Optional[float] = None
+    num_lanes: Optional[float] = None
+    opp_lanes: Optional[float] = None
+    surface_tp: Optional[float] = None
+    surface_wd: Optional[float] = None
+    shldr_lt_w: Optional[float] = None
+    shldr_lt_t: Optional[float] = None
+    shldr_rt_w: Optional[float] = None
+    shldr_rt_t: Optional[float] = None
+    shldr_ul_w: Optional[float] = None
+    shldr_ul_t: Optional[float] = None
+    med_width: Optional[float] = None
+    med_type: Optional[float] = None
+    curb: Optional[float] = None
+    lt_sidewlk: Optional[float] = None
+    rt_sidewlk: Optional[float] = None
+    pd_sf_type: Optional[float] = None
+    pd_fc_type: Optional[float] = None
+    operation: Optional[float] = None
+    speed_lim: Optional[float] = None
+    op_dir_sl: Optional[float] = None
+    speed_reg: Optional[float] = None
+    t_exc_type: Optional[float] = None
+    t_exc_time: Optional[float] = None
+    trk_netwrk: Optional[float] = None
+    truck_rte: Optional[float] = None
+    row_width: Optional[float] = None
+    toll_road: Optional[float] = None
+    mhs: Optional[float] = None
+    city_maint: Optional[float] = None
+    length: Optional[float] = None
+    shape_length: Optional[float] = None
+    measure_length: Optional[float] = None
+    total_lanes: Optional[float] = None
+    geometry_length_miles: Optional[float] = None
+
+    # String fields
+    route_id: Optional[str] = None
+    route_system: Optional[str] = None
+    route_number: Optional[str] = None
+    route_direction: Optional[str] = None
+    urban_area: Optional[str] = None
+    jurisdictn: Optional[str] = None
+    trk_permit: Optional[str] = None
+    rpa: Optional[str] = None
+    rta: Optional[str] = None
+    st_name: Optional[str] = None
+    created_user: Optional[str] = None
+    last_edited_user: Optional[str] = None
+    record_id: Optional[str] = None
+    globalid: Optional[str] = None
+    oneway: Optional[str] = None
+    road_classification: Optional[str] = None
+    batch: Optional[str] = None
+    source_name: Optional[str] = None
+    source_file: Optional[str] = None
+    schema_version: Optional[str] = None
+
+    # Timestamp fields
+    created_date: Optional[datetime] = None
+    last_edited_date: Optional[datetime] = None
+    batch_timestamp: Optional[datetime] = None
+    ingested_at: Optional[datetime] = None
+
+    # Boolean fields
+    is_nhs: Optional[bool] = None
+    is_toll_road: Optional[bool] = None
+    is_oneway: Optional[bool] = None
+
+    # Geography fields (handled as strings, e.g. WKT/GeoJSON)
+    geometry: Optional[str] = None
+    centroid: Optional[str] = None
+
+    # RECORD field
+    bbox: Optional[RoadInventoryBBox] = None
+
+
+
+
+
+
+class RoadInventoryFilterModel(BaseEntity):
+    """
+    Filters for the RoadInventoryEntityModel.
+    Follows the project’s standard suffix conventions:
+      - exact match: field = value
+      - prefix match: field_prefix LIKE 'value%'
+      - contains match: field_contains LIKE '%value%'
+      - numeric ranges: field_min / field_max
+      - timestamp ranges: field_after / field_before
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # -------------------------------------------------------
+    # 1. Exact Match Filters
+    # -------------------------------------------------------
+    route_id: Optional[str] = Field(
+        None, description="Exact match on route_id."
+    )
+    route_system: Optional[str] = Field(
+        None, description="Exact match on route_system."
+    )
+    route_number: Optional[str] = Field(
+        None, description="Exact match on route_number."
+    )
+    route_direction: Optional[str] = Field(
+        None, description="Exact match on route_direction."
+    )
+
+    rd_seg_id: Optional[int] = Field(
+        None, description="Exact match on rd_seg_id."
+    )
+    f_f_class: Optional[int] = Field(
+        None, description="Exact match on functional class."
+    )
+
+    is_nhs: Optional[bool] = Field(
+        None, description="Exact match on NHS boolean flag."
+    )
+    is_toll_road: Optional[bool] = Field(
+        None, description="Exact match on toll road boolean flag."
+    )
+    is_oneway: Optional[bool] = Field(
+        None, description="Exact match on one-way boolean flag."
+    )
+
+    # -------------------------------------------------------
+    # 2. Prefix Filters (LIKE value%)
+    # -------------------------------------------------------
+    route_id_prefix: Optional[str] = Field(
+        None, description="Prefix match on route_id (LIKE value%)."
+    )
+    st_name_prefix: Optional[str] = Field(
+        None, description="Prefix match on st_name (LIKE value%)."
+    )
+
+    # -------------------------------------------------------
+    # 3. Contains Filters (LIKE %value%)
+    # -------------------------------------------------------
+    st_name_contains: Optional[str] = Field(
+        None, description="Substring match on st_name (LIKE %value%)."
+    )
+    route_number_contains: Optional[str] = Field(
+        None, description="Substring match on route_number (LIKE %value%)."
+    )
+
+    # -------------------------------------------------------
+    # 4. Numeric Ranges
+    # -------------------------------------------------------
+    mile_count_min: Optional[float] = Field(
+        None, description="Minimum mile_count value."
+    )
+    mile_count_max: Optional[float] = Field(
+        None, description="Maximum mile_count value."
+    )
+
+    num_lanes_min: Optional[float] = Field(
+        None, description="Minimum total lane count."
+    )
+    num_lanes_max: Optional[float] = Field(
+        None, description="Maximum total lane count."
+    )
+
+    speed_lim_min: Optional[float] = Field(
+        None, description="Minimum speed limit."
+    )
+    speed_lim_max: Optional[float] = Field(
+        None, description="Maximum speed limit."
+    )
+
+    measure_length_min: Optional[float] = Field(
+        None, description="Minimum measure_length value."
+    )
+    measure_length_max: Optional[float] = Field(
+        None, description="Maximum measure_length value."
+    )
+
+    # -------------------------------------------------------
+    # 5. Timestamp Ranges
+    # -------------------------------------------------------
+    created_date_after: Optional[datetime] = Field(
+        None, description="Created strictly after this timestamp."
+    )
+    created_date_before: Optional[datetime] = Field(
+        None, description="Created strictly before this timestamp."
+    )
+
+    last_edited_date_after: Optional[datetime] = Field(
+        None, description="Last edited strictly after this timestamp."
+    )
+    last_edited_date_before: Optional[datetime] = Field(
+        None, description="Last edited strictly before this timestamp."
+    )
+
+    batch_timestamp_after: Optional[datetime] = Field(
+        None, description="Batch timestamp strictly after this timestamp."
+    )
+    batch_timestamp_before: Optional[datetime] = Field(
+        None, description="Batch timestamp strictly before this timestamp."
+    )
+
+    ingested_at_after: Optional[datetime] = Field(
+        None, description="Ingested strictly after this timestamp."
+    )
+    ingested_at_before: Optional[datetime] = Field(
+        None, description="Ingested strictly before this timestamp."
+    )

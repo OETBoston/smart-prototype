@@ -14,7 +14,9 @@ from utilities.data_utilities.queries_and_contracts import (
     StreetSegmentFilterModel,
     RawSignAssetEntityModel,
     RawSignAssetEntityModelWithAttachments,
-    RawSignAssetFilterModel
+    RawSignAssetFilterModel,
+    RoadInventoryEntityModel,
+    RoadInventoryFilterModel
 )
 
 import dotenv
@@ -190,8 +192,57 @@ class TestConfigDrivenInit:
         gdf = config_data_accessor.get_as_geo_data_frame(
             StreetSegmentEntityModel,
             StreetSegmentFilterModel(),
-            limit=10
+            limit=10,
+            ignore_bad_geometry=True
         )
         assert isinstance(gdf, gpd.GeoDataFrame)
         assert len(gdf) > 0
         assert gdf.crs.to_epsg() == 4326
+
+
+
+
+
+    def test_road_inventory_by_route_id(self, config_data_accessor):
+        """
+        Basic integration test for RoadInventoryEntityModel using
+        a known-good sample route_id.
+        """
+        route_id = "L000620 NB"
+
+        results = config_data_accessor.get(
+            RoadInventoryEntityModel,
+            RoadInventoryFilterModel(route_id=route_id)
+        )
+
+        assert isinstance(results, list)
+        assert len(results) > 0
+
+        for row in results:
+            assert isinstance(row, RoadInventoryEntityModel)
+            # convention-based equality filter: route_id must match exactly
+            assert row.route_id == route_id
+
+    def test_road_inventory_geo_dataframe(self, config_data_accessor):
+        """
+        Ensure we can hydrate a GeoDataFrame for road inventory,
+        with a valid CRS and geometry column.
+        """
+        route_id = "L000620 NB"
+
+        gdf = config_data_accessor.get_as_geo_data_frame(
+            RoadInventoryEntityModel,
+            RoadInventoryFilterModel(route_id=route_id),
+            limit=50,
+        )
+
+        assert isinstance(gdf, gpd.GeoDataFrame)
+        assert len(gdf) > 0
+
+        # Should be WGS84
+        assert gdf.crs is not None
+        assert gdf.crs.to_epsg() == 4326
+
+        # Ensure geometry column is present and has non-null values
+        assert "geometry" in gdf.columns
+        assert gdf["geometry"].notnull().any()

@@ -352,6 +352,15 @@ CLIENT_REGISTRY: Dict[str, Callable[..., DataClient]] = {
     "bigquery": BigQueryClient.initialize,
 }
 
+
+GEOMETRY_SOURCE_COLUMNS = [
+    "shape_wkt",      # Standard WKT column (street segments use this)
+    "geometry",       # BigQuery GEOGRAPHY (stringified)
+    "geom_wkt",       # Optional: some ETL pipelines produce this
+    "geom_json",      # If you ever support GeoJSON text
+    "wkt",            # Minimalistic WKT naming
+]
+
 def initialize_accessor_client_from_config(settings: AppSettings, client_key: str) -> DataClient:
     """Uses the client key to find and execute the correct initializer."""
     initializer = CLIENT_REGISTRY.get(client_key)
@@ -420,40 +429,100 @@ class DataAccessor:
 
 
     def get_as_geo_data_frame(
-        self, 
+        self,
         entity_model: Type[BaseEntity],
         filter: BaseEntity,
         limit: Optional[int] = None,
-        initial_crs:Optional[str]="EPSG:4326",
-        target_crs:Optional[str]="EPSG:4326",
-        split_multiline_string:Optional[bool]=False
+        initial_crs: Optional[str] = "EPSG:4326",
+        target_crs: Optional[str] = "EPSG:4326",
+        split_multiline_string: Optional[bool] = False,
+        geom_source_col: Optional[str] = None,
+        ignore_bad_geometry: bool = False,
     ) -> gpd.GeoDataFrame:
         """
-        Retrieves data by translating the filter into a query, ensuring results 
-        are validated against the specified entity_model.
+        Retrieve data and convert it to a GeoDataFrame using a flexible set of allowed
+        geometry source columns.
         """
-        data_df = self.get_as_data_frame(
-            entity_model = entity_model,
-            filter=filter,
-            limit=limit)
 
-        # 3. GeoDataFrame Conversion & Initial Projection
-        #    - Parse the WKT string field into Shapely geometry objects
-        #    - Set initial CRS to 4326 )
-        data_df["geometry"] = data_df["shape_wkt"].apply(
-            lambda x: wkt.loads(x) if x else None
-        )
+        df = self.get_as_data_frame(entity_model=entity_model, filter=filter, limit=limit)
 
-        # Drop rows where geometry failed to load (if geom was NULL/bad string)
-        data_df.dropna(subset=["geometry"], inplace=True)
+        if df.empty:
+            return gpd.GeoDataFrame(df, geometry=[], crs=initial_crs)
 
+        # -------------------------------------------------
+        # 1. Determine geometry source column
+        # -------------------------------------------------
+        if geom_source_col:
+            if geom_source_col not in df.columns:
+                raise ValueError(
+                    f"geom_source_col='{geom_source_col}' not found in DataFrame. "
+                    f"Available: {list(df.columns)}"
+                )
+            source_col = geom_source_col
+        else:
+            # Scan common list in order
+            source_col = None
+            for candidate in GEOMETRY_SOURCE_COLUMNS:
+                if candidate in df.columns:
+                    source_col = candidate
+                    break
 
-        geodataframe = gpd.GeoDataFrame(data_df, geometry="geometry", crs=initial_crs)
-        if geodataframe.crs.to_string() != target_crs:
-            geodataframe = geodataframe.to_crs(epsg=target_crs)
+            if not source_col:
+                raise ValueError(
+                    f"No acceptable geometry column found for {entity_model.__name__}. "
+                    f"Expected one of: {GEOMETRY_SOURCE_COLUMNS}, or pass geom_source_col."
+                )
+
+        # -------------------------------------------------
+        # 2. Convert to Shapely geometry
+        # -------------------------------------------------
+        def parse_geom(value, index):
+            if value is None or (isinstance(value, float) and pd.isna(value)):
+                if ignore_bad_geometry:
+                    # logger.warning(f"NULL geometry at row {index}; dropping row.")
+                    return None
+                raise ValueError(f"NULL geometry at row {index} (col={source_col}).")
+
+            # Already Shapely?
+            if hasattr(value, "geom_type"):
+                return value
+
+            if isinstance(value, str) and value.strip():
+                try:
+                    return wkt.loads(value)
+                except Exception as exc:
+                    if ignore_bad_geometry:
+                        # logger.warning(f"Bad WKT at row {index}: {value!r} — {exc}")
+                        return None
+                    raise ValueError(
+                        f"Failed to parse geometry at row {index}: {value!r}"
+                    ) from exc
+
+            if ignore_bad_geometry:
+                # logger.warning(f"Unsupported geometry at row {index}: {value!r}")
+                return None
+
+            raise ValueError(f"Unsupported geometry type at row {index}: {value!r}")
+
+        df["geometry"] = [
+            parse_geom(val, idx) for idx, val in df[source_col].items()
+        ]
+
+        df.dropna(subset=["geometry"], inplace=True)
+
+        # -------------------------------------------------
+        # 3. Convert to GeoDataFrame & reproject
+        # -------------------------------------------------
+        gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=initial_crs)
+
+        if gdf.crs and target_crs and gdf.crs.to_string() != target_crs:
+            gdf = gdf.to_crs(target_crs)
+
         if split_multiline_string:
-            geodataframe = geodataframe.explode(ignore_index=True)
-        return geodataframe
+            gdf = gdf.explode(ignore_index=True)
+
+        return gdf
+
 
     def get_as_data_frame(
         self, 
