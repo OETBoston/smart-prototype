@@ -788,3 +788,104 @@ class DataAccessor:
         
         # The client returns the number of affected rows on success
         return affected_rows
+    
+    def put_data_frame (
+        self,
+        df: pd.DataFrame,
+        entity_model: Type[BaseEntity],
+        geometry_col: Optional[str] = None,
+        parse_wkt: bool = True,
+        ignore_bad_geometry: bool = False,
+    )  -> int:
+        """
+        Inserts data rows using the table name resolved from a dataframe which matches an entity model. 
+        Returns the number of successfully inserted rows.
+        """
+        self.put(entities_to_data_frame(df=df,
+            entity_model=entity_model,
+            geometry_col=geometry_col,
+            parse_wkt=parse_wkt,
+            ignore_bad_geometry=ignore_bad_geometry))
+    
+
+    def put_geo_data_frame(
+        self,
+        gdf: gpd.GeoDataFrame,
+        entity_model: Type[BaseEntity],
+        geometry_col: str,
+        serialize_wkt: bool = True,
+        drop_geometry: bool = False,
+        parse_wkt: bool = True,
+        ignore_bad_geometry: bool = False,
+    ) -> int:
+        """
+        Inserts data rows into the database from a GeoDataFrame.
+
+        Workflow:
+            GeoDataFrame → DataFrame (WKT-serialized) → Pydantic entities → INSERT
+
+        Parameters
+        ----------
+        gdf : gpd.GeoDataFrame
+            GeoDataFrame containing the data to insert.
+        entity_model : Type[BaseEntity]
+            Pydantic model representing the DB table schema.
+        geometry_col : str
+            Name of the geometry column in the GeoDataFrame.
+            Defaults to 'geometry'.
+        serialize_wkt : bool
+            If True, Shapely geometries are serialized into WKT strings.
+        drop_geometry : bool
+            If True, the geometry column is removed entirely.
+        parse_wkt : bool
+            If True, WKT strings (if present) are parsed back into Shapely objects
+            when building Pydantic entities.
+        ignore_bad_geometry : bool
+            If True, rows with invalid/missing geometry are skipped.
+
+        Returns
+        -------
+        int
+            Number of rows successfully inserted.
+        """
+
+        if not geometry_col:
+            raise ValueError(
+                "You must supply `geometry_col` when calling put_geo_data_frame().\n"
+                "Example: put_geo_data_frame(gdf, MyModel, geometry_col='geometry')"
+            )
+
+        if geometry_col not in gdf.columns:
+            raise ValueError(
+                f"Geometry column '{geometry_col}' was not found in the GeoDataFrame.\n"
+                f"Available columns: {list(gdf.columns)}\n\n"
+                "Make sure you pass the correct column name. "
+                "If your geometry column is actually named something else, do:\n"
+                f"    put_geo_data_frame(gdf, {entity_model.__name__}, geometry_col='your_column')"
+            )
+
+        if gdf.empty:
+            return 0
+
+        # 1. Convert GeoDataFrame → regular DataFrame (with WKT if desired)
+        df = geo_data_frame_to_data_frame(
+            gdf=gdf,
+            geometry_col=geometry_col,
+            serialize_wkt=serialize_wkt,
+            drop_geometry=drop_geometry,
+        )
+
+        # 2. Convert DataFrame → list of Pydantic entities
+        entities = data_frame_to_entities(
+            df=df,
+            entity_model=entity_model,
+            geometry_col=None if drop_geometry else geometry_col,
+            parse_wkt=parse_wkt,
+            ignore_bad_geometry=ignore_bad_geometry,
+        )
+
+        if not entities:
+            return 0
+
+        # 3. Insert into the backend
+        return self.put(entities)
