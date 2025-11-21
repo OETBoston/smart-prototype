@@ -16,8 +16,11 @@ from utilities.data_utilities.queries_and_contracts import (
     RawSignAssetEntityModelWithAttachments,
     RawSignAssetFilterModel,
     RoadInventoryEntityModel,
-    RoadInventoryFilterModel
+    RoadInventoryFilterModel,
+    CurbLineEntityModel,
+    CurbLineFilterModel,
 )
+
 
 import dotenv
 dotenv.load_dotenv(".env", override=True)
@@ -244,5 +247,87 @@ class TestConfigDrivenInit:
         assert gdf.crs.to_epsg() == 4326
 
         # Ensure geometry column is present and has non-null values
+        assert "geometry" in gdf.columns
+        assert gdf["geometry"].notnull().any()
+
+
+
+
+
+
+@pytest.mark.integration
+class TestCurbLineIntegration:
+
+    @pytest.fixture(scope="class")
+    def config_data_accessor(self):
+        """Load DataAccessor using application config."""
+        return DataAccessor(config_path=".env")
+
+    def test_basic_get(self, config_data_accessor):
+        """
+        Basic retrieval of curb line data. Ensures model hydration works.
+        """
+        results = config_data_accessor.get(
+            CurbLineEntityModel,
+            CurbLineFilterModel(),
+            limit=5
+        )
+
+        assert isinstance(results, list)
+        assert len(results) > 0
+        assert isinstance(results[0], CurbLineEntityModel)
+
+    def test_exact_filter(self, config_data_accessor):
+        """
+        Test filtering on known curb_id (example: 182625).
+        """
+        known_id = "182625"
+        results = config_data_accessor.get(
+            CurbLineEntityModel,
+            CurbLineFilterModel(curb_id=known_id)
+        )
+
+        assert isinstance(results, list)
+        assert len(results) > 0
+
+        for row in results:
+            assert isinstance(row, CurbLineEntityModel)
+            assert row.curb_id == known_id
+
+    def test_prefix_filter(self, config_data_accessor):
+        """
+        Ensure prefix search on street_name works.
+        """
+        prefix = "DORCHESTER"  # example prefix; adjust based on actual data
+        results = config_data_accessor.get(
+            CurbLineEntityModel,
+            CurbLineFilterModel(street_name_prefix=prefix)
+        )
+
+        assert isinstance(results, list)
+        assert len(results) > 0
+
+        for row in results:
+            assert isinstance(row, CurbLineEntityModel)
+            assert row.street_name.upper().startswith(prefix)
+
+    def test_geo_dataframe(self, config_data_accessor):
+        """
+        Validate hydration into GeoDataFrame from geometry column.
+        """
+        import geopandas as gpd
+
+        gdf = config_data_accessor.get_as_geo_data_frame(
+            CurbLineEntityModel,
+            CurbLineFilterModel(),
+            limit=20,
+            ignore_bad_geometry=True,
+        )
+
+        assert isinstance(gdf, gpd.GeoDataFrame)
+        assert len(gdf) > 0
+        assert gdf.crs is not None
+        assert gdf.crs.to_epsg() == 4326  # WGS84
+
         assert "geometry" in gdf.columns
         assert gdf["geometry"].notnull().any()

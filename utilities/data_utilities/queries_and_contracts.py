@@ -812,3 +812,121 @@ class RoadInventoryFilterModel(BaseEntity):
     ingested_at_before: Optional[datetime] = Field(
         None, description="Ingested strictly before this timestamp."
     )
+
+
+
+
+
+# ---------------------------------------------
+# Base Class
+# ---------------------------------------------
+class CurbLineEntityBase(BaseEntity):
+    """
+    Base model defining schema + table for curb line data.
+    """
+
+    _TABLE_NAME: ClassVar[str] = "stg_curb_lines"
+
+    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = {
+        "curb_id": "INTEGER",
+        "roadway_id": "INTEGER",
+        "street_name": "STRING",
+        "route_id": "STRING",
+        "route_direction": "STRING",
+        "ff_class": "INTEGER",
+        "side": "STRING",
+        "buffer_left": "INTEGER",
+        "buffer_right": "INTEGER",
+        "start_lon": "FLOAT",
+        "start_lat": "FLOAT",
+        "end_lon": "FLOAT",
+        "end_lat": "FLOAT",
+        "curb_length_ft": "FLOAT",
+        "geometry": "STRING",
+        "processed_timestamp": "TIMESTAMP",
+        "schema_version": "STRING",
+    }
+
+    model_config = ConfigDict(extra="forbid")
+
+    @property
+    def table_name(self) -> str:
+        return self._TABLE_NAME
+
+    @property
+    def entity_schema(self) -> Dict[str, str]:
+        return self._ENTITY_SCHEMA
+
+# ---------------------------------------------
+# Entity Model
+# ---------------------------------------------
+class CurbLineEntityModel(CurbLineEntityBase):
+    """Represents a single curb line record."""
+
+    curb_id: Optional[int]
+    roadway_id: Optional[int]
+    street_name: Optional[str]
+    route_id: Optional[str]
+    route_direction: Optional[str]
+    ff_class: Optional[int]
+    side: Optional[str]
+    buffer_left: Optional[int]
+    buffer_right: Optional[int]
+    start_lon: Optional[float]
+    start_lat: Optional[float]
+    end_lon: Optional[float]
+    end_lat: Optional[float]
+    curb_length_ft: Optional[float]
+    geometry: Optional[str]
+    processed_timestamp: Optional[datetime]
+    schema_version: Optional[str]
+
+# ---------------------------------------------
+# Filter Model
+# ---------------------------------------------
+class CurbLineFilterModel(CurbLineEntityBase):
+    """
+    Filter model following project conventions:
+    - exact match: field
+    - prefix: field_prefix
+    - contains: field_contains
+    - numeric ranges: field_min / field_max
+    - timestamp: field_after / field_before
+    """
+
+    # --- Exact Matches ---
+    curb_id: Optional[int] = None
+    roadway_id: Optional[int] = None
+    route_id: Optional[str] = None
+    route_direction: Optional[str] = None
+    ff_class: Optional[int] = None
+    side: Optional[str] = None
+
+    # --- Text Filters ---
+    street_name_prefix: Optional[str] = None  # LIKE 'value%'
+    street_name_contains: Optional[str] = None  # LIKE '%value%'
+
+    # --- Numeric Ranges ---
+    buffer_left_min: Optional[int] = None
+    buffer_left_max: Optional[int] = None
+
+    buffer_right_min: Optional[int] = None
+    buffer_right_max: Optional[int] = None
+
+    curb_length_ft_min: Optional[float] = None
+    curb_length_ft_max: Optional[float] = None
+
+    # --- Coordinate-based filters ---
+    start_lat_min: Optional[float] = None
+    start_lat_max: Optional[float] = None
+    start_lon_min: Optional[float] = None
+    start_lon_max: Optional[float] = None
+
+    end_lat_min: Optional[float] = None
+    end_lat_max: Optional[float] = None
+    end_lon_min: Optional[float] = None
+    end_lon_max: Optional[float] = None
+
+    # --- Timestamp Filters ---
+    processed_timestamp_after: Optional[datetime] = None
+    processed_timestamp_before: Optional[datetime] = None
