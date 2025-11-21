@@ -604,7 +604,10 @@ def data_frame_to_entities(
             if ignore_bad_geometry and geometry_col:
                 # Skip bad rows when ignoring errors
                 continue
-            raise ValueError(f"Failed to construct entity at row {idx}: {e}") from e
+            raise ValueError(
+                f"""Failed to construct entity at row: {idx}
+                dict of row which failed: {dict}
+                error messages: {e}""") from e
 
     return entities
 
