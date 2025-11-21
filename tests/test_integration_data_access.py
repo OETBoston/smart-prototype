@@ -127,7 +127,8 @@ class TestDataAccessorOperations:
         data_accessor.put(rows)
 
         filt = SimpleEntityFilter(id=target_id, type="Pole")
-        results = data_accessor.get(SimpleEntityModel, filt)
+        results = data_accessor.get(SimpleEntityModel, filt,
+            limit=10)
         assert len(results) == 1
         assert results[0].id == target_id
 
@@ -153,7 +154,8 @@ class TestDataAccessorOperations:
         data_accessor.put(rows)
 
         filt = SimpleEntityFilter(time_after=split, id_prefix=unique)
-        results = data_accessor.get(SimpleEntityModel, filt)
+        results = data_accessor.get(SimpleEntityModel, filt,
+            limit=10)
         assert len(results) == 1
         assert results[0].id == f"{unique}-B"
 
@@ -178,7 +180,8 @@ class TestDataAccessorOperations:
         data_accessor.put(rows)
 
         filt = SimpleEntityFilter(time_before=split, id_prefix=unique)
-        results = data_accessor.get(SimpleEntityModel, filt)
+        results = data_accessor.get(SimpleEntityModel, filt,
+            limit=10)
         assert len(results) == 1
         assert results[0].id == f"{unique}-C"
 
@@ -221,7 +224,8 @@ class TestConfigDrivenInit:
     def test_street_segment(self, config_data_accessor):
         results = config_data_accessor.get(
             StreetSegmentEntityModel,
-            StreetSegmentFilterModel()
+            StreetSegmentFilterModel(),
+            limit=10
         )
         assert isinstance(results, list)
         assert len(results) > 0
@@ -231,7 +235,8 @@ class TestConfigDrivenInit:
         expected_prefix = "Traffic_Sign"
         results = config_data_accessor.get(
             RawSignAssetEntityModel,
-            RawSignAssetFilterModel(cartegraph_id_prefix=expected_prefix)
+            RawSignAssetFilterModel(cartegraph_id_prefix=expected_prefix),
+            limit=10
         )
         assert len(results) > 0
         for row in results:
@@ -240,7 +245,8 @@ class TestConfigDrivenInit:
     def test_raw_sign_with_attachments(self, config_data_accessor):
         results = config_data_accessor.get(
             RawSignAssetEntityModelWithAttachments,
-            BaseEntity()
+            BaseEntity(),
+            limit=10
         )
         assert len(results) > 0
         assert isinstance(results[0], RawSignAssetEntityModelWithAttachments)
@@ -328,7 +334,8 @@ class TestConfigDrivenInit:
 
         results = config_data_accessor.get(
             RoadInventoryEntityModel,
-            RoadInventoryFilterModel(route_id=route_id)
+            RoadInventoryFilterModel(route_id=route_id),
+            limit=10
         )
 
         assert isinstance(results, list)
@@ -397,7 +404,8 @@ class TestCurbLineIntegration:
         known_id = "182625"
         results = config_data_accessor.get(
             CurbLineEntityModel,
-            CurbLineFilterModel(curb_id=known_id)
+            CurbLineFilterModel(curb_id=known_id),
+            limit=10
         )
 
         assert isinstance(results, list)
@@ -414,7 +422,8 @@ class TestCurbLineIntegration:
         prefix = "DORCHESTER"  # example prefix; adjust based on actual data
         results = config_data_accessor.get(
             CurbLineEntityModel,
-            CurbLineFilterModel(street_name_prefix=prefix)
+            CurbLineFilterModel(street_name_prefix=prefix),
+            limit=10
         )
 
         assert isinstance(results, list)
