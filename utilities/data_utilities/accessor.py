@@ -1,5 +1,5 @@
-# utilities/data/accessor.py
-from typing import Optional, Protocol, List, Dict, Any, Type, Union, Tuple, Literal, Callable
+# utilities/data_utilities/accessor.py
+from typing import Optional, Protocol, List, Dict, Any, Type, Union, Tuple, Literal, Callable, Sequence
 from google.cloud import bigquery
 from google.oauth2 import service_account
 import os 
@@ -10,7 +10,8 @@ from google.cloud.bigquery import QueryJobConfig, SchemaField
 from datetime import datetime, date
 import pandas as pd
 import geopandas as gpd
-from shapely import wkt
+from shapely import wkt, geometry as shapely_geom
+from shapely.geometry.base import BaseGeometry
 
 from .queries_and_contracts import BaseEntity
 
@@ -371,6 +372,243 @@ def initialize_accessor_client_from_config(settings: AppSettings, client_key: st
     return initializer(settings=settings)
 
 
+def entities_to_data_frame(entities: Sequence[BaseEntity]) -> pd.DataFrame:
+    """
+    Convert a sequence of Pydantic entities into a pandas DataFrame.
+    """
+    return pd.DataFrame([e.model_dump() for e in entities])
+
+
+
+def data_frame_to_geo_data_frame(
+    data_frame: pd.DataFrame,
+    initial_crs: Optional[str] = "EPSG:4326",
+    target_crs: Optional[str] = "EPSG:4326",
+    split_multiline_string: Optional[bool] = False,
+    geom_source_col: Optional[str] = None,
+    ignore_bad_geometry: bool = False,
+) -> gpd.GeoDataFrame:
+    """
+    Retrieve data and convert it to a GeoDataFrame using a flexible set of allowed
+    geometry source columns.
+    """
+
+    df = data_frame
+
+    if df.empty:
+        return gpd.GeoDataFrame(df.copy(), geometry="geometry", crs=initial_crs)
+
+
+    # -------------------------------------------------
+    # 1. Determine geometry source column
+    # -------------------------------------------------
+    if geom_source_col:
+        if geom_source_col not in df.columns:
+            raise ValueError(
+                f"geom_source_col='{geom_source_col}' not found in DataFrame. "
+                f"Available: {list(df.columns)}"
+            )
+        source_col = geom_source_col
+    else:
+        # Scan common list in order
+        source_col = None
+        for candidate in GEOMETRY_SOURCE_COLUMNS:
+            if candidate in df.columns:
+                source_col = candidate
+                break
+
+        if not source_col:
+            raise ValueError(
+                f"No acceptable geometry column found. "
+                f"Expected one of: {GEOMETRY_SOURCE_COLUMNS}, or pass geom_source_col."
+            )
+
+
+    # -------------------------------------------------
+    # 2. Convert to Shapely geometry
+    # -------------------------------------------------
+    def parse_geom(value, index):
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            if ignore_bad_geometry:
+                # logger.warning(f"NULL geometry at row {index}; dropping row.")
+                return None
+            raise ValueError(f"NULL geometry at row {index} (col={source_col}).")
+
+        # Already Shapely?
+        if hasattr(value, "geom_type"):
+            return value
+
+        if isinstance(value, str) and value.strip():
+            try:
+                return wkt.loads(value)
+            except Exception as exc:
+                if ignore_bad_geometry:
+                    # logger.warning(f"Bad WKT at row {index}: {value!r} — {exc}")
+                    return None
+                raise ValueError(
+                    f"Failed to parse geometry at row {index}: {value!r}"
+                ) from exc
+
+        if ignore_bad_geometry:
+            # logger.warning(f"Unsupported geometry at row {index}: {value!r}")
+            return None
+
+        raise ValueError(f"Unsupported geometry type at row {index}: {value!r}")
+
+    df["geometry"] = [
+        parse_geom(val, idx) for idx, val in df[source_col].items()
+    ]
+
+    df.dropna(subset=["geometry"], inplace=True)
+
+    # -------------------------------------------------
+    # 3. Convert to GeoDataFrame & reproject
+    # -------------------------------------------------
+    gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=initial_crs)
+
+    if gdf.crs and target_crs and gdf.crs.to_string() != target_crs:
+        gdf = gdf.to_crs(target_crs)
+
+    if split_multiline_string:
+        gdf = gdf.explode(ignore_index=True)
+
+    return gdf
+
+
+
+def geo_data_frame_to_data_frame(
+    gdf: gpd.GeoDataFrame,
+    geometry_col: str = "geometry",
+    serialize_wkt: bool = True,
+    drop_geometry: bool = False,
+) -> pd.DataFrame:
+    """
+    Converts a GeoDataFrame into a regular DataFrame.
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        Input GeoDataFrame.
+    geometry_col : str
+        Geometry column to extract.
+    serialize_wkt : bool
+        If True, geometry objects are converted to WKT strings.
+    drop_geometry : bool
+        If True, geometry column is removed entirely.
+
+    Returns
+    -------
+    pd.DataFrame
+        A non-geo DataFrame representation of the input.
+    """
+
+    if gdf.empty:
+        return pd.DataFrame()
+
+    df = gdf.copy()
+
+    if geometry_col not in df.columns:
+        raise ValueError(f"geometry_col='{geometry_col}' not found. Columns: {list(df.columns)}")
+
+    if drop_geometry:
+        df = df.drop(columns=[geometry_col])
+    else:
+        if serialize_wkt:
+            df[geometry_col] = df[geometry_col].apply(
+                lambda geom: geom.wkt if isinstance(geom, BaseGeometry) else geom
+            )
+    return pd.DataFrame(df)
+
+
+def data_frame_to_entities(
+    df: pd.DataFrame,
+    entity_model: Type[BaseEntity],
+    geometry_col: Optional[str] = None,
+    parse_wkt: bool = True,
+    ignore_bad_geometry: bool = False,
+) -> List[BaseEntity]:
+    """
+    Converts a DataFrame into a list of Pydantic entities.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The tabular data to convert.
+    entity_model : Type[EntityT]
+        Pydantic model class to instantiate.
+    geometry_col : Optional[str]
+        Column containing geometry (WKT or Shapely).
+    parse_wkt : bool
+        If True, convert WKT strings to Shapely geometries.
+    ignore_bad_geometry : bool
+        If True, rows with invalid geometry are skipped.
+
+    Returns
+    -------
+    List[EntityT]
+        List of instantiated Pydantic entity objects.
+    """
+
+    if df.empty:
+        return []
+
+    df_processed = df.copy()
+
+    # -------------------------------
+    # Convert WKT → geometry (if specified)
+    # -------------------------------
+    if geometry_col and geometry_col in df_processed.columns:
+        def parse_geom(val, idx):
+            if val is None or (isinstance(val, float) and pd.isna(val)):
+                if ignore_bad_geometry:
+                    return None
+                raise ValueError(f"NULL geometry in row {idx}")
+
+            # Already shapely?
+            if hasattr(val, "geom_type"):
+                return val
+
+            if parse_wkt and isinstance(val, str):
+                try:
+                    return wkt.loads(val)
+                except Exception as e:
+                    if ignore_bad_geometry:
+                        return None
+                    raise ValueError(f"Failed to parse WKT geometry in row {idx}: {val}") from e
+
+            if ignore_bad_geometry:
+                return None
+
+            raise ValueError(f"Unsupported geometry in row {idx}: {val!r}")
+
+        df_processed[geometry_col] = [
+            parse_geom(v, i) for i, v in df_processed[geometry_col].items()
+        ]
+
+        # Remove rows with failed geometry
+        if ignore_bad_geometry:
+            df_processed.dropna(subset=[geometry_col], inplace=True)
+
+    # -------------------------------
+    # Convert rows to Pydantic objects
+    # -------------------------------
+    entities: List[EntityT] = []
+
+    for idx, row in df_processed.iterrows():
+        as_dict = row.to_dict()
+
+        try:
+            entity = entity_model(**as_dict)
+            entities.append(entity)
+        except Exception as e:
+            if ignore_bad_geometry and geometry_col:
+                # Skip bad rows when ignoring errors
+                continue
+            raise ValueError(f"Failed to construct entity at row {idx}: {e}") from e
+
+    return entities
+
+
 class DataAccessor:
     def __init__(
         self,
@@ -444,84 +682,17 @@ class DataAccessor:
         geometry source columns.
         """
 
+
         df = self.get_as_data_frame(entity_model=entity_model, filter=filter, limit=limit)
 
-        if df.empty:
-            return gpd.GeoDataFrame(df, geometry=[], crs=initial_crs)
-
-        # -------------------------------------------------
-        # 1. Determine geometry source column
-        # -------------------------------------------------
-        if geom_source_col:
-            if geom_source_col not in df.columns:
-                raise ValueError(
-                    f"geom_source_col='{geom_source_col}' not found in DataFrame. "
-                    f"Available: {list(df.columns)}"
-                )
-            source_col = geom_source_col
-        else:
-            # Scan common list in order
-            source_col = None
-            for candidate in GEOMETRY_SOURCE_COLUMNS:
-                if candidate in df.columns:
-                    source_col = candidate
-                    break
-
-            if not source_col:
-                raise ValueError(
-                    f"No acceptable geometry column found for {entity_model.__name__}. "
-                    f"Expected one of: {GEOMETRY_SOURCE_COLUMNS}, or pass geom_source_col."
-                )
-
-        # -------------------------------------------------
-        # 2. Convert to Shapely geometry
-        # -------------------------------------------------
-        def parse_geom(value, index):
-            if value is None or (isinstance(value, float) and pd.isna(value)):
-                if ignore_bad_geometry:
-                    # logger.warning(f"NULL geometry at row {index}; dropping row.")
-                    return None
-                raise ValueError(f"NULL geometry at row {index} (col={source_col}).")
-
-            # Already Shapely?
-            if hasattr(value, "geom_type"):
-                return value
-
-            if isinstance(value, str) and value.strip():
-                try:
-                    return wkt.loads(value)
-                except Exception as exc:
-                    if ignore_bad_geometry:
-                        # logger.warning(f"Bad WKT at row {index}: {value!r} — {exc}")
-                        return None
-                    raise ValueError(
-                        f"Failed to parse geometry at row {index}: {value!r}"
-                    ) from exc
-
-            if ignore_bad_geometry:
-                # logger.warning(f"Unsupported geometry at row {index}: {value!r}")
-                return None
-
-            raise ValueError(f"Unsupported geometry type at row {index}: {value!r}")
-
-        df["geometry"] = [
-            parse_geom(val, idx) for idx, val in df[source_col].items()
-        ]
-
-        df.dropna(subset=["geometry"], inplace=True)
-
-        # -------------------------------------------------
-        # 3. Convert to GeoDataFrame & reproject
-        # -------------------------------------------------
-        gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=initial_crs)
-
-        if gdf.crs and target_crs and gdf.crs.to_string() != target_crs:
-            gdf = gdf.to_crs(target_crs)
-
-        if split_multiline_string:
-            gdf = gdf.explode(ignore_index=True)
-
-        return gdf
+        return data_frame_to_geo_data_frame(
+            data_frame = df,
+            initial_crs=initial_crs,
+            target_crs=target_crs,
+            split_multiline_string=split_multiline_string,
+            geom_source_col=geom_source_col,
+            ignore_bad_geometry=ignore_bad_geometry,
+        )
 
 
     def get_as_data_frame(
@@ -534,14 +705,13 @@ class DataAccessor:
         Retrieves data by translating the filter into a query, ensuring results 
         are validated against the specified entity_model.
         """
-        raw_results = self.get(
-            entity_model = entity_model,
-            filter=filter,
-            limit=limit)
-        
-        raw_list_of_dicts: List[dict] = [r.model_dump() for r in raw_results]
-        data_df = pd.DataFrame(raw_list_of_dicts)
-        return data_df
+        return entities_to_data_frame(
+            self.get(
+                entity_model = entity_model,
+                filter=filter,
+                limit=limit
+                )
+            ) 
  
 
     def get(
@@ -578,9 +748,6 @@ class DataAccessor:
         # 4. Validate and return 
         pydantic_results = [entity_model.model_validate(row) for row in raw_results]
         
-        # Simple logic for single vs. list return (could be expanded later)
-        if limit == 1 and pydantic_results:
-            return pydantic_results[0]
             
         return pydantic_results
 
