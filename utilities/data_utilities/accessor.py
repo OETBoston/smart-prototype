@@ -526,48 +526,31 @@ def data_frame_to_entities(
     geometry_col: Optional[str] = None,
     parse_wkt: bool = True,
     ignore_bad_geometry: bool = False,
+    ignore_extra_fields: bool = False,
 ) -> List[BaseEntity]:
-    """
-    Converts a DataFrame into a list of Pydantic entities.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The tabular data to convert.
-    entity_model : Type[EntityT]
-        Pydantic model class to instantiate.
-    geometry_col : Optional[str]
-        Column containing geometry (WKT or Shapely).
-    parse_wkt : bool
-        If True, convert WKT strings to Shapely geometries.
-    ignore_bad_geometry : bool
-        If True, rows with invalid geometry are skipped.
-
-    Returns
-    -------
-    List[EntityT]
-        List of instantiated Pydantic entity objects.
-    """
 
     if df.empty:
         return []
 
-    df_processed = df.copy()
+    # Convert NaN → None to support Pydantic optional fields
+    df_processed = df.copy().where(pd.notnull(df), None)
 
     # -------------------------------
     # Convert WKT → geometry (if specified)
     # -------------------------------
     if geometry_col and geometry_col in df_processed.columns:
+
         def parse_geom(val, idx):
-            if val is None or (isinstance(val, float) and pd.isna(val)):
+            if val is None:
                 if ignore_bad_geometry:
                     return None
                 raise ValueError(f"NULL geometry in row {idx}")
 
-            # Already shapely?
+            # Already a shapely geometry?
             if hasattr(val, "geom_type"):
                 return val
 
+            # Parse WKT string
             if parse_wkt and isinstance(val, str):
                 try:
                     return wkt.loads(val)
@@ -585,7 +568,6 @@ def data_frame_to_entities(
             parse_geom(v, i) for i, v in df_processed[geometry_col].items()
         ]
 
-        # Remove rows with failed geometry
         if ignore_bad_geometry:
             df_processed.dropna(subset=[geometry_col], inplace=True)
 
@@ -594,20 +576,27 @@ def data_frame_to_entities(
     # -------------------------------
     entities: List[EntityT] = []
 
+    valid_fields = set(entity_model.model_fields.keys())
+
     for idx, row in df_processed.iterrows():
-        as_dict = row.to_dict()
+        raw_dict = row.to_dict()
+
+        if ignore_extra_fields:
+            as_dict = {k: v for k, v in raw_dict.items() if k in valid_fields}
+        else:
+            as_dict = raw_dict
 
         try:
             entity = entity_model(**as_dict)
             entities.append(entity)
         except Exception as e:
             if ignore_bad_geometry and geometry_col:
-                # Skip bad rows when ignoring errors
                 continue
             raise ValueError(
-                f"""Failed to construct entity at row: {idx}
-                dict of row which failed: {dict}
-                error messages: {e}""") from e
+                f"Failed to construct entity at row {idx}\n"
+                f"Row dict: {as_dict}\n"
+                f"Error: {e}"
+            ) from e
 
     return entities
 
@@ -799,6 +788,7 @@ class DataAccessor:
         geometry_col: Optional[str] = None,
         parse_wkt: bool = True,
         ignore_bad_geometry: bool = False,
+        ignore_extra_fields: bool = False,
     )  -> int:
         """
         Inserts data rows using the table name resolved from a dataframe which matches an entity model. 
@@ -808,7 +798,8 @@ class DataAccessor:
             entity_model=entity_model,
             geometry_col=geometry_col,
             parse_wkt=parse_wkt,
-            ignore_bad_geometry=ignore_bad_geometry))
+            ignore_bad_geometry=ignore_bad_geometry,
+            ignore_extra_fields=ignore_extra_fields))
     
 
     def put_geo_data_frame(
@@ -820,6 +811,7 @@ class DataAccessor:
         drop_geometry: bool = False,
         parse_wkt: bool = True,
         ignore_bad_geometry: bool = False,
+        ignore_extra_fields: bool = False,
     ) -> int:
         """
         Inserts data rows into the database from a GeoDataFrame.
@@ -885,6 +877,7 @@ class DataAccessor:
             geometry_col=None if drop_geometry else geometry_col,
             parse_wkt=parse_wkt,
             ignore_bad_geometry=ignore_bad_geometry,
+            ignore_extra_fields=ignore_extra_fields,
         )
 
         if not entities:
