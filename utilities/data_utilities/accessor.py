@@ -877,7 +877,7 @@ class DataAccessor:
             geometry_col=None if drop_geometry else geometry_col,
             parse_wkt=parse_wkt,
             ignore_bad_geometry=ignore_bad_geometry,
-            ignore_extra_fields=ignore_extra_fields,
+            ignore_extra_fields=ignore_extra_fields
         )
 
         if not entities:
