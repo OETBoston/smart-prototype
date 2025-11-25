@@ -868,23 +868,23 @@ class CurbLineEntityBase(ValidatedBaseEntity):
 class CurbLineEntityModel(CurbLineEntityBase):
     """Represents a single curb line record."""
 
-    curb_id: Optional[int]
-    roadway_id: Optional[int]
-    street_name: Optional[str]
-    route_id: Optional[str]
-    route_direction: Optional[str]
-    ff_class: Optional[int]
-    side: Optional[str]
-    buffer_left: Optional[int]
-    buffer_right: Optional[int]
-    start_lon: Optional[float]
-    start_lat: Optional[float]
-    end_lon: Optional[float]
-    end_lat: Optional[float]
-    curb_length_ft: Optional[float]
-    geometry: Optional[Geometry]
-    processed_timestamp: Optional[datetime]
-    schema_version: Optional[str]
+    curb_id: Optional[int]= None
+    roadway_id: Optional[int]= None
+    street_name: Optional[str]= None
+    route_id: Optional[str]= None
+    route_direction: Optional[str]= None
+    ff_class: Optional[int]= None
+    side: Optional[str]= None
+    buffer_left: Optional[int]= None
+    buffer_right: Optional[int]= None
+    start_lon: Optional[float]= None
+    start_lat: Optional[float]= None
+    end_lon: Optional[float]= None
+    end_lat: Optional[float]= None
+    curb_length_ft: Optional[float]= None
+    geometry: Optional[Geometry]= None
+    processed_timestamp: Optional[datetime]= None
+    schema_version: Optional[str] = None
 
 # ---------------------------------------------
 # Filter Model
