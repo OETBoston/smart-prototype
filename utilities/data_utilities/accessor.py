@@ -787,6 +787,7 @@ class DataAccessor:
         parse_wkt: bool = True,
         ignore_bad_geometry: bool = False,
         ignore_extra_fields: bool = False,
+        max_batch_size: int = 1000
     )  -> int:
         """
         Inserts data rows using the table name resolved from a dataframe which matches an entity model. 
@@ -797,7 +798,8 @@ class DataAccessor:
             geometry_col=geometry_col,
             parse_wkt=parse_wkt,
             ignore_bad_geometry=ignore_bad_geometry,
-            ignore_extra_fields=ignore_extra_fields))
+            ignore_extra_fields=ignore_extra_fields),
+            max_batch_size=max_batch_size)
     
 
     def put_geo_data_frame(
@@ -810,6 +812,7 @@ class DataAccessor:
         parse_wkt: bool = True,
         ignore_bad_geometry: bool = False,
         ignore_extra_fields: bool = False,
+        max_batch_size: int = 1000
     ) -> int:
         """
         Inserts data rows into the database from a GeoDataFrame.
@@ -882,4 +885,4 @@ class DataAccessor:
             return 0
 
         # 3. Insert into the backend
-        return self.put(entities)
+        return self.put(entities,max_batch_size=max_batch_size)
