@@ -28,8 +28,6 @@ class PydanticTypeBlueprint(str):
             try:
                 out = recognizer(value)
                 if out is not None:
-                    print("setting normalized value: ",out)
-                    print("normalized value type: ", type(out))
                     return out
             except Exception:
                 pass

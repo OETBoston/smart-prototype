@@ -21,7 +21,6 @@ def recognize_shapely_object(value):
 
 @Geometry.register
 def recognize_any_wkt_string(value):
-    print("running recognizer: wkt")
     if isinstance(value, str):
         try:
             wkt.loads(value)
@@ -31,7 +30,6 @@ def recognize_any_wkt_string(value):
 
 @Geometry.register
 def recognize_geojson_mapping(value):
-    print("running recognizer: geojson mapping")
     from collections.abc import Mapping
     if isinstance(value, Mapping):
         try:
@@ -41,7 +39,6 @@ def recognize_geojson_mapping(value):
 
 @Geometry.register
 def recognize_geojson_string(value):
-    print("running recognizer: geojson string")
 
     from collections.abc import Mapping  # <-- missing import
 
