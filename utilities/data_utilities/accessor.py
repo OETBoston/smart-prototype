@@ -754,32 +754,30 @@ class DataAccessor:
         return self.client.raw_sql(sql_query)
 
 
-    def put(self, data: List[BaseEntity]) -> int:
-        """
-        Inserts data rows using the table name resolved from the entity model. 
-        Returns the number of successfully inserted rows.
-        """
+    def put(
+        self,
+        data: List[BaseEntity],
+        max_batch_size: int = 1000
+    ) -> int:
         if not data:
             return 0
-        
-        # 1. Determine the target table and entity model
+
         entity_model = type(data[0])
         table_fqn = self._get_table_fqn(entity_model)
-        
-        # 2. Create the QuerySpec object for INSERT (using the data models as payload)
-        # The client's execute_query method will handle the Pydantic-to-BigQuery translation.
-        insert_spec = QuerySpec(
-            operation='INSERT',
-            table=table_fqn,
-            payload=data
-        )
-        
-        # ACT: Execute the insert operation
-        # Use execute_query(), which handles the QuerySpec translation.
-        affected_rows = self.client.execute_query(insert_spec)
-        
-        # The client returns the number of affected rows on success
-        return affected_rows
+
+        total_inserted = 0
+
+        for i in range(0, len(data), max_batch_size):
+            batch = data[i:i + max_batch_size]
+            insert_spec = QuerySpec(
+                operation='INSERT',
+                table=table_fqn,
+                payload=batch
+            )
+            total_inserted += self.client.execute_query(insert_spec)
+
+        return total_inserted
+
     
     def put_data_frame (
         self,
