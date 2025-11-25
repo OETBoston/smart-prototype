@@ -3,6 +3,7 @@ from typing import Optional, List, Dict, Any, Union, ClassVar
 from datetime import datetime
 from pydantic import BaseModel, Field, RootModel, ConfigDict
 from google.cloud.bigquery import SchemaField
+from .geometry_support import Geometry
 
 TEST_TABLE_NAME = "test_table_for_db_accessor"
 
@@ -48,7 +49,11 @@ class BaseEntity(BaseModel):
         return cls._SQL_QUERY
 
 
-class SimpleEntityModel(BaseEntity):
+class ValidatedBaseEntity(BaseEntity):
+    """BaseEntity which will preserve the typing of your pydantic model as variables are assigned"""
+    model_config = {"validate_assignment": True}
+
+class SimpleEntityModel(ValidatedBaseEntity):
     """Pydantic model representing a single record from the test table."""
     
     # Static metadata for the BigQuery table
@@ -66,9 +71,9 @@ class SimpleEntityModel(BaseEntity):
     id: str
     type: str
     time: datetime
-    location: str
+    location: Geometry
     
-class SimpleEntityFilter(BaseEntity):
+class SimpleEntityFilter(ValidatedBaseEntity):
     """
     Pydantic model for filtering criteria for a SimpleEntityModel.
     """
@@ -105,7 +110,7 @@ GetReturnType = Union[List[EntityModel], EntityModel, List[RawData], RawData]
 
 
 
-class StreetSegmentEntityBase(BaseEntity):
+class StreetSegmentEntityBase(ValidatedBaseEntity):
     """
     Pydantic model representing schema and table name for street segments
     """
@@ -216,11 +221,11 @@ class StreetSegmentEntityModel(StreetSegmentEntityBase):
     schema_version: Optional[str]
     
     # Geography Field (Mapped to String)
-    geom: Optional[str]
+    geom: Optional[Geometry]
 
 
 
-class StreetSegmentFilterModel(BaseEntity):
+class StreetSegmentFilterModel(ValidatedBaseEntity):
     """
     Pydantic model for filtering criteria for the StreetSegmentEntityModel.
     """
@@ -260,7 +265,7 @@ class StreetSegmentFilterModel(BaseEntity):
     county00_l: Optional[str] = Field(None, description="Filter by county code on the left side.")
 
 
-class RawSignAssetEntityBase(BaseEntity):
+class RawSignAssetEntityBase(ValidatedBaseEntity):
     """
     Pydantic model representing schema and table name for Raw Sign Asset data.
     """
@@ -362,7 +367,7 @@ class RawSignAssetEntityModel(RawSignAssetEntityBase):
     asset_status_field: Optional[str]
     special_sign_description_field: Optional[str]
     notes_field: Optional[str]
-    geom: Optional[str]  # GEOGRAPHY type handled as string
+    geom: Optional[Geometry]  # GEOGRAPHY type handled as string
     arrow_dir: Optional[str]
     geom_quality: Optional[str]
     address_quality: Optional[str]
@@ -372,7 +377,7 @@ class RawSignAssetEntityModel(RawSignAssetEntityBase):
     schema_version: Optional[str]
 
 
-class RawSignAssetFilterModel(BaseEntity):
+class RawSignAssetFilterModel(ValidatedBaseEntity):
     """
     Pydantic model for filtering criteria for the RawSignAsset entity.
     
@@ -418,7 +423,7 @@ class RawSignAssetFilterModel(BaseEntity):
     notes_field_contains: Optional[str] = Field(None, description="Filter where notes contain this substring (LIKE %value%).")
 
 
-class RawSignAssetEntityModelWithAttachments(BaseEntity):
+class RawSignAssetEntityModelWithAttachments(ValidatedBaseEntity):
     """
     Model for a single Sign Asset record, derived from a JOIN 
     between stg_cartegraph and stg_cartegraph_attachments.
@@ -474,7 +479,7 @@ class RawSignAssetEntityModelWithAttachments(BaseEntity):
 
 
 
-class RoadInventoryBBox(BaseModel):
+class RoadInventoryBBox(ValidatedBaseEntity):
     """
     Pydantic model for the nested BigQuery RECORD field `bbox`.
     """
@@ -484,7 +489,7 @@ class RoadInventoryBBox(BaseModel):
     ymax: Optional[float] = None
 
 
-class RoadInventoryEntityBase(BaseEntity):
+class RoadInventoryEntityBase(ValidatedBaseEntity):
     """
     Pydantic base model representing schema and table name for road inventory.
     """
@@ -674,8 +679,8 @@ class RoadInventoryEntityModel(RoadInventoryEntityBase):
     is_oneway: Optional[bool] = None
 
     # Geography fields (handled as strings, e.g. WKT/GeoJSON)
-    geometry: Optional[str] = None
-    centroid: Optional[str] = None
+    geometry: Optional[Geometry] = None
+    centroid: Optional[Geometry] = None
 
     # RECORD field
     bbox: Optional[RoadInventoryBBox] = None
@@ -685,7 +690,7 @@ class RoadInventoryEntityModel(RoadInventoryEntityBase):
 
 
 
-class RoadInventoryFilterModel(BaseEntity):
+class RoadInventoryFilterModel(ValidatedBaseEntity):
     """
     Filters for the RoadInventoryEntityModel.
     Follows the project’s standard suffix conventions:
@@ -820,7 +825,7 @@ class RoadInventoryFilterModel(BaseEntity):
 # ---------------------------------------------
 # Base Class
 # ---------------------------------------------
-class CurbLineEntityBase(BaseEntity):
+class CurbLineEntityBase(ValidatedBaseEntity):
     """
     Base model defining schema + table for curb line data.
     """
@@ -877,7 +882,7 @@ class CurbLineEntityModel(CurbLineEntityBase):
     end_lon: Optional[float]
     end_lat: Optional[float]
     curb_length_ft: Optional[float]
-    geometry: Optional[str]
+    geometry: Optional[Geometry]
     processed_timestamp: Optional[datetime]
     schema_version: Optional[str]
 
