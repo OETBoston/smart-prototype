@@ -15,7 +15,6 @@ class Geometry(PydanticTypeBlueprint):
 
 @Geometry.register
 def recognize_shapely_object(value):
-    print("running recognizer: shapely")
     if isinstance(value, BaseGeometry):
         return str(value)
 
