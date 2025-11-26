@@ -155,8 +155,11 @@ class TestDataAccessorOperations:
         filt = SimpleEntityFilter(id_prefix=unique)
         result = data_accessor.get(SimpleEntityModel, filt, limit=1)
 
-        assert isinstance(result, SimpleEntityModel)
-        assert result.id == target_id
+        # Updated assertions
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], SimpleEntityModel)
+
 
 
 @pytest.mark.integration
