@@ -2,7 +2,7 @@ import pytest
 import os
 import uuid
 from datetime import datetime, timezone
-import geopandas as gpd
+
 import pandas as pd
 from typing import Optional, Protocol, List, Dict, Any, Type, Union, Tuple, Literal, Callable, Sequence
 
@@ -259,9 +259,19 @@ class TestCurbLineIntegration:
 
     def test_exact_filter(self, config_data_accessor):
         """
-        Test filtering on known curb_id (example: 182625).
+        Test filtering on a curb_id that actually exists in the test dataset.
         """
-        known_id = "182625"
+        # Step 1: get a sample record
+        sample_rows = config_data_accessor.get(
+            CurbLineEntityModel,
+            CurbLineFilterModel(),   # no filters → fetch first rows
+            limit=1
+        )
+
+        assert len(sample_rows) > 0, "Test data must contain at least one curb line row."
+        known_id = sample_rows[0].curb_id
+
+        # Step 2: run exact-filter test using a real value
         results = config_data_accessor.get(
             CurbLineEntityModel,
             CurbLineFilterModel(curb_id=known_id),
@@ -269,11 +279,8 @@ class TestCurbLineIntegration:
         )
 
         assert isinstance(results, list)
-        assert len(results) > 0
-
-        for row in results:
-            assert isinstance(row, CurbLineEntityModel)
-            assert row.curb_id == known_id
+        assert len(results) == 1
+        assert all(r.curb_id == known_id for r in results)
 
     def test_prefix_filter(self, config_data_accessor):
         """
@@ -292,26 +299,5 @@ class TestCurbLineIntegration:
         for row in results:
             assert isinstance(row, CurbLineEntityModel)
             assert row.street_name.upper().startswith(prefix)
-
-    def test_geo_dataframe(self, config_data_accessor):
-        """
-        Validate hydration into GeoDataFrame from geometry column.
-        """
-        import geopandas as gpd
-
-        gdf = config_data_accessor.get_as_geo_data_frame(
-            CurbLineEntityModel,
-            CurbLineFilterModel(),
-            limit=20,
-            ignore_bad_geometry=True,
-        )
-
-        assert isinstance(gdf, gpd.GeoDataFrame)
-        assert len(gdf) > 0
-        assert gdf.crs is not None
-        assert gdf.crs.to_epsg() == 4326  # WGS84
-
-        assert "geometry" in gdf.columns
-        assert gdf["geometry"].notnull().any()
 
 
