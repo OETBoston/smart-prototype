@@ -11,7 +11,8 @@ dependencies = [
     "pytest",
     "pydantic",
     "pydantic_settings",
-    
+    "fsspec",
+    "gcsfs",
 ]
 
 [dependency-groups]
