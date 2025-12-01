@@ -10,7 +10,7 @@ from datetime import datetime
 from utilities.data_utilities.storage_utilities import Storage
 from utilities.data_utilities.storage_helpers import (
     create_consistent_storage_suffix,
-    create_google_storage_id
+    create_google_storage_id_from_path
 )
 
 pytestmark = pytest.mark.integration
@@ -84,7 +84,7 @@ def test_upload_random_json(storage, test_prefix):
     obj = generate_random_json()
     local_path = write_temp_json(obj)
 
-    suffix = create_consistent_storage_suffix(local_path)
+    suffix = create_consistent_storage_suffix(path=local_path)
     remote_uri = f"{test_prefix}{suffix}"
 
     # Upload
@@ -114,7 +114,7 @@ def test_collision_handling(storage, test_prefix):
     # Ensure hashing is deterministic
     assert sha256_file(p1) == sha256_file(p2)
 
-    suffix = create_consistent_storage_suffix(p1)
+    suffix = create_consistent_storage_suffix(path=p1)
     remote_uri = f"{test_prefix}{suffix}"
 
     # Upload twice
@@ -136,7 +136,7 @@ def test_different_content_different_hash(storage, test_prefix):
     p1 = write_temp_json({"v": 1})
     p2 = write_temp_json({"v": 2})
 
-    s1 = create_consistent_storage_suffix(p1)
-    s2 = create_consistent_storage_suffix(p2)
+    s1 = create_consistent_storage_suffix(path=p1)
+    s2 = create_consistent_storage_suffix(path=p2)
 
     assert s1 != s2, "Different JSON values should produce different storage suffixes"
