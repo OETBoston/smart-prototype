@@ -4,55 +4,12 @@ from datetime import datetime
 from pydantic import BaseModel, Field, RootModel, ConfigDict
 from google.cloud.bigquery import SchemaField
 from .geometry_support import Geometry
+from .core_queries_and_contracts import *
+from .auto_filters import with_auto_filter
 
 TEST_TABLE_NAME = "test_table_for_db_accessor"
 
-class BaseEntity(BaseModel):
-    """
-    Custom Base Model for all project-specific Pydantic entity and filter models.
-    """
-    
-    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] 
-    _TABLE_NAME: ClassVar[str]
-    _SQL_QUERY: ClassVar[str] = None
-
-    model_config = ConfigDict(extra='forbid')
-    
-    @property
-    def table_name(self) -> str:
-        """The primary, instance-friendly way to get the table name."""
-        return self._TABLE_NAME
-
-    @property
-    def entity_schema(self) -> Dict[str, str]:
-        """The primary, instance-friendly way to get the schema."""
-        return self._ENTITY_SCHEMA
-    
-    @property
-    def sql_query(self) -> str:
-        """None in normal circumstances, will replace normal search for model data"""
-        return self._SQL_QUERY
-
-    @classmethod
-    def get_table_name_cls(cls) -> str:
-        """Safe getter for class-level access (e.g., DataAccessor)."""
-        return cls._TABLE_NAME
-    
-    @classmethod
-    def get_entity_schema_cls(cls) -> Dict[str, str]:
-        """Safe getter for class-level access (e.g., DataAccessor)."""
-        return cls._ENTITY_SCHEMA
-    
-    @classmethod
-    def get_sql_query(cls) -> str:
-        """None in normal circumstances, will replace normal search for model data"""
-        return cls._SQL_QUERY
-
-
-class ValidatedBaseEntity(BaseEntity):
-    """BaseEntity which will preserve the typing of your pydantic model as variables are assigned"""
-    model_config = {"validate_assignment": True}
-
+@with_auto_filter
 class SimpleEntityModel(ValidatedBaseEntity):
     """Pydantic model representing a single record from the test table."""
     
@@ -72,25 +29,8 @@ class SimpleEntityModel(ValidatedBaseEntity):
     type: str
     time: datetime
     location: Geometry
-    
-class SimpleEntityFilter(ValidatedBaseEntity):
-    """
-    Pydantic model for filtering criteria for a SimpleEntityModel.
-    """
-    
-    # Override config to be strict on filter inputs
-    model_config = ConfigDict(extra='forbid')
-    
-    # --- Exact Match Filters (Maps to column = value) ---
-    id: Optional[str] = Field(None, description="Filter by exact record ID (column: 'id', operator: '=').")
-    type: Optional[str] = Field(None, description="Filter by the exact type value (column: 'type', operator: '=').")
-    
-    # --- Prefix Match Filter (Maps to column LIKE value%) ---
-    id_prefix: Optional[str] = Field(None, description="Filter where 'id' starts with this string (operator: 'LIKE').")
-    
-    # --- Range Filters (Maps to column > value or column < value) ---
-    time_after: Optional[datetime] = Field(None, description="Records created strictly after this time (column: 'time', operator: '>').")
-    time_before: Optional[datetime] = Field(None, description="Records created strictly before this time (column: 'time', operator: '<').")
+
+SimpleEntityFilter = SimpleEntityModel.Filter
 
 class RawData(RootModel): # Inherit from RootModel
     # Use 'root' instead of '__root__'
@@ -102,7 +42,7 @@ class RawData(RootModel): # Inherit from RootModel
 
 # --- Union Type Alias for the Get Method Signature ---
 EntityModel = SimpleEntityModel
-EntityFilter = SimpleEntityFilter
+EntityFilter = SimpleEntityModel.Filter
 GetReturnType = Union[List[EntityModel], EntityModel, List[RawData], RawData]
 
 
@@ -166,6 +106,7 @@ class StreetSegmentEntityBase(ValidatedBaseEntity):
         "length_m": "FLOAT",
     }
 
+@with_auto_filter
 class StreetSegmentEntityModel(StreetSegmentEntityBase):
     """
     Pydantic model representing street segments
@@ -223,46 +164,8 @@ class StreetSegmentEntityModel(StreetSegmentEntityBase):
     # Geography Field (Mapped to String)
     geom: Optional[Geometry]
 
+StreetSegmentFilterModel=StreetSegmentEntityModel.Filter
 
-
-class StreetSegmentFilterModel(ValidatedBaseEntity):
-    """
-    Pydantic model for filtering criteria for the StreetSegmentEntityModel.
-    """
-    
-    # Override config to be strict on filter inputs
-    model_config = ConfigDict(extra='forbid')
-    
-    # --- 1. Exact Match Filters (Maps to column = value) ---
-    objectid: Optional[int] = Field(None, description="Filter by exact OBJECTID.")
-    segment_id: Optional[int] = Field(None, description="Filter by exact segment_id.")
-    street_id: Optional[int] = Field(None, description="Filter by exact street_id.")
-    cfcc: Optional[str] = Field(None, description="Filter by exact Functional Class Code (CFCC).")
-    oneway: Optional[str] = Field(None, description="Filter by exact ONESWAY status (e.g., 'Y' or 'N').")
-    
-    # --- 2. Numeric Range Filters (Maps to >= and <=) ---
-    speed_limit_min: Optional[int] = Field(None, description="Records with speed_limit greater than or equal to this value.")
-    speed_limit_max: Optional[int] = Field(None, description="Records with speed_limit less than or equal to this value.")
-    
-    length_m_min: Optional[float] = Field(None, description="Records with length_m greater than or equal to this value.")
-    length_m_max: Optional[float] = Field(None, description="Records with length_m less than or equal to this value.")
-
-    # --- 3. Timestamp Range Filters (Maps to > and <) ---
-    batch_timestamp_after: Optional[datetime] = Field(None, description="Records batched strictly after this time.")
-    batch_timestamp_before: Optional[datetime] = Field(None, description="Records batched strictly before this time.")
-    
-    ingested_at_after: Optional[datetime] = Field(None, description="Records ingested strictly after this time.")
-    ingested_at_before: Optional[datetime] = Field(None, description="Records ingested strictly before this time.")
-    
-    # --- 4. Text Search Filters (Maps to LIKE) ---
-    st_name_prefix: Optional[str] = Field(None, description="Filter where st_name starts with this string (LIKE value%).")
-    st_name_contains: Optional[str] = Field(None, description="Filter where st_name contains this string (LIKE %value%).")
-
-    alternate_name_contains: Optional[str] = Field(None, description="Filter where alternate_name contains this string (LIKE %value%).")
-    
-    # --- 5. Geography/Metadata Filters (Exact match) ---
-    state00_l: Optional[str] = Field(None, description="Filter by state code on the left side.")
-    county00_l: Optional[str] = Field(None, description="Filter by county code on the left side.")
 
 
 class RawSignAssetEntityBase(ValidatedBaseEntity):
@@ -318,7 +221,7 @@ class RawSignAssetEntityBase(ValidatedBaseEntity):
         "schema_version": "STRING",
     }
 
-
+@with_auto_filter
 class RawSignAssetEntityModel(RawSignAssetEntityBase):
     """
     Pydantic model representing Raw Sign Asset data.
@@ -376,51 +279,7 @@ class RawSignAssetEntityModel(RawSignAssetEntityBase):
     source_file: Optional[str]
     schema_version: Optional[str]
 
-
-class RawSignAssetFilterModel(ValidatedBaseEntity):
-    """
-    Pydantic model for filtering criteria for the RawSignAsset entity.
-    
-    Uses standard suffixes for automatic mapping to SQL operators (e.g., LIKE, >=).
-    """
-    
-    # Override config to be strict on filter inputs
-    model_config = ConfigDict(extra='forbid')
-    
-    # --- 1. Exact Match Filters (Maps to column = value) ---
-    oid: Optional[int] = Field(None, description="Filter by exact unique ID.")
-    asset_status_field: Optional[str] = Field(None, description="Filter by exact asset status.")
-    lifecycle_status: Optional[str] = Field(None, description="Filter by exact lifecycle status.")
-    sign_direction_field: Optional[str] = Field(None, description="Filter by exact sign direction.")
-    support_field: Optional[str] = Field(None, description="Filter by exact support type.")
-    
-    # --- 2. Numeric Range Filters (Maps to >= and <=) ---
-    age_days_min: Optional[int] = Field(None, description="Assets older than or equal to this many days.")
-    age_days_max: Optional[int] = Field(None, description="Assets newer than or equal to this many days.")
-    
-    height_field_amount_min: Optional[float] = Field(None, description="Minimum sign height amount.")
-    width_field_amount_max: Optional[float] = Field(None, description="Maximum sign width amount.")
-
-    latitude_min: Optional[float] = Field(None, description="Minimum latitude bound.")
-    latitude_max: Optional[float] = Field(None, description="Maximum latitude bound.")
-    longitude_min: Optional[float] = Field(None, description="Minimum longitude bound.")
-    longitude_max: Optional[float] = Field(None, description="Maximum longitude bound.")
-
-    # --- 3. Timestamp Range Filters (Maps to > and <) ---
-    cg_last_modified_field_after: Optional[datetime] = Field(None, description="Records last modified strictly after this time.")
-    cg_last_modified_field_before: Optional[datetime] = Field(None, description="Records last modified strictly before this time.")
-    
-    entry_date_field_after: Optional[datetime] = Field(None, description="Records entered strictly after this time.")
-    entry_date_field_before: Optional[datetime] = Field(None, description="Records entered strictly before this time.")
-    
-    # --- 4. Text Search Filters (Maps to LIKE) ---
-    cartegraph_id_prefix: Optional[str] = Field(None, description="Filter where cartegraph_id starts with this string (LIKE value%).")
-    
-    mutcd_code_field_contains: Optional[str] = Field(None, description="Filter where MUTCD code contains this substring (LIKE %value%).")
-    
-    locator_street_field_contains: Optional[str] = Field(None, description="Filter where street name contains this substring (LIKE %value%).")
-    
-    notes_field_contains: Optional[str] = Field(None, description="Filter where notes contain this substring (LIKE %value%).")
+RawSignAssetFilterModel = RawSignAssetEntityModel.Filter
 
 
 class RawSignAssetEntityModelWithAttachments(ValidatedBaseEntity):
@@ -582,7 +441,7 @@ class RoadInventoryEntityBase(ValidatedBaseEntity):
         "schema_version": "STRING",
     }
 
-
+@with_auto_filter
 class RoadInventoryEntityModel(RoadInventoryEntityBase):
     """
     Pydantic model representing a single record from `stg_road_inventory`.
@@ -687,144 +546,11 @@ class RoadInventoryEntityModel(RoadInventoryEntityBase):
 
 
 
-
-
-
-class RoadInventoryFilterModel(ValidatedBaseEntity):
-    """
-    Filters for the RoadInventoryEntityModel.
-    Follows the project’s standard suffix conventions:
-      - exact match: field = value
-      - prefix match: field_prefix LIKE 'value%'
-      - contains match: field_contains LIKE '%value%'
-      - numeric ranges: field_min / field_max
-      - timestamp ranges: field_after / field_before
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    # -------------------------------------------------------
-    # 1. Exact Match Filters
-    # -------------------------------------------------------
-    route_id: Optional[str] = Field(
-        None, description="Exact match on route_id."
-    )
-    route_system: Optional[str] = Field(
-        None, description="Exact match on route_system."
-    )
-    route_number: Optional[str] = Field(
-        None, description="Exact match on route_number."
-    )
-    route_direction: Optional[str] = Field(
-        None, description="Exact match on route_direction."
-    )
-
-    rd_seg_id: Optional[int] = Field(
-        None, description="Exact match on rd_seg_id."
-    )
-    f_f_class: Optional[int] = Field(
-        None, description="Exact match on functional class."
-    )
-
-    is_nhs: Optional[bool] = Field(
-        None, description="Exact match on NHS boolean flag."
-    )
-    is_toll_road: Optional[bool] = Field(
-        None, description="Exact match on toll road boolean flag."
-    )
-    is_oneway: Optional[bool] = Field(
-        None, description="Exact match on one-way boolean flag."
-    )
-
-    # -------------------------------------------------------
-    # 2. Prefix Filters (LIKE value%)
-    # -------------------------------------------------------
-    route_id_prefix: Optional[str] = Field(
-        None, description="Prefix match on route_id (LIKE value%)."
-    )
-    st_name_prefix: Optional[str] = Field(
-        None, description="Prefix match on st_name (LIKE value%)."
-    )
-
-    # -------------------------------------------------------
-    # 3. Contains Filters (LIKE %value%)
-    # -------------------------------------------------------
-    st_name_contains: Optional[str] = Field(
-        None, description="Substring match on st_name (LIKE %value%)."
-    )
-    route_number_contains: Optional[str] = Field(
-        None, description="Substring match on route_number (LIKE %value%)."
-    )
-
-    # -------------------------------------------------------
-    # 4. Numeric Ranges
-    # -------------------------------------------------------
-    mile_count_min: Optional[float] = Field(
-        None, description="Minimum mile_count value."
-    )
-    mile_count_max: Optional[float] = Field(
-        None, description="Maximum mile_count value."
-    )
-
-    num_lanes_min: Optional[float] = Field(
-        None, description="Minimum total lane count."
-    )
-    num_lanes_max: Optional[float] = Field(
-        None, description="Maximum total lane count."
-    )
-
-    speed_lim_min: Optional[float] = Field(
-        None, description="Minimum speed limit."
-    )
-    speed_lim_max: Optional[float] = Field(
-        None, description="Maximum speed limit."
-    )
-
-    measure_length_min: Optional[float] = Field(
-        None, description="Minimum measure_length value."
-    )
-    measure_length_max: Optional[float] = Field(
-        None, description="Maximum measure_length value."
-    )
-
-    # -------------------------------------------------------
-    # 5. Timestamp Ranges
-    # -------------------------------------------------------
-    created_date_after: Optional[datetime] = Field(
-        None, description="Created strictly after this timestamp."
-    )
-    created_date_before: Optional[datetime] = Field(
-        None, description="Created strictly before this timestamp."
-    )
-
-    last_edited_date_after: Optional[datetime] = Field(
-        None, description="Last edited strictly after this timestamp."
-    )
-    last_edited_date_before: Optional[datetime] = Field(
-        None, description="Last edited strictly before this timestamp."
-    )
-
-    batch_timestamp_after: Optional[datetime] = Field(
-        None, description="Batch timestamp strictly after this timestamp."
-    )
-    batch_timestamp_before: Optional[datetime] = Field(
-        None, description="Batch timestamp strictly before this timestamp."
-    )
-
-    ingested_at_after: Optional[datetime] = Field(
-        None, description="Ingested strictly after this timestamp."
-    )
-    ingested_at_before: Optional[datetime] = Field(
-        None, description="Ingested strictly before this timestamp."
-    )
+RoadInventoryFilterModel = RoadInventoryEntityModel.Filter
 
 
 
 
-
-# ---------------------------------------------
-# Base Class
-# ---------------------------------------------
 class CurbLineEntityBase(ValidatedBaseEntity):
     """
     Base model defining schema + table for curb line data.
@@ -862,9 +588,8 @@ class CurbLineEntityBase(ValidatedBaseEntity):
     def entity_schema(self) -> Dict[str, str]:
         return self._ENTITY_SCHEMA
 
-# ---------------------------------------------
-# Entity Model
-# ---------------------------------------------
+
+@with_auto_filter
 class CurbLineEntityModel(CurbLineEntityBase):
     """Represents a single curb line record."""
 
@@ -886,52 +611,5 @@ class CurbLineEntityModel(CurbLineEntityBase):
     processed_timestamp: Optional[datetime]= None
     schema_version: Optional[str] = None
 
-# ---------------------------------------------
-# Filter Model
-# ---------------------------------------------
-class CurbLineFilterModel(CurbLineEntityBase):
-    """
-    Filter model following project conventions:
-    - exact match: field
-    - prefix: field_prefix
-    - contains: field_contains
-    - numeric ranges: field_min / field_max
-    - timestamp: field_after / field_before
-    """
 
-    # --- Exact Matches ---
-    curb_id: Optional[int] = None
-    roadway_id: Optional[int] = None
-    route_id: Optional[str] = None
-    route_direction: Optional[str] = None
-    ff_class: Optional[int] = None
-    side: Optional[str] = None
-
-    # --- Text Filters ---
-    street_name_prefix: Optional[str] = None  # LIKE 'value%'
-    street_name_contains: Optional[str] = None  # LIKE '%value%'
-
-    # --- Numeric Ranges ---
-    buffer_left_min: Optional[int] = None
-    buffer_left_max: Optional[int] = None
-
-    buffer_right_min: Optional[int] = None
-    buffer_right_max: Optional[int] = None
-
-    curb_length_ft_min: Optional[float] = None
-    curb_length_ft_max: Optional[float] = None
-
-    # --- Coordinate-based filters ---
-    start_lat_min: Optional[float] = None
-    start_lat_max: Optional[float] = None
-    start_lon_min: Optional[float] = None
-    start_lon_max: Optional[float] = None
-
-    end_lat_min: Optional[float] = None
-    end_lat_max: Optional[float] = None
-    end_lon_min: Optional[float] = None
-    end_lon_max: Optional[float] = None
-
-    # --- Timestamp Filters ---
-    processed_timestamp_after: Optional[datetime] = None
-    processed_timestamp_before: Optional[datetime] = None
+CurbLineFilterModel = CurbLineEntityModel.Filter

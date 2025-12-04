@@ -82,7 +82,7 @@ class TestDataAccessorOperations:
         ]
         data_accessor.put(rows)
 
-        filt = SimpleEntityFilter(id=target_id, type="Pole")
+        filt = SimpleEntityModel.Filter(id=target_id, type="Pole")
         results = data_accessor.get(SimpleEntityModel, filt,
             limit=10)
         assert len(results) == 1
@@ -109,7 +109,7 @@ class TestDataAccessorOperations:
         ]
         data_accessor.put(rows)
 
-        filt = SimpleEntityFilter(time_after=split, id_prefix=unique)
+        filt = SimpleEntityModel.Filter(time_after=split, id_prefix=unique)
         results = data_accessor.get(SimpleEntityModel, filt,
             limit=10)
         assert len(results) == 1
@@ -135,7 +135,7 @@ class TestDataAccessorOperations:
         ]
         data_accessor.put(rows)
 
-        filt = SimpleEntityFilter(time_before=split, id_prefix=unique)
+        filt = SimpleEntityModel.Filter(time_before=split, id_prefix=unique)
         results = data_accessor.get(SimpleEntityModel, filt,
             limit=10)
         assert len(results) == 1
@@ -152,7 +152,7 @@ class TestDataAccessorOperations:
         ]
         data_accessor.put(rows)
 
-        filt = SimpleEntityFilter(id_prefix=unique)
+        filt = SimpleEntityModel.Filter(id_prefix=unique)
         result = data_accessor.get(SimpleEntityModel, filt, limit=1)
 
         # Updated assertions
