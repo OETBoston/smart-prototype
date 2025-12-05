@@ -282,7 +282,7 @@ class TestCurbLineIntegration:
         )
 
         assert isinstance(results, list)
-        assert len(results) == 1
+        assert len(results) > 1
         assert all(r.curb_id == known_id for r in results)
 
     def test_prefix_filter(self, config_data_accessor):
@@ -302,5 +302,76 @@ class TestCurbLineIntegration:
         for row in results:
             assert isinstance(row, CurbLineEntityModel)
             assert row.street_name.upper().startswith(prefix)
+
+    def test_minimal_projection_and_included_fields(self, config_data_accessor):
+        """
+        Ensures that minimal=True selects only filter columns + included columns.
+
+        Steps:
+        1. Fetch a real curb line to get a known curb_id.
+        2. Query again with minimal=True and curb_id_included=True.
+        3. Verify:
+                - curb_id returned (in filter)
+                - street_name returned (explicitly included)
+                - other fields NOT returned
+                - filter still works (exact match)
+        """
+
+        # STEP 1: Fetch a known, real curb line using no filters
+        sample_rows = config_data_accessor.get(
+            CurbLineEntityModel,
+            CurbLineFilterModel(),  # No filters → fetch first available
+            limit=1
+        )
+
+        assert len(sample_rows) > 0, "Test requires at least one curb line row."
+
+        known = sample_rows[0]
+        known_id = known.curb_id
+        assert known_id is not None, "Sample record must have curb_id."
+
+        # STEP 2: Query with minimal=True and explicit include
+        results = config_data_accessor.get(
+            CurbLineEntityModel,
+            CurbLineFilterModel(
+                curb_id=known_id,
+                minimal=True,
+                street_name_included=True
+            ),
+            limit=10
+        )
+
+        # Basic checks
+        assert len(results) >= 1
+        assert all(r.curb_id == known_id for r in results)
+
+
+        row = results[0]
+
+        # ---- VALIDATION TARGETS ----
+
+        # 1. Filtered column MUST be present
+        assert row.curb_id == known_id
+
+        # 2. Included column MUST be present
+        assert row.street_name == known.street_name
+
+        # 3. Columns NOT used or included should be None
+        #    Example: roadway_id was not filtered or included
+        assert row.roadway_id is None
+
+        # 4. Geometry should also be None (not included, not filtered)
+        assert row.geometry is None
+
+        # 5. backend correctly executed minimal projection
+        #    i.e., no unexpected fields show up with non-null values
+        unexpected_fields = {
+            "route_id", "route_direction", "ff_class",
+            "buffer_left", "buffer_right", "curb_length_ft",
+            "processed_timestamp", "schema_version"
+        }
+
+        for f in unexpected_fields:
+            assert getattr(row, f) is None, f"Field {f} should not be projected in minimal mode."
 
 

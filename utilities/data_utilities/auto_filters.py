@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Type, get_args, get_origin, Union
+from typing import Any, Dict, Type, get_args, get_origin, Union, List
 
 from pydantic import BaseModel
-from pydantic.config import ConfigDict  # or from pydantic import ConfigDict in v2.5+
+from pydantic.config import ConfigDict
 
 
 def _unwrap_optional(tp: Any) -> tuple[Any, bool]:
@@ -26,12 +26,8 @@ def create_filter_model(entity_cls: Type[BaseModel]) -> Type[BaseModel]:
     """
     Dynamically generates a Pydantic Filter model for the given entity_cls.
 
-    - Includes exact-match fields for every entity field
-    - Adds suffix-based filter fields depending on the underlying type:
-        * str:     _contains, _prefix, _suffix
-        * int/float: _min, _max, _gt, _lt, _gte, _lte
-        * datetime:  _after, _before
-        * bool/other: exact match only
+    - Includes filter fields for every entity field (exact, range, etc.).
+    - Adds minimal: bool flag for projection control.
     """
 
     annotations: Dict[str, Any] = {}
@@ -44,16 +40,15 @@ def create_filter_model(entity_cls: Type[BaseModel]) -> Type[BaseModel]:
         annotations[name] = base_type | None
         defaults[name] = None
 
+        # included flag (for projection)
+        annotations[f"{name}_included"] = bool | None
+        defaults[f"{name}_included"] = None
+
         # --- 2. string operators ---
         if base_type is str:
-            annotations[f"{name}_contains"] = str | None
-            defaults[f"{name}_contains"] = None
-
-            annotations[f"{name}_prefix"] = str | None
-            defaults[f"{name}_prefix"] = None
-
-            annotations[f"{name}_suffix"] = str | None
-            defaults[f"{name}_suffix"] = None
+            for suffix in ("_contains", "_prefix", "_suffix"):
+                annotations[f"{name}{suffix}"] = str | None
+                defaults[f"{name}{suffix}"] = None
 
         # --- 3. numeric operators ---
         if base_type in (int, float):
@@ -69,20 +64,19 @@ def create_filter_model(entity_cls: Type[BaseModel]) -> Type[BaseModel]:
             annotations[f"{name}_before"] = datetime | None
             defaults[f"{name}_before"] = None
 
-        # --- 5. booleans & everything else ---
-        # get exact match only (already added). No extra suffixes.
+    # --- 5. minimal flag ---
+    annotations["minimal"] = bool | None
+    defaults["minimal"] = None
 
     filter_name = f"{entity_cls.__name__}Filter"
 
-    namespace: Dict[str, Any] = {
+    namespace = {
         "__annotations__": annotations,
         "model_config": ConfigDict(extra="forbid"),
+        **defaults,
     }
-    namespace.update(defaults)
 
-    filter_cls = type(filter_name, (BaseModel,), namespace)
-    return filter_cls
-
+    return type(filter_name, (BaseModel,), namespace)
 
 
 
@@ -91,5 +85,6 @@ def with_auto_filter(entity_cls: Type[BaseModel]) -> Type[BaseModel]:
     Class decorator that attaches an auto-generated `Filter`
     model to the entity class.
     """
+    # Note: Use a more specific type hint if possible in a real project
     entity_cls.Filter = create_filter_model(entity_cls)  # type: ignore[attr-defined]
     return entity_cls

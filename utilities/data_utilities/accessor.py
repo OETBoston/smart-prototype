@@ -118,7 +118,7 @@ class BigQueryClient:
                 project=profile.project_id,
             )
         )
-    
+        
     def _build_sql(self, query_spec: QuerySpec) -> str:
         """Internal: Builds BigQuery-specific SQL from QuerySpec (assumes SELECT or DELETE)."""
         
@@ -295,57 +295,95 @@ class AccessorSelectQueryBuilder:
         limit: Optional[int] = None
     ) -> QuerySpec:
         """
-        Translates Pydantic input into a database-agnostic QuerySpec.
+        Translates Pydantic filter input into a QuerySpec, supporting:
+        - minimal=True  → SELECT only filter + included fields
+        - xxx_included=True → explicit opt-in projection
         """
-        # 1. Columns: Select all fields defined in the Entity Model
-        columns = list(entity_model.model_fields.keys())
 
-        # 2. Filters: Map non-None fields from the Filter instance to QuerySpec filters
+        # --------------------------------------------
+        # 0. Prep for projection logic
+        # --------------------------------------------
+
+        # All columns in the entity model (only used when minimal=False)
+        entity_fields = list(entity_model.model_fields.keys())
+
+        included_fields: set[str] = set()   # fields explicitly included
+        filter_columns: set[str] = set()    # columns referenced by filters
+
+        minimal: bool = getattr(filter_instance, "minimal", False)
+
+        # --------------------------------------------
+        # 1. Parse filters and included flags
+        # --------------------------------------------
+
         filters = []
-        
-        # Iterate over all fields passed in the filter instance that are not None
+
         for field_name, value in filter_instance.model_dump(exclude_none=True).items():
-            
-            # Default to exact match
+
+            # Skip the switch itself
+            if field_name == "minimal":
+                continue
+
+            # Handle xxx_included=True → include "xxx" in projection
+            if field_name.endswith("_included") and value is True:
+                included_fields.add(field_name.removesuffix("_included"))
+                continue
+
+            # Otherwise: treat it as a filtering field
             column_name = field_name
-            operator = '='
+            operator = "="
             final_value = value
-            matched_convention = False
-            
-            # Check Conventions (Longest suffix first)
+
+            # Look for suffix conventions (_contains, _min, etc.)
+            matched = False
             for suffix, op in AccessorSelectQueryBuilder._FILTER_CONVENTIONS:
                 if field_name.endswith(suffix):
-                    
-                    # 1. Determine Column Name and Operator
+                    matched = True
                     column_name = field_name.removesuffix(suffix)
                     operator = op
-                    matched_convention = True
-                    
-                    # 2. Apply Value Transformation for LIKE operators
-                    if suffix == '_contains':
-                        final_value = f"%{value}%"
-                    elif suffix == '_prefix':
-                        final_value = f"{value}%"
-                    elif suffix == '_suffix':
-                        final_value = f"%{value}"
-                        
-                    break # Stop checking suffixes once a match is found
-            
-            # Final filter addition
-            # If no suffix was matched, it automatically uses the default operator='=' 
-            # and column_name = field_name (exact match).
-            filters.append((column_name, operator, final_value))
 
-        # 3. Handle Limit
-        final_limit = limit
+                    # Apply LIKE transformations
+                    if suffix == "_contains":
+                        final_value = f"%{value}%"
+                    elif suffix == "_prefix":
+                        final_value = f"{value}%"
+                    elif suffix == "_suffix":
+                        final_value = f"%{value}"
+                    break
+
+            filters.append((column_name, operator, final_value))
+            filter_columns.add(column_name)
+
+        # --------------------------------------------
+        # 2. Determine projection columns
+        # --------------------------------------------
+
+        if minimal:
+            # Minimal = only fields required by filters + explicit includes
+            columns = set(filter_columns) | included_fields
+
+            # If minimal produced no columns, fallback to "*"
+            if not columns:
+                columns = {"*"}
+
+            columns = list(columns)
+
+        else:
+            # Non-minimal = SELECT *
+            columns = entity_fields
+
+        # --------------------------------------------
+        # 3. Assemble QuerySpec
+        # --------------------------------------------
 
         return QuerySpec(
-            operation='SELECT',
+            operation="SELECT",
             table=table_name,
             columns=columns,
             filters=filters,
-            limit=final_limit
+            limit=limit,
         )
+
 
 
 
