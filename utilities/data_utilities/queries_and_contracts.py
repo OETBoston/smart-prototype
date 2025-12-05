@@ -49,8 +49,8 @@ GetReturnType = Union[List[EntityModel], EntityModel, List[RawData], RawData]
 
 
 
-
-class StreetSegmentEntityBase(ValidatedBaseEntity):
+@with_auto_filter
+class StreetSegmentEntityModel(ValidatedBaseEntity):
     """
     Pydantic model representing schema and table name for street segments
     """
@@ -106,11 +106,6 @@ class StreetSegmentEntityBase(ValidatedBaseEntity):
         "length_m": "FLOAT",
     }
 
-@with_auto_filter
-class StreetSegmentEntityModel(StreetSegmentEntityBase):
-    """
-    Pydantic model representing street segments
-    """
     # Integer Fields
     objectid: Optional[int]
     segment_id: Optional[int]
@@ -167,8 +162,8 @@ class StreetSegmentEntityModel(StreetSegmentEntityBase):
 StreetSegmentFilterModel=StreetSegmentEntityModel.Filter
 
 
-
-class RawSignAssetEntityBase(ValidatedBaseEntity):
+@with_auto_filter
+class RawSignAssetEntityModel(ValidatedBaseEntity):
     """
     Pydantic model representing schema and table name for Raw Sign Asset data.
     """
@@ -221,13 +216,6 @@ class RawSignAssetEntityBase(ValidatedBaseEntity):
         "schema_version": "STRING",
     }
 
-@with_auto_filter
-class RawSignAssetEntityModel(RawSignAssetEntityBase):
-    """
-    Pydantic model representing Raw Sign Asset data.
-    """
-    # --- Pydantic Field Definitions ---
-    # All fields are Optional as per the 'NULLABLE' mode in the schema.
 
     # 1. Integer Fields (BigQuery: INTEGER)
     oid: Optional[int]
@@ -348,7 +336,8 @@ class RoadInventoryBBox(ValidatedBaseEntity):
     ymax: Optional[float] = None
 
 
-class RoadInventoryEntityBase(ValidatedBaseEntity):
+@with_auto_filter
+class RoadInventoryEntityModel(ValidatedBaseEntity):
     """
     Pydantic base model representing schema and table name for road inventory.
     """
@@ -441,13 +430,6 @@ class RoadInventoryEntityBase(ValidatedBaseEntity):
         "schema_version": "STRING",
     }
 
-@with_auto_filter
-class RoadInventoryEntityModel(RoadInventoryEntityBase):
-    """
-    Pydantic model representing a single record from `stg_road_inventory`.
-    All fields are Optional to match the warehouse reality and allow partial
-    projections.
-    """
 
     # Integer fields
     objectid: Optional[int] = None
@@ -550,8 +532,8 @@ RoadInventoryFilterModel = RoadInventoryEntityModel.Filter
 
 
 
-
-class CurbLineEntityBase(ValidatedBaseEntity):
+@with_auto_filter
+class CurbLineEntityModel(ValidatedBaseEntity):
     """
     Base model defining schema + table for curb line data.
     """
@@ -587,11 +569,6 @@ class CurbLineEntityBase(ValidatedBaseEntity):
     @property
     def entity_schema(self) -> Dict[str, str]:
         return self._ENTITY_SCHEMA
-
-
-@with_auto_filter
-class CurbLineEntityModel(CurbLineEntityBase):
-    """Represents a single curb line record."""
 
     curb_id: Optional[int]= None
     roadway_id: Optional[int]= None
