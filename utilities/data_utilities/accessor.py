@@ -308,7 +308,15 @@ class AccessorSelectQueryBuilder:
 
         unknown = actual - allowed
         if unknown:
-            raise ValueError(f"Unknown filter fields: {unknown}")
+            invalid = ", ".join(sorted(unknown))
+            valid = ", ".join(sorted(allowed))
+            raise ValueError(
+                f"Unknown filter fields: {invalid}. "
+                f"Valid filter fields are: {valid}. "
+                f"This may occur if the filter was constructed using model_construct(), "
+                f"which bypasses validation."
+            )
+
 
         # --------------------------------------------
         # 0. Prep for projection logic

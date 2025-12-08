@@ -3,6 +3,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 from pprint import pprint
+from pydantic import BaseModel, ConfigDict
 
 from utilities.data_utilities.accessor import DataAccessor
 from utilities.data_utilities.queries_and_contracts import (
@@ -246,7 +247,10 @@ class TestFilterBrittleness:
 
     def test_accessor_rejects_unknown_fields_even_if_pydantic_is_bypassed(self,accessor):
         # Construct an illegal filter instance without Pydantic validation
-        f = SimpleEntityModel.Filter.model_construct(
+        class FilterIgnoreExtra(SimpleEntityModel.Filter):
+            model_config = ConfigDict(extra="ignore")
+
+        f = FilterIgnoreExtra.model_construct(
             **{
                 "time_typ_suffix": "zzz"   # NOT a real field
             }
