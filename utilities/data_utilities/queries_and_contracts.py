@@ -18,17 +18,24 @@ class SimpleEntityModel(ValidatedBaseEntity):
     
     # BigQuery Schema definition (using ClassVar for clarity)
     _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = { 
+        "time_type": "STRING",
+        "i": "STRING", 
         "id": "STRING",
         "type": "STRING",
         "time": "TIMESTAMP", 
         "location": "GEOGRAPHY",
+
     }
     
     # Instance Fields (data types for Python/Pydantic validation)
-    id: str
-    type: str
-    time: datetime
-    location: Geometry
+    i: str | None  = None
+    time_type: str | None  = None
+    id: str | None = None
+    type: str | None  = None
+    time: datetime  | None = None
+    location: Geometry  | None = None
+
+
 
 SimpleEntityFilter = SimpleEntityModel.Filter
 

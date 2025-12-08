@@ -8,6 +8,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely import wkt
 
 from .type_blueprint import PydanticTypeBlueprint
+from collections.abc import Mapping  
 
 class Geometry(PydanticTypeBlueprint):
     __default_error__ = "Unrecognized geometry format, please check geometry pydantic type"
@@ -38,8 +39,6 @@ def recognize_geojson_mapping(value):
 
 @Geometry.register
 def recognize_geojson_string(value):
-
-    from collections.abc import Mapping  # <-- missing import
 
     if isinstance(value, str):
         try:

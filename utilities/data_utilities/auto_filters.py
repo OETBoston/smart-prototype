@@ -3,72 +3,98 @@
 from __future__ import annotations
 
 from datetime import datetime
+from types import UnionType
 from typing import Any, Dict, Type, get_args, get_origin, Union, List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from pydantic.config import ConfigDict
+import logging
+
+logger = logging.getLogger("auto_filter")
+logger.addHandler(logging.NullHandler())
 
 
-def _unwrap_optional(tp: Any) -> tuple[Any, bool]:
-    """
-    If tp is Optional[T] / Union[T, None], return (T, True).
-    Otherwise return (tp, False).
-    """
+
+def _unwrap_optional(tp):
     origin = get_origin(tp)
+
+    # typing.Union[str, None]
     if origin is Union:
         args = [a for a in get_args(tp) if a is not type(None)]
         if len(args) == 1:
             return args[0], True
+    
+    # PEP 604 union: str | None  → origin is types.UnionType
+    if origin is UnionType:
+        args = [a for a in get_args(tp) if a is not type(None)]
+        if len(args) == 1:
+            return args[0], True
+
     return tp, False
 
-
 def create_filter_model(entity_cls: Type[BaseModel]) -> Type[BaseModel]:
-    """
-    Dynamically generates a Pydantic Filter model for the given entity_cls.
-
-    - Includes filter fields for every entity field (exact, range, etc.).
-    - Adds minimal: bool flag for projection control.
-    """
-
     annotations: Dict[str, Any] = {}
     defaults: Dict[str, Any] = {}
 
+    logger.debug(f"\n\n=== Building filter for {entity_cls.__name__} ===")
+
     for name, field in entity_cls.model_fields.items():
-        base_type, _ = _unwrap_optional(field.annotation)
+        logger.debug(f"\nField: {name}")
+        logger.debug(f"  Raw annotation: {field.annotation!r}")
+
+        base_type, optional = _unwrap_optional(field.annotation)
+
+        logger.debug(f"  Unwrapped base_type: {base_type!r}")
+        logger.debug(f"  optional?: {optional}")
 
         # --- 1. exact match ---
         annotations[name] = base_type | None
         defaults[name] = None
+        logger.debug(f"  -> Added exact match field: {name}: {annotations[name]}")
 
-        # included flag (for projection)
+        # included flag
         annotations[f"{name}_included"] = bool | None
         defaults[f"{name}_included"] = None
+        logger.debug(f"  -> Added included flag field: {name}_included")
 
         # --- 2. string operators ---
-        if base_type is str:
+        if base_type == str:
+            logger.debug(f"  -> STRING FIELD DETECTED for {name}, adding suffix ops!")
             for suffix in ("_contains", "_prefix", "_suffix"):
-                annotations[f"{name}{suffix}"] = str | None
-                defaults[f"{name}{suffix}"] = None
+                op_name = f"{name}{suffix}"
+                annotations[op_name] = str | None
+                defaults[op_name] = None
+                logger.debug(f"     Added string op: {op_name}")
+        else:
+            logger.debug(f"  -> NOT a string field (base_type={base_type!r})")
 
-        # --- 3. numeric operators ---
+        # --- 3. numeric ---
         if base_type in (int, float):
+            logger.debug(f"  -> NUMERIC FIELD DETECTED for {name}, adding numeric ops!")
             for suffix in ("_min", "_max", "_gt", "_lt", "_gte", "_lte"):
-                annotations[f"{name}{suffix}"] = base_type | None
-                defaults[f"{name}{suffix}"] = None
+                op_name = f"{name}{suffix}"
+                annotations[op_name] = base_type | None
+                defaults[op_name] = None
+                logger.debug(f"     Added numeric op: {op_name}")
 
-        # --- 4. datetime operators ---
-        if base_type is datetime:
+        # --- 4. datetime ---
+        if base_type == datetime:
+            logger.debug(f"  -> DATETIME FIELD DETECTED for {name}, adding datetime ops!")
             annotations[f"{name}_after"] = datetime | None
             defaults[f"{name}_after"] = None
+            logger.debug(f"     Added datetime op: {name}_after")
 
             annotations[f"{name}_before"] = datetime | None
             defaults[f"{name}_before"] = None
+            logger.debug(f"     Added datetime op: {name}_before")
 
-    # --- 5. minimal flag ---
+    # minimal flag
     annotations["minimal"] = bool | None
     defaults["minimal"] = None
+    logger.debug("Added minimal flag")
 
     filter_name = f"{entity_cls.__name__}Filter"
+    logger.debug(f"=== Finished filter model: {filter_name} ===\n\n")
 
     namespace = {
         "__annotations__": annotations,
@@ -76,7 +102,28 @@ def create_filter_model(entity_cls: Type[BaseModel]) -> Type[BaseModel]:
         **defaults,
     }
 
+    # Validator: minimal=True requires at least one included field
+    @model_validator(mode="after")
+    def _validate_minimal(self):
+        if getattr(self, "minimal", False):
+            included_fields = [
+                name for name in entity_cls.model_fields
+                if getattr(self, f"{name}_included", None)
+            ]
+            if not included_fields:
+                raise ValueError(
+                    f"{filter_name}: minimal=True requires at least one <field>_included=True"
+                )
+        return self
+
+    namespace["_validate_minimal"] = _validate_minimal
+
+
     return type(filter_name, (BaseModel,), namespace)
+
+
+
+
 
 
 

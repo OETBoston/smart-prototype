@@ -300,6 +300,16 @@ class AccessorSelectQueryBuilder:
         - xxx_included=True → explicit opt-in projection
         """
 
+        # ------------------------------------------------------------
+        # 0A. Reject unknown fields even if Pydantic was bypassed
+        # ------------------------------------------------------------
+        allowed = set(filter_instance.model_fields.keys())
+        actual = set(filter_instance.__dict__.keys())
+
+        unknown = actual - allowed
+        if unknown:
+            raise ValueError(f"Unknown filter fields: {unknown}")
+
         # --------------------------------------------
         # 0. Prep for projection logic
         # --------------------------------------------
@@ -337,7 +347,7 @@ class AccessorSelectQueryBuilder:
             # Look for suffix conventions (_contains, _min, etc.)
             matched = False
             for suffix, op in AccessorSelectQueryBuilder._FILTER_CONVENTIONS:
-                if field_name.endswith(suffix):
+                if field_name.endswith(suffix) and field_name[:-len(suffix)] in entity_model.model_fields:
                     matched = True
                     column_name = field_name.removesuffix(suffix)
                     operator = op
@@ -353,6 +363,11 @@ class AccessorSelectQueryBuilder:
 
             filters.append((column_name, operator, final_value))
             filter_columns.add(column_name)
+
+        unknown = filter_columns - set(entity_model.model_fields.keys())
+        if unknown:
+            raise ValueError(f"Unknown filter fields: {unknown}")
+
 
         # --------------------------------------------
         # 2. Determine projection columns
@@ -749,7 +764,7 @@ class DataAccessor:
         entity_model: Type[BaseEntity],
         filter: BaseEntity,
         limit: Optional[int] = None
-    ) -> Union[List[BaseEntity], BaseEntity]:
+    ) -> List[BaseEntity]:
         """
         Retrieves data by translating the filter into a query, ensuring results 
         are validated against the specified entity_model.
