@@ -40,7 +40,7 @@ would need to be modified to make use of these other asset types.
 | column_name     | column_type        | Notes                                                                                                            |
 | :-------------- | :----------------- | :--------------------------------------------------------------------------------------------------------------- |
 | image_id        | UUID (PRIMARY KEY) |                                                                                                                  |
-| sign_id         | UUID (FOREIGN KEY) |                                                                                                                  |
+| sign_id         | UUID (FOREIGN KEY) | Should be indexed, related to signs.sign_id                                                                      |
 | data_source_id  | UUID (FOREIGN KEY) |                                                                                                                  |
 | job_id          | UUID (FOREIGN KEY) |                                                                                                                  |
 | uri             | VARCHAR            | A uri to a stable and persistent location where the image can be found.                                          |
