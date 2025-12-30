@@ -68,6 +68,7 @@ would need to be modified to make use of these other asset types.
 | column_name     | column_type        | Notes                                                                                                                                                |
 | :-------------- | :----------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- |
 | job_id          | UUID (PRIMARY KEY) |                                                                                                                                                      |
+| job_timestamp   | TIMESTAMP          | Time job was run                                                                                                                                     |
 | job_name        | VARCHAR            | Short name that concisely describes a sign or other asset data import job.                                                                           |
 | job_description | VARCHAR            | Extended description of an asset reader import job. Examples: "Cartegraph for Chinatown, 2025-12-22" or "Manual photos for Charlestown, 2025-12-23". |
 
@@ -90,6 +91,7 @@ serve as inputs to the curb segmentation process.
 | column_name     | column_type        | Notes                                                             |
 | :-------------- | :----------------- | :---------------------------------------------------------------- |
 | job_id          | UUID (PRIMARY KEY) |                                                                   |
+| job_timestamp   | TIMESTAMP          | Time job was run                                                  |
 | job_name        | VARCHAR            | Short name that concisely describes a curb geometry creation job. |
 | job_description | VARCHAR            | Extended description of a curb geometry creation job.             |
 
@@ -118,6 +120,7 @@ process referenced to the original images and their locations.
 | column_name     | column_type        | Notes                                                                                                                                            |
 | :-------------- | :----------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
 | job_id          | UUID (PRIMARY KEY) |                                                                                                                                                  |
+| job_timestamp   | TIMESTAMP          | Time job was run                                                                                                                                 |
 | job_name        | VARCHAR            | Short name that concisely describes a sign reader job.                                                                                           |
 | job_description | VARCHAR            | Extended description of a sign reader job. This should include information such as model/process versions, prompts, and other pertinent details. |
 
@@ -144,5 +147,6 @@ to signs or non-sign assets that caused the segment to be split.
 | column_name     | column_type        | Notes                                                                                                                                                                                                                       |
 | :-------------- | :----------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | job_id          | UUID (PRIMARY KEY) |                                                                                                                                                                                                                             |
+| job_timestamp   | TIMESTAMP          | Time job was run                                                                                                                                                                                                            |
 | job_name        | VARCHAR            | Short name that concisely describes a curb segmentation job.                                                                                                                                                                |
 | job_description | VARCHAR            | Extended description of a sign reader job. This should include information such as the version of the curb segmenter program and the source of the curb geography (e.g., "MassDOT streets layer current as of 12-22-2025"). |
