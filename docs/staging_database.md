@@ -44,7 +44,7 @@ would need to be modified to make use of these other asset types.
 | data_source_id  | UUID (FOREIGN KEY) |                                                                                                                  |
 | job_id          | UUID (FOREIGN KEY) |                                                                                                                  |
 | uri             | VARCHAR            | A uri to a stable and persistent location where the image can be found.                                          |
-| image_data      | TIMESTAMP          | Date and time the images was added to the database.                                                              |
+| image_date      | TIMESTAMP          | Date and time the images was added to the database.                                                              |
 | source_image_id | VARCHAR            | Optional but recommended field to contain a unique identifier linking the image to the original source database. |
 
 ### data_sources
