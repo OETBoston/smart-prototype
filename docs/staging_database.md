@@ -150,3 +150,32 @@ to signs or non-sign assets that caused the segment to be split.
 | job_timestamp   | TIMESTAMP          | Time job was run                                                                                                                                                                                                            |
 | job_name        | VARCHAR            | Short name that concisely describes a curb segmentation job.                                                                                                                                                                |
 | job_description | VARCHAR            | Extended description of a sign reader job. This should include information such as the version of the curb segmenter program and the source of the curb geography (e.g., "MassDOT streets layer current as of 12-22-2025"). |
+
+## Policy Handler Output Tables
+
+The policy handler assigns policies to curb segments. Policy Handler output contains the results of this
+process, in which each record represents a single policy instance applied to a segment.
+
+### curb_segment_policies
+
+| column_name             | column_type        | Notes                                                                                   |
+| :---------------------- | :----------------- | :-------------------------------------------------------------------------------------- |
+| assignment_id           | UUID (PRIMARY KEY) |                                                                                         |
+| segment_id              | UUID (FOREIGN KEY) | Segment ID that links to "curb_segments"                                                |
+| policy_id               | UUID (FOREIGN KEY) | Policy ID that links to "policies"                                                      |
+| job_id                  | UUID (FOREIGN KEY) | Job ID that links to metadata about the policy handling job that generated the mapping. |
+| run_date                | TIMESTAMP          | Time the record was generated.                                                          |
+
+### policy_handling_jobs
+
+| column_name     | column_type        | Notes                                                                                                                                            |
+| :-------------- | :----------------- | :-----------------------------------------------------------------------------------------------|
+| job_id          | UUID (PRIMARY KEY) |                                                                                                 |
+| job_name        | VARCHAR            | Short name that concisely describes a sign reader job.                                          |
+| job_description | VARCHAR            | Extended description of a sign reader job. This should include information such as model/process versions, prompts, and other pertinent details. |
+
+### policies
+| column_name             | column_type        | Notes                                                                                   |
+| :---------------------- | :----------------- | :-------------------------------------------------------------------------------------- |
+| policy_id               | UUID (PRIMARY KEY) |                                                                                         |
+| policy_json             | JSONB              | Sign policy as interpreted by the sign reader in CDS policy object format .             |
