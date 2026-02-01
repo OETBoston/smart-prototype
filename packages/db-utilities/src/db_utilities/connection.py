@@ -4,7 +4,7 @@ from typing import Sequence
 
 import geopandas as gpd
 import pandas as pd
-from sqlalchemy import Engine, Inspector, create_engine, inspect, text
+from sqlalchemy import Connection, Engine, Inspector, create_engine, inspect, text
 from sqlalchemy.engine.url import URL
 
 # TODO:
@@ -52,6 +52,7 @@ class SmartCurbDB:
         self.schema = schema
         self.dbname = dbname
         self.engine: Engine | None = None
+        self.connection: Connection | None = None
 
         # Load config from env variables
         self.host = os.environ.get("DB_HOST", "localhost")
@@ -72,9 +73,9 @@ class SmartCurbDB:
         self.close()
 
     def connect(self) -> None:
-        """Establishes a PostgreSQL database engine and connection parameters.
+        """Establishes a connection to the PostgreSQL database.
 
-        Creates a SQLAlchemy engine using environment variables
+        Creates a SQLAlchemy engine and connection using environment variables
         for host, port, user, and password. Sets the search path to the specified
         schema if provided.
         """
@@ -87,9 +88,17 @@ class SmartCurbDB:
             database=self.dbname,
         )
         self.engine = create_engine(url)
+        self.connection = self.engine.connect()
+        if self.schema:
+            # Set the search path to the specified schema
+            self.connection.execute(text(f"SET search_path TO {self.schema}"))
+            self.connection.commit()
 
     def close(self) -> None:
         """Closes the database connection and disposes of the engine."""
+        if self.connection:
+            self.connection.close()
+            self.connection = None
         if self.engine:
             self.engine.dispose()
             self.engine = None
@@ -107,7 +116,7 @@ class SmartCurbDB:
         Raises:
             ValueError: If data is not a DataFrame or GeoDataFrame.
             ValueError: If the specified table does not exist.
-            ConnectionError: If the database connection fails.
+            ConnectionError: If the database connection is not open.
         """
         if not isinstance(data, (pd.DataFrame, gpd.GeoDataFrame)):
             raise ValueError(
@@ -160,12 +169,12 @@ class SmartCurbDB:
 
         Raises:
             ValueError: If the specified table does not exist.
-            ConnectionError: If the database connection fails.
+            ConnectionError: If the database connection is not open.
         """
         # Check DB status and table existence
         inspector = self._check_db_status(table_name)
         # for type checker, guaranteed by _check_db_status
-        assert self.engine is not None
+        assert self.connection is not None
 
         # Build the WHERE clause if filter is provided
         where_clause = f" WHERE {filter}" if filter else ""
@@ -192,13 +201,13 @@ class SmartCurbDB:
 
         # Read as DataFrame
         if geom_col is None:
-            return pd.read_sql(text(sql), self.engine)
+            return pd.read_sql(text(sql), self.connection)
         else:
             # Read as GeoDataFrame
-            return gpd.read_postgis(sql, self.engine, geom_col=geom_col)
+            return gpd.read_postgis(sql, self.connection, geom_col=geom_col)
 
     def _check_db_status(self, table_name: str) -> Inspector:
-        """Checks if the database engine and specified table exists.
+        """Checks if the database connection is open and if the specified table exists.
 
         Args:
             table_name (str): Name of the table to verify.
@@ -207,13 +216,13 @@ class SmartCurbDB:
             Inspector: SQLAlchemy Inspector object for the database.
 
         Raises:
-            ConnectionError: If the database connection fails.
+            ConnectionError: If the database connection is not open.
             ValueError: If the specified table does not exist.
         """
 
-        if self.engine is None:
+        if self.engine is None or self.connection is None:
             raise ConnectionError(
-                "Database engine not found. Use within a context manager or call "
+                "Database connection is not open. Use within a context manager or call "
                 "connect()."
             )
 
