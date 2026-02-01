@@ -48,6 +48,12 @@ class SmartCurbDB:
             >>> with SmartCurbDB(dbname="my_db") as db:
             ...     df = pd.DataFrame({"col1": [1, 2], "col2": ["a", "b"]})
             ...     db.append_data("my_table", df)
+
+            Modifying data:
+
+            >>> with SmartCurbDB(dbname="my_db") as db:
+            ...     # filter must return one and only one record.
+            ...     db.modify_record("my_table", filter="id=123", field="my_field", value="abcd")
         """
         self.schema = schema
         self.dbname = dbname
@@ -205,6 +211,63 @@ class SmartCurbDB:
         else:
             # Read as GeoDataFrame
             return gpd.read_postgis(sql, self.connection, geom_col=geom_col)
+
+    def modify_record(
+        self, table_name: str, filter: str, column: str, value: str | int | float
+    ) -> None:
+        """Updates a single value in a record and column.
+
+        Args:
+            table_name (str): Name of the table to read.
+            filter (str): SQL WHERE clause to filter rows. Must return exactly one record.
+            column (str): Column name to update.
+            value (str | int | float): New value
+
+        Raises:
+            ValueError: If the specified table does not exist.
+            ValueError: If the filter returns more than one record.
+            ConnectionError: If the database connection fails.
+        """
+        # Check DB status and table existence
+        inspector = self._check_db_status(table_name)
+        # for type checker, guaranteed by _check_db_status
+        assert self.engine is not None
+        assert self.connection is not None
+
+        # Validate that the column exists
+        available_columns = {
+            col["name"] for col in inspector.get_columns(table_name, schema=self.schema)
+        }
+        if column not in available_columns:
+            raise ValueError(
+                f"Column '{column}' does not exist in table '{table_name}'."
+            )
+
+        # Select the record based on filter to verify only one was selected
+        where_clause = f" WHERE {filter}"
+        if self.schema:
+            sql = f"SELECT * FROM {self.schema}.{table_name}{where_clause}"
+        else:
+            sql = f"SELECT * FROM {table_name}{where_clause}"
+
+        result_df = pd.read_sql(text(sql), self.engine)
+
+        if len(result_df) == 0:
+            raise ValueError(f"Filter returned no records: {filter}")
+        if len(result_df) > 1:
+            raise ValueError(
+                f"Filter returned {len(result_df)} records, expected exactly 1."
+            )
+
+        # Update the column in that selected record
+        if self.schema:
+            update_sql = f'UPDATE {self.schema}.{table_name} SET "{column}" = :value WHERE {filter}'
+        else:
+            update_sql = f'UPDATE {table_name} SET "{column}" = :value WHERE {filter}'
+
+        # Apply the edit
+        self.connection.execute(text(update_sql), {"value": value})
+        self.connection.commit()
 
     def _check_db_status(self, table_name: str) -> Inspector:
         """Checks if the database connection is open and if the specified table exists.
