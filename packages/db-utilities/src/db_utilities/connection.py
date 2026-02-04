@@ -97,7 +97,7 @@ class SmartCurbDB:
         self.connection = self.engine.connect()
         if self.schema:
             # Set the search path to the specified schema
-            self.connection.execute(text(f"SET search_path TO {self.schema}"))
+            self.connection.execute(text(f"SET search_path TO {self.schema}, public"))
             self.connection.commit()
 
     def close(self) -> None:
