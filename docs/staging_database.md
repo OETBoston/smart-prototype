@@ -95,6 +95,29 @@ serve as inputs to the curb segmentation process.
 | job_name        | VARCHAR            | Short name that concisely describes a curb geometry creation job. |
 | job_description | VARCHAR            | Extended description of a curb geometry creation job.             |
 
+## Parking Meter Tables
+
+This set of tables contains data regarding parking policies from the parking meters and how to link these policies to `curb_segments`.
+
+### meter_policies
+
+| column_name                | column_type        | Notes                                                                                   |
+| :------------------------- | :----------------- | :-------------------------------------------------------------------------------------- |
+| meter_policy_id            | UUID (PRIMARY KEY) |                                                                                         |
+| job_id                     | UUID (FOREIGN KEY) | Job ID that links to metadata about the sign reader job that generated the policy.      |
+| meter_zone_id              | INT                | Zone ID from original parking meter dataset.                                            |
+| meter_zone_description     | VARCHAR            | Description of meter zone.                                                              |
+| run_date                   | TIMESTAMP          | Time the record was generated.                                                          |
+| policy_json                | JSONB              | Meter policy parsed in CDS policy object format .                                       |
+
+
+### curb_segments_meter_policies
+
+| column_name                | column_type        | Notes                                                                                   |
+| :------------------------- | :----------------- | :-------------------------------------------------------------------------------------- |
+| curb_segment_id            | UUID (FOREIGN KEY) |                                                                                         |
+| meter_policy_id            | UUID (FOREIGN KEY) |                                                                                         |
+
 ## Sign Reader Output Tables
 
 The sign reader creates policies based on sign imagery. Sign reader output contains the results of this
