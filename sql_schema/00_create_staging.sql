@@ -142,7 +142,7 @@ CREATE TABLE staging_next.signs (
 	CONSTRAINT signs_pkey PRIMARY KEY (sign_id),
 	CONSTRAINT signs_data_source_id_fkey FOREIGN KEY (data_source_id) REFERENCES staging_next.data_sources(data_source_id),
 	CONSTRAINT signs_job_id_fkey FOREIGN KEY (job_id) REFERENCES staging_next.asset_jobs(job_id),
-	CONSTRAINT signs_sign_location_id_fkey FOREIGN KEY (sign_location_id) REFERENCES staging_next.asset_locations(asset_location_id)
+	CONSTRAINT signs_sign_location_id_fkey FOREIGN KEY (sign_location_id) REFERENCES staging_next.asset_locations(asset_location_id) ON DELETE CASCADE
 );
 CREATE INDEX idx_signs_data_source ON staging_next.signs USING btree (data_source_id);
 CREATE INDEX idx_signs_job ON staging_next.signs USING btree (job_id);
@@ -171,7 +171,7 @@ CREATE TABLE staging_next.images (
 	CONSTRAINT images_pkey PRIMARY KEY (image_id),
 	CONSTRAINT images_data_source_id_fkey FOREIGN KEY (data_source_id) REFERENCES staging_next.data_sources(data_source_id),
 	CONSTRAINT images_job_id_fkey FOREIGN KEY (job_id) REFERENCES staging_next.asset_jobs(job_id),
-	CONSTRAINT images_sign_id_fkey FOREIGN KEY (sign_id) REFERENCES staging_next.signs(sign_id)
+	CONSTRAINT images_sign_id_fkey FOREIGN KEY (sign_id) REFERENCES staging_next.signs(sign_id) ON DELETE CASCADE
 );
 CREATE INDEX idx_images_data_source ON staging_next.images USING btree (data_source_id);
 CREATE INDEX idx_images_job ON staging_next.images USING btree (job_id);
