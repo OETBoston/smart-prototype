@@ -108,7 +108,7 @@ This set of tables contains data regarding parking policies from the parking met
 | meter_zone_id              | INT                | Zone ID from original parking meter dataset.                                            |
 | meter_zone_description     | VARCHAR            | Description of meter zone.                                                              |
 | run_date                   | TIMESTAMP          | Time the record was generated.                                                          |
-| policy_json                | JSONB              | Meter policy parsed in CDS policy object format .                                       |
+| policy_json                | JSONB              | Meter policy parsed in CDS policy object format.                                       |
 
 
 ### curb_segments_meter_policies
@@ -131,7 +131,7 @@ process referenced to the original images and their locations.
 | sign_id                 | UUID (FOREIGN KEY) |                                                                                         |
 | job_id                  | UUID (FOREIGN KEY) | Job ID that links to metadata about the sign reader job that generated the policy.      |
 | run_date                | TIMESTAMP          | Time the record was generated.                                                          |
-| policy_json             | JSONB              | Sign policy as interpreted by the sign reader in CDS policy object format .             |
+| policy_json             | JSONB              | Sign policy as interpreted by the sign reader in CDS policy object format.             |
 | policy_arrow            | VARCHAR            | left, right, or both (no arrows implies both).                                          |
 | ai_confidence_score     | VARCHAR            | Score of 1-100 indicating AI confidence in CDS policy [may be broken into components?]. |
 | ai_commentary           | VARCHAR            | Optional field to allow AI to provide "commentary" on reasoning.                        |
