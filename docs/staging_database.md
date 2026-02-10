@@ -104,19 +104,25 @@ This set of tables contains data regarding parking policies from the parking met
 | column_name                | column_type        | Notes                                                                                   |
 | :------------------------- | :----------------- | :-------------------------------------------------------------------------------------- |
 | meter_policy_id            | UUID (PRIMARY KEY) |                                                                                         |
-| job_id                     | UUID (FOREIGN KEY) | Job ID that links to metadata about the sign reader job that generated the policy.      |
-| meter_zone_id              | INT                | Zone ID from original parking meter dataset.                                            |
-| meter_zone_description     | VARCHAR            | Description of meter zone.                                                              |
+| job_id                     | UUID (FOREIGN KEY) | Job ID that links to metadata about the asset job that generated the policy.            |
 | run_date                   | TIMESTAMP          | Time the record was generated.                                                          |
-| policy_json                | JSONB              | Meter policy parsed in CDS policy object format.                                       |
+| policy_json                | JSONB              | Meter policy parsed in CDS policy object format.                                        |
 
 
-### curb_segments_meter_policies
+### curb_segments_meter_zones
 
 | column_name                | column_type        | Notes                                                                                   |
 | :------------------------- | :----------------- | :-------------------------------------------------------------------------------------- |
 | curb_segment_id            | UUID (FOREIGN KEY) |                                                                                         |
+| meter_zone_id              | INT                | Zone ID from original parking meter dataset.                                            |
+
+### meter_policies_meter_zones
+
+| column_name                | column_type        | Notes                                                                                   |
+| :------------------------- | :----------------- | :-------------------------------------------------------------------------------------- |
 | meter_policy_id            | UUID (FOREIGN KEY) |                                                                                         |
+| meter_zone_id              | INT                | Zone ID from original parking meter dataset.                                            |
+
 
 ## Sign Reader Output Tables
 
