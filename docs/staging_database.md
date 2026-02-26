@@ -117,7 +117,7 @@ This set of tables contains data regarding parking policies from the parking met
 | curb_segment_id            | UUID (FOREIGN KEY) |                                                                                              |
 | meter_zone_id              | VARCHAR            | Zone ID from original parking meter dataset. Should be formatted as "Park Boston Zone ID: {}"|
 
-#### parking_meter_jobs
+### parking_meter_jobs
 
 | column_name     | column_type        | Notes                                                                                                 |
 | :-------------- | :----------------- | :---------------------------------------------------------------------------------------------------- |
