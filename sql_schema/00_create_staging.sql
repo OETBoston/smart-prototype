@@ -220,7 +220,7 @@ CREATE TABLE staging_next.parking_meter_jobs (
 
 CREATE TABLE staging_next.meter_policies (
 	meter_policy_id uuid DEFAULT uuid_generate_v4() NOT NULL,
-	name VARCHAR UNIQUE NOT NULL,
+	name VARCHAR NOT NULL,
 	job_id uuid NOT NULL,
 	run_date timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	policy_json jsonb NOT NULL,
@@ -235,8 +235,7 @@ CREATE TABLE staging_next.curb_segments_meter_zones (
 	curb_segment_id uuid NOT NULL,
 	meter_zone_id VARCHAR NOT NULL,
 
-	CONSTRAINT curb_segments_meter_zones_segment_fkey FOREIGN KEY (curb_segment_id) REFERENCES staging_next.curb_segments(segment_id),
-	CONSTRAINT curb_segments_meter_zones_zone_fkey FOREIGN KEY (meter_zone_id) REFERENCES staging_next.meter_policies(name)
+	CONSTRAINT curb_segments_meter_zones_segment_fkey FOREIGN KEY (curb_segment_id) REFERENCES staging_next.curb_segments(segment_id)
 );
 CREATE INDEX idx_curb_segments_meter_zones_segment ON staging_next.curb_segments_meter_zones USING btree (curb_segment_id);
 CREATE INDEX idx_curb_segments_meter_zones_zone_id ON staging_next.curb_segments_meter_zones USING btree (meter_zone_id);
