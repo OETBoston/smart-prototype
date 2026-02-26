@@ -101,30 +101,30 @@ This set of tables contains data regarding parking policies from the parking met
 
 ### meter_policies
 
-| column_name                | column_type        | Notes                                                                                        |
-| :------------------------- | :----------------- | :------------------------------------------------------------------------------------------- |
-| meter_policy_id            | UUID (PRIMARY KEY) |                                                                                              |
-| name                       | VARCHAR            | Zone ID from original parking meter dataset. Should be formatted as "Park Boston Zone ID: {}"|
-| job_id                     | UUID (FOREIGN KEY) | Job ID that links to metadata about the parking meter job that generated the policy.         |
-| run_date                   | TIMESTAMP          | Time the record was generated.                                                               |
-| policy_json                | JSONB              | Meter policy parsed in CDS policy object format.                                             |
+| column_name                | column_type        | Notes                                                                                          |
+| :------------------------- | :----------------- | :--------------------------------------------------------------------------------------------- |
+| meter_policy_id            | UUID (PRIMARY KEY) |                                                                                                |
+| name                       | VARCHAR            | Zone ID from original parking meter dataset. Should be formatted as "Park Boston Zone ID: {}". |
+| job_id                     | UUID (FOREIGN KEY) | Job ID that links to metadata about the parking meter job that generated the policy.           |
+| run_date                   | TIMESTAMP          | Time the record was generated.                                                                 |
+| policy_json                | JSONB              | Meter policy parsed in CDS policy object format.                                               |
 
 
 ### curb_segments_meter_zones
 
-| column_name                | column_type        | Notes                                                                                        |
-| :------------------------- | :----------------- | :------------------------------------------------------------------------------------------- |
-| curb_segment_id            | UUID (FOREIGN KEY) |                                                                                              |
-| meter_zone_id              | VARCHAR            | Zone ID from original parking meter dataset. Should be formatted as "Park Boston Zone ID: {}"|
+| column_name                | column_type        | Notes                                                                                          |
+| :------------------------- | :----------------- | :--------------------------------------------------------------------------------------------- |
+| curb_segment_id            | UUID (FOREIGN KEY) |                                                                                                |
+| meter_zone_id              | VARCHAR            | Zone ID from original parking meter dataset. Should be formatted as "Park Boston Zone ID: {}". |
 
 ### parking_meter_jobs
 
 | column_name     | column_type        | Notes                                                                                                 |
 | :-------------- | :----------------- | :---------------------------------------------------------------------------------------------------- |
 | job_id          | UUID (PRIMARY KEY) |                                                                                                       |
-| job_timestamp   | TIMESTAMP          | Time job was run                                                                                      |
+| job_timestamp   | TIMESTAMP          | Time job was run.                                                                                     |
 | job_name        | VARCHAR            | Short name that concisely describes a parking meter import job.                                       |
-| job_description | VARCHAR            | Extended description of a parking meter import job. Example: "Park Boston Policy Updates 2026-02-26"  |
+| job_description | VARCHAR            | Extended description of a parking meter import job. Example: "Park Boston Policy Updates 2026-02-26". |
 
 
 ## Sign Reader Output Tables
