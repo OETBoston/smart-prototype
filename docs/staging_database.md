@@ -104,7 +104,7 @@ This set of tables contains data regarding parking policies from the parking met
 | column_name                | column_type        | Notes                                                                                          |
 | :------------------------- | :----------------- | :--------------------------------------------------------------------------------------------- |
 | meter_policy_id            | UUID (PRIMARY KEY) |                                                                                                |
-| name                       | VARCHAR            | Zone ID from original parking meter dataset. Should be formatted as "Park Boston Zone ID: {}". |
+| name                       | VARCHAR            | Zone ID from original parking meter dataset, e.g. "286"                                        |
 | job_id                     | UUID (FOREIGN KEY) | Job ID that links to metadata about the parking meter job that generated the policy.           |
 | run_date                   | TIMESTAMP          | Time the record was generated.                                                                 |
 | policy_json                | JSONB              | Meter policy parsed in CDS policy object format.                                               |
@@ -115,7 +115,7 @@ This set of tables contains data regarding parking policies from the parking met
 | column_name                | column_type        | Notes                                                                                          |
 | :------------------------- | :----------------- | :--------------------------------------------------------------------------------------------- |
 | curb_segment_id            | UUID (FOREIGN KEY) |                                                                                                |
-| meter_zone_id              | VARCHAR            | Zone ID from original parking meter dataset. Should be formatted as "Park Boston Zone ID: {}". |
+| meter_zone_id              | VARCHAR            | Zone ID from original parking meter dataset,  e.g. "286"                                       |
 
 ### parking_meter_jobs
 
