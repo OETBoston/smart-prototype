@@ -99,6 +99,7 @@ CREATE TABLE staging_next.curb_segments (
 	segment_id uuid DEFAULT uuid_generate_v4() NOT NULL,
 	blockface_id uuid NOT NULL,
 	job_id uuid NOT NULL,
+	segment_seq integer NOT NULL,
 	run_date timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	geography public.geometry(linestring, 4326) NOT NULL,
 	upstream_location uuid NULL,

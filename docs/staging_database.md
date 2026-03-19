@@ -84,7 +84,7 @@ serve as inputs to the curb segmentation process.
 | blockface_id      | UUID (PRIMARY KEY)   |                                                                                |
 | job_id            | UUID (FOREIGN KEY)   |                                                                                |
 | geography         | GEOMETRY(LineString) | This could be JSON, WKT, or a PostGIS location.                                |
-| direction_of_flow | VARCHAR              | Direction of flow in the adjacent lane. Values must be `forward` or `reverse`. |
+| direction_of_flow | VARCHAR              | Direction of flow in the adjacent lane. Values must be `forward` or `reverse`. This field should only be set to `reverse` for curbs on the left-hand side of one-way streets.|
 
 ### blockface_jobs
 
@@ -169,6 +169,7 @@ to signs or non-sign assets that caused the segment to be split.
 | segment_id          | UUID (PRIMARY KEY)   |                                                 |
 | blockface_id        | UUID (FOREIGN KEY)   |                                                 |
 | job_id              | UUID (FOREIGN KEY)   |                                                 |
+| segment_seq | INTEGER | Sequential value starting at zero, ordered in the direction of traffic flow |
 | run_date            | TIMESTAMP            |                                                 |
 | geography           | GEOMETRY(LineString) | This could be JSON, WKT, or a PostGIS location. |
 | upstream_location   | UUID (FOREIGN KEY)   |                                                 |
