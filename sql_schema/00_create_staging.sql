@@ -86,8 +86,7 @@ CREATE TABLE staging_next.curb_blockfaces (
 	blockface_id uuid DEFAULT uuid_generate_v4() NOT NULL,
 	job_id uuid NOT NULL,
 	geography public.geometry(linestring, 4326) NOT NULL,
-	direction_of_flow varchar NOT NULL,
-	CONSTRAINT curb_blockfaces_direction_of_flow_check CHECK (((direction_of_flow)::text = ANY ((ARRAY['forward'::character varying, 'reverse'::character varying])::text[]))),
+	is_left_side_oneway boolean NOT NULL,
 	CONSTRAINT curb_blockfaces_pkey PRIMARY KEY (blockface_id),
 	CONSTRAINT curb_blockfaces_job_id_fkey FOREIGN KEY (job_id) REFERENCES staging_next.blockface_jobs(job_id)
 );
@@ -99,6 +98,8 @@ CREATE TABLE staging_next.curb_segments (
 	segment_id uuid DEFAULT uuid_generate_v4() NOT NULL,
 	blockface_id uuid NOT NULL,
 	job_id uuid NOT NULL,
+	segment_seq integer NOT NULL,
+	is_left_side_oneway boolean NOT NULL,
 	run_date timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	geography public.geometry(linestring, 4326) NOT NULL,
 	upstream_location uuid NULL,
