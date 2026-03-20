@@ -14,6 +14,7 @@ SET search_path TO public, staging_next;
 -- Add relevant tables 
 CREATE TABLE staging_next.asset_jobs (
 	job_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+	job_timestamp timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	job_name varchar NOT NULL,
 	job_description varchar NULL,
 	CONSTRAINT asset_jobs_pkey PRIMARY KEY (job_id)
@@ -22,6 +23,7 @@ CREATE TABLE staging_next.asset_jobs (
 
 CREATE TABLE staging_next.blockface_jobs (
 	job_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+	job_timestamp timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	job_name varchar NOT NULL,
 	job_description varchar NULL,
 	CONSTRAINT blockface_jobs_pkey PRIMARY KEY (job_id)
@@ -30,6 +32,7 @@ CREATE TABLE staging_next.blockface_jobs (
 
 CREATE TABLE staging_next.curb_segment_jobs (
 	job_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+	job_timestamp timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	job_name varchar NOT NULL,
 	job_description varchar NULL,
 	CONSTRAINT curb_segment_jobs_pkey PRIMARY KEY (job_id)
@@ -53,6 +56,7 @@ CREATE TABLE staging_next.policies (
 
 CREATE TABLE staging_next.policy_handling_jobs (
 	job_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+	job_timestamp timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	job_name varchar NOT NULL,
 	job_description varchar NULL,
 	CONSTRAINT policy_handling_jobs_pkey PRIMARY KEY (job_id)
@@ -61,6 +65,7 @@ CREATE TABLE staging_next.policy_handling_jobs (
 
 CREATE TABLE staging_next.sign_reader_jobs (
 	job_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+	job_timestamp timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	job_name varchar NOT NULL,
 	job_description varchar NULL,
 	CONSTRAINT sign_reader_jobs_pkey PRIMARY KEY (job_id)
@@ -100,7 +105,6 @@ CREATE TABLE staging_next.curb_segments (
 	job_id uuid NOT NULL,
 	segment_seq integer NOT NULL,
 	is_left_side_oneway boolean NOT NULL,
-	run_date timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	geography public.geometry(linestring, 4326) NOT NULL,
 	upstream_location uuid NULL,
 	downstream_location uuid NULL,
@@ -214,6 +218,7 @@ AS SELECT t1.segment_id,
 
 CREATE TABLE staging_next.parking_meter_jobs (
 	job_id uuid DEFAULT uuid_generate_v4() NOT NULL,
+	job_timestamp timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	job_name varchar NOT NULL,
 	job_description varchar NULL,
 	CONSTRAINT parking_meter_jobs_pkey PRIMARY KEY (job_id)

@@ -173,7 +173,6 @@ to signs or non-sign assets that caused the segment to be split.
 | job_id              | UUID (FOREIGN KEY)   |                                                 |
 | segment_seq | INTEGER | Sequential value starting at zero, ordered in the direction of traffic flow |
 | is_left_side_oneway | BOOLEAN            | Indicates that the curb segment is on the left side of a one way street. Carried forward from the `curb_blockfaces` table. |
-| run_date            | TIMESTAMP            |                                                 |
 | geography           | GEOMETRY(LineString) | This could be JSON, WKT, or a PostGIS location. |
 | upstream_location   | UUID (FOREIGN KEY)   |                                                 |
 | downstream_location | UUID (FOREIGN KEY)   |                                                 |
@@ -207,6 +206,7 @@ process, in which each record represents a single policy instance applied to a s
 | column_name     | column_type        | Notes                                                                                                                                            |
 | :-------------- | :----------------- | :-----------------------------------------------------------------------------------------------|
 | job_id          | UUID (PRIMARY KEY) |                                                                                                 |
+| job_timestamp   | TIMESTAMP          | Time job was run                                                                                                                                                                                                            |
 | job_name        | VARCHAR            | Short name that concisely describes a sign reader job.                                          |
 | job_description | VARCHAR            | Extended description of a sign reader job. This should include information such as model/process versions, prompts, and other pertinent details. |
 
