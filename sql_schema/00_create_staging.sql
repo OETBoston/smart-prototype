@@ -224,8 +224,8 @@ CREATE TABLE staging_next.meter_policies (
 	name VARCHAR NOT NULL,
 	job_id uuid NOT NULL,
 	run_date timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	"location" public.geometry(point, 4326) NOT NULL,
 	policy_json jsonb NOT NULL,
-
 	CONSTRAINT meter_policies_pkey PRIMARY KEY (meter_policy_id),
 	CONSTRAINT meter_policies_job_id_fkey FOREIGN KEY (job_id) REFERENCES staging_next.parking_meter_jobs(job_id)
 );
@@ -235,9 +235,11 @@ CREATE INDEX idx_meter_policies_json ON staging_next.meter_policies USING gin (p
 CREATE TABLE staging_next.curb_segments_meter_zones (
 	curb_segment_id uuid NOT NULL,
 	meter_zone_id VARCHAR NOT NULL,
-
-	CONSTRAINT curb_segments_meter_zones_segment_fkey FOREIGN KEY (curb_segment_id) REFERENCES staging_next.curb_segments(segment_id)
+	job_id uuid NOT NULL,
+	CONSTRAINT curb_segments_meter_zones_segment_fkey FOREIGN KEY (curb_segment_id) REFERENCES staging_next.curb_segments(segment_id),
+	CONSTRAINT curb_segments_meter_zones_job_fkey FOREIGN KEY (job_id) REFERENCES staging_next.parking_meter_jobs(job_id)
 );
+CREATE INDEX idx_curb_segments_meter_zones_job ON staging_next.curb_segments_meter_zones USING btree (job_id);
 CREATE INDEX idx_curb_segments_meter_zones_segment ON staging_next.curb_segments_meter_zones USING btree (curb_segment_id);
 CREATE INDEX idx_curb_segments_meter_zones_zone_id ON staging_next.curb_segments_meter_zones USING btree (meter_zone_id);
 

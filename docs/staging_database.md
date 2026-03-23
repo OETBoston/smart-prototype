@@ -107,15 +107,17 @@ This set of tables contains data regarding parking policies from the parking met
 | name                       | VARCHAR            | Zone ID from original parking meter dataset, e.g. "286"                                        |
 | job_id                     | UUID (FOREIGN KEY) | Job ID that links to metadata about the parking meter job that generated the policy.           |
 | run_date                   | TIMESTAMP          | Time the record was generated.                                                                 |
+| location                   | GEOMETRY(Point)    | Midpoint location of meter zone.                                                                |
 | policy_json                | JSONB              | Meter policy parsed in CDS policy object format.                                               |
 
 
 ### curb_segments_meter_zones
 
-| column_name                | column_type        | Notes                                                                                          |
-| :------------------------- | :----------------- | :--------------------------------------------------------------------------------------------- |
-| curb_segment_id            | UUID (FOREIGN KEY) |                                                                                                |
-| meter_zone_id              | VARCHAR            | Zone ID from original parking meter dataset,  e.g. "286"                                       |
+| column_name                | column_type        | Notes                                                                                              |
+| :------------------------- | :----------------- | :------------------------------------------------------------------------------------------------- |
+| curb_segment_id            | UUID (FOREIGN KEY) |                                                                                                    |
+| meter_zone_id              | VARCHAR            | Zone ID from original parking meter dataset,  e.g. "286"                                           |
+| job_id                     | UUID (FOREIGN KEY) | Job ID that links to metadata about the parking meter job that linked curb segments to meter zones |           
 
 ### parking_meter_jobs
 
@@ -123,7 +125,7 @@ This set of tables contains data regarding parking policies from the parking met
 | :-------------- | :----------------- | :---------------------------------------------------------------------------------------------------- |
 | job_id          | UUID (PRIMARY KEY) |                                                                                                       |
 | job_timestamp   | TIMESTAMP          | Time job was run.                                                                                     |
-| job_name        | VARCHAR            | Short name that concisely describes a parking meter import job.                                       |
+| job_name        | VARCHAR            | Short name that concisely describes a parking meter import or curb segmentation linkage job.          |
 | job_description | VARCHAR            | Extended description of a parking meter import job. Example: "Park Boston Policy Updates 2026-02-26". |
 
 
