@@ -101,14 +101,14 @@ This set of tables contains data regarding parking policies from the parking met
 
 ### meter_policies
 
-| column_name                | column_type        | Notes                                                                                          |
-| :------------------------- | :----------------- | :--------------------------------------------------------------------------------------------- |
-| meter_policy_id            | UUID (PRIMARY KEY) |                                                                                                |
-| name                       | VARCHAR            | Zone ID from original parking meter dataset, e.g. "286"                                        |
-| job_id                     | UUID (FOREIGN KEY) | Job ID that links to metadata about the parking meter job that generated the policy.           |
-| run_date                   | TIMESTAMP          | Time the record was generated.                                                                 |
-| location                   | GEOMETRY(Point)    | Midpoint location of meter zone.                                                                |
-| policy_json                | JSONB              | Meter policy parsed in CDS policy object format.                                               |
+| column_name                | column_type           | Notes                                                                                          |
+| :------------------------- | :-------------------- | :--------------------------------------------------------------------------------------------- |
+| meter_policy_id            | UUID (PRIMARY KEY)    |                                                                                                |
+| name                       | VARCHAR               | Zone ID from original parking meter dataset, e.g. "286"                                        |
+| job_id                     | UUID (FOREIGN KEY)    | Job ID that links to metadata about the parking meter job that generated the policy.           |
+| run_date                   | TIMESTAMP             | Time the record was generated.                                                                 |
+| geography                  | GEOMETRY(LineString)  | Geography of meter zone                                                                        |
+| policy_json                | JSONB                 | Meter policy parsed in CDS policy object format.                                               |
 
 
 ### curb_segments_meter_zones

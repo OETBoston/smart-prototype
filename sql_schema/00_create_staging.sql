@@ -224,7 +224,7 @@ CREATE TABLE staging_next.meter_policies (
 	name VARCHAR NOT NULL,
 	job_id uuid NOT NULL,
 	run_date timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"location" public.geometry(point, 4326) NOT NULL,
+	geography public.geometry(linestring, 4326) NOT NULL,
 	policy_json jsonb NOT NULL,
 	CONSTRAINT meter_policies_pkey PRIMARY KEY (meter_policy_id),
 	CONSTRAINT meter_policies_job_id_fkey FOREIGN KEY (job_id) REFERENCES staging_next.parking_meter_jobs(job_id)
