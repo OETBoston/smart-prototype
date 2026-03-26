@@ -6,13 +6,10 @@ readme = "README.md"
 requires-python = ">=3.13"
 
 dependencies = [
-    "google-cloud-bigquery>=3.0.0",
     "geopandas>=0.14.0",
     "pytest",
     "pydantic",
     "pydantic_settings",
-    "fsspec",
-    "gcsfs",
 ]
 
 [dependency-groups]
@@ -20,13 +17,6 @@ dev = [
     "pre-commit>=4.3.0",
     "ruff>=0.13.3",
 ]
-
-[tool.pytest.ini_options]
-pythonpath = ["."]
-markers = [
-    "integration: marks tests that require live Google Cloud resources (slow/expensive)",
-]
-addopts = "-m 'not integration'"
 
 [tool.ruff]
 line-length = 88
