@@ -6,19 +6,20 @@
 # It requires that the database specified in your .env file has a dataset consistent
 # with the cds schema, including tables like curb_zones and curb_policies.
 #
-# This test script will MODIFY the database by adding a test table and appending data to it.
+# This test script will MODIFY the database by adding a test table and appending data to
+# it.
 
-from smart_curb_db import SmartCurbDB
 import pandas as pd
 from dotenv import load_dotenv
+from smart_curb_db import SmartCurbDB
 
 # For testing only, not usually needed.
-from sqlalchemy import Table, Column, Integer, String, Float, MetaData
+from sqlalchemy import Column, Float, Integer, MetaData, String, Table
 
 load_dotenv()
 
 
-def main():
+def main() -> None:
     # Initialize database connection
 
     # Connect to the database using a context manager
@@ -129,12 +130,13 @@ def main():
             db.append_data("test_table", missing_col_data)
         except Exception as e:
             print(
-                "\n\nExpected error when appending data with missing non-nullable column:"
+                "\n\nExpected error when appending data with missing "
+                + "non-nullable column:"
             )
             print(e)
 
 
-def create_test_table():
+def create_test_table() -> None:
     # Add a table called test_table, replacing it if it already exists
     # in practice, this will not be needed since tables will already exist
     with SmartCurbDB(dbname="smart_curb_db", schema="public") as db:
