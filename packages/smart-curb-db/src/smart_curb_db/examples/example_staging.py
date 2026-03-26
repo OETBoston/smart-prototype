@@ -6,15 +6,16 @@
 # This example was tested on the live staging database hosted in GCP.
 #
 
-from smart_curb_db import SmartCurbDB
+import uuid
+
 import pandas as pd
 from dotenv import load_dotenv
-import uuid
+from smart_curb_db import SmartCurbDB
 
 load_dotenv()
 
 
-def main():
+def main() -> None:
     # Add a record to the table asset_jobs
     with SmartCurbDB(dbname="cds", schema="staging") as db:
         data = pd.DataFrame(

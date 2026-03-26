@@ -1,21 +1,22 @@
 import os
 from types import TracebackType
 from typing import Sequence
-import pandas as pd
-import geopandas as gpd
-from sqlalchemy import create_engine, inspect, text, Inspector, Engine
-from sqlalchemy.engine.url import URL
 
+import geopandas as gpd
+import pandas as pd
+from sqlalchemy import Engine, Inspector, create_engine, inspect, text
+from sqlalchemy.engine.url import URL
 
 # TODO:
 # Use pytest to create unit tests for this class.
 
 
 class SmartCurbDB:
-    """Manages connections and queries to a PostgreSQL database with support for geospatial data.
+    """Manages connections and queries to a PostgreSQL database with support for
+    geospatial data.
 
-    This class provides methods to read from and write to PostgreSQL tables, with built-in
-    support for geopandas GeoDataFrames and spatial queries.
+    This class provides methods to read from and write to PostgreSQL tables, with
+    built-in support for geopandas GeoDataFrames and spatial queries.
 
     """
 
@@ -100,7 +101,8 @@ class SmartCurbDB:
 
         Args:
             table_name (str): Name of the table to write to.
-            data (pd.DataFrame | gpd.GeoDataFrame): pandas DataFrame or geopandas GeoDataFrame.
+            data (pd.DataFrame | gpd.GeoDataFrame): pandas DataFrame or geopandas
+                GeoDataFrame.
 
         Raises:
             ValueError: If data is not a DataFrame or GeoDataFrame.
@@ -145,12 +147,16 @@ class SmartCurbDB:
 
         Args:
             table_name (str): Name of the table to read.
-            geom_col (str | None, optional): Name of the geometry column to read as GeoDataFrame. If None, returns DataFrame. Defaults to None.
-            filter (str | None, optional): SQL WHERE clause to filter rows. Defaults to None.
-            columns (Sequence[str] | None, optional): Column name(s) to select. Defaults to all columns.
+            geom_col (str | None, optional): Name of the geometry column to read as
+                GeoDataFrame. If None, returns DataFrame. Defaults to None.
+            filter (str | None, optional): SQL WHERE clause to filter rows. Defaults to
+                None.
+            columns (Sequence[str] | None, optional): Column name(s) to select.
+                Defaults to all columns.
 
         Returns:
-            pd.DataFrame | gpd.GeoDataFrame: A pandas DataFrame or geopandas GeoDataFrame.
+            pd.DataFrame | gpd.GeoDataFrame: A pandas DataFrame or geopandas
+                GeoDataFrame.
 
         Raises:
             ValueError: If the specified table does not exist.
@@ -207,7 +213,8 @@ class SmartCurbDB:
 
         if self.engine is None:
             raise ConnectionError(
-                "Database engine not found. Use within a context manager or call connect()."
+                "Database engine not found. Use within a context manager or call "
+                "connect()."
             )
 
         # Make sure the table exists, provide ValueError if not
@@ -229,7 +236,8 @@ class SmartCurbDB:
         inspector: Inspector,
         table_name: str,
     ) -> list[str]:
-        """Validates user-provided columns against the table schema and returns a quoted list.
+        """Validates user-provided columns against the table schema and returns a
+        quoted list.
 
         Args:
             columns (Sequence[str] | str): Column name(s) to validate.
@@ -240,7 +248,8 @@ class SmartCurbDB:
             list[str]: List of quoted column names suitable for SQL generation.
 
         Raises:
-            ValueError: If columns list is empty or if any columns do not exist in the table.
+            ValueError: If columns list is empty or if any columns do not exist in the
+                table.
         """
 
         columns_list = list(columns)
