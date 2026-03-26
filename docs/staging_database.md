@@ -106,7 +106,6 @@ This set of tables contains data regarding parking policies from the parking met
 | meter_policy_id            | UUID (PRIMARY KEY)    |                                                                                                |
 | name                       | VARCHAR               | Zone ID from original parking meter dataset, e.g. "286"                                        |
 | job_id                     | UUID (FOREIGN KEY)    | Job ID that links to metadata about the parking meter job that generated the policy.           |
-| run_date                   | TIMESTAMP             | Time the record was generated.                                                                 |
 | geography                  | GEOMETRY(LineString)  | Geography of meter zone.                                                                       |
 | policy_json                | JSONB                 | Meter policy parsed in CDS policy object format.                                               |
 
@@ -141,7 +140,6 @@ process referenced to the original images and their locations.
 | sign_policy_id          | UUID (PRIMARY KEY) |                                                                                         |
 | sign_id                 | UUID (FOREIGN KEY) |                                                                                         |
 | job_id                  | UUID (FOREIGN KEY) | Job ID that links to metadata about the sign reader job that generated the policy.      |
-| run_date                | TIMESTAMP          | Time the record was generated.                                                          |
 | policy_json             | JSONB              | Sign policy as interpreted by the sign reader in CDS policy object format.             |
 | policy_arrow            | VARCHAR            | left, right, or both (no arrows implies both).                                          |
 | ai_confidence_score     | VARCHAR            | Score of 1-100 indicating AI confidence in CDS policy [may be broken into components?]. |
@@ -199,7 +197,6 @@ process, in which each record represents a single policy instance applied to a s
 | segment_id              | UUID (FOREIGN KEY) | Segment ID that links to "curb_segments"                                                |
 | policy_id               | UUID (FOREIGN KEY) | Policy ID that links to "policies"                                                      |
 | job_id                  | UUID (FOREIGN KEY) | Job ID that links to metadata about the policy handling job that generated the mapping. |
-| run_date                | TIMESTAMP          | Time the record was generated.                                                          |
 
 ### policy_handling_jobs
 

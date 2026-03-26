@@ -186,7 +186,6 @@ CREATE TABLE staging_next.sign_policies (
 	sign_policy_id uuid DEFAULT uuid_generate_v4() NOT NULL,
 	sign_id uuid NOT NULL,
 	job_id uuid NOT NULL,
-	run_date timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	policy_json jsonb NOT NULL,
 	policy_arrow varchar NULL,
 	ai_confidence_score int4 NULL,
@@ -201,7 +200,6 @@ CREATE TABLE staging_next.sign_policies (
 );
 CREATE INDEX idx_sign_policies_job ON staging_next.sign_policies USING btree (job_id);
 CREATE INDEX idx_sign_policies_json ON staging_next.sign_policies USING gin (policy_json);
-CREATE INDEX idx_sign_policies_run_date ON staging_next.sign_policies USING btree (run_date);
 CREATE INDEX idx_sign_policies_sign ON staging_next.sign_policies USING btree (sign_id);
 
 
@@ -228,7 +226,6 @@ CREATE TABLE staging_next.meter_policies (
 	meter_policy_id uuid DEFAULT uuid_generate_v4() NOT NULL,
 	name VARCHAR NOT NULL,
 	job_id uuid NOT NULL,
-	run_date timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	geography public.geometry(linestring, 4326) NOT NULL,
 	policy_json jsonb NOT NULL,
 	CONSTRAINT meter_policies_pkey PRIMARY KEY (meter_policy_id),
