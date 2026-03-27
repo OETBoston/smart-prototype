@@ -6,7 +6,7 @@ in this database are defined here.
 
 ## Input Assets Tables
 
-This set of tables contains input data about **assets**, with the primary asset type being `signs`.
+This set of tables contains input data about **assets**, with the primary asset type being `signs` and `meter_policies` (parking meter zone information).
 The assets tables also include limited information about other non-sign assets such as `hydrants`
 and `bus_stops`. It can be extended to include other non-sign assets, but curb segmentation code
 would need to be modified to make use of these other asset types.
@@ -63,6 +63,17 @@ would need to be modified to make use of these other asset types.
 | feature_type        | VARCHAR            | Short name describing the feature, such as `hydrant` or `bus_stop`. |
 | feature_description | VARCHAR            | Optional longer description of the feature                          |
 
+### meter_policies
+
+| column_name                | column_type           | Notes                                                                                          |
+| :------------------------- | :-------------------- | :--------------------------------------------------------------------------------------------- |
+| meter_policy_id            | UUID (PRIMARY KEY)    |                                                                                                |
+| name                       | VARCHAR               | Zone ID from original parking meter dataset, e.g. "286"                                        |
+| job_id                     | UUID (FOREIGN KEY)    | Job ID that links to metadata about the parking meter job that generated the policy.           |
+| start_asset_location       | UUID (FOREIGN KEY)    | Asset location ID for start of meter zone.                                                     |
+| end_asset_location         | UUID (FOREIGN KEY)    | Asset location ID for end of meter zone.                                                       |
+| policy_json                | JSONB                 | Meter policy parsed in CDS policy object format.                                               |
+
 ### asset_jobs
 
 | column_name     | column_type        | Notes                                                                                                                                                |
@@ -94,39 +105,6 @@ serve as inputs to the curb segmentation process.
 | job_timestamp   | TIMESTAMP          | Time job was run                                                  |
 | job_name        | VARCHAR            | Short name that concisely describes a curb geometry creation job. |
 | job_description | VARCHAR            | Extended description of a curb geometry creation job.             |
-
-## Parking Meter Tables
-
-This set of tables contains data regarding parking policies from the parking meters and how to link these policies to `curb_segments`.
-
-### meter_policies
-
-| column_name                | column_type           | Notes                                                                                          |
-| :------------------------- | :-------------------- | :--------------------------------------------------------------------------------------------- |
-| meter_policy_id            | UUID (PRIMARY KEY)    |                                                                                                |
-| name                       | VARCHAR               | Zone ID from original parking meter dataset, e.g. "286"                                        |
-| job_id                     | UUID (FOREIGN KEY)    | Job ID that links to metadata about the parking meter job that generated the policy.           |
-| geography                  | GEOMETRY(LineString)  | Geography of meter zone.                                                                       |
-| policy_json                | JSONB                 | Meter policy parsed in CDS policy object format.                                               |
-
-
-### curb_segments_meter_zones
-
-| column_name                | column_type        | Notes                                                                                              |
-| :------------------------- | :----------------- | :------------------------------------------------------------------------------------------------- |
-| curb_segment_id            | UUID (FOREIGN KEY) |                                                                                                    |
-| meter_zone_id              | VARCHAR            | Zone ID from original parking meter dataset,  e.g. "286"                                           |
-| job_id                     | UUID (FOREIGN KEY) | Job ID that links to metadata about the parking meter job that linked curb segments to meter zones |           
-
-### parking_meter_jobs
-
-| column_name     | column_type        | Notes                                                                                                 |
-| :-------------- | :----------------- | :---------------------------------------------------------------------------------------------------- |
-| job_id          | UUID (PRIMARY KEY) |                                                                                                       |
-| job_timestamp   | TIMESTAMP          | Time job was run.                                                                                     |
-| job_name        | VARCHAR            | Short name that concisely describes a parking meter import or curb segmentation linkage job.          |
-| job_description | VARCHAR            | Extended description of a parking meter import job. Example: "Park Boston Policy Updates 2026-02-26". |
-
 
 ## Sign Reader Output Tables
 
