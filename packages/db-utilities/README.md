@@ -1,4 +1,4 @@
-# smart-curb-db
+# db-utilities
 
 A Python connector class for PostGIS database access. The `SmartCurbDB` class provides a convenient interface to read from and write to PostgreSQL tables with built-in support for geospatial data via geopandas.
 
@@ -62,7 +62,7 @@ DB_PASSWORD=your_password
 Use `SmartCurbDB` as a context manager to ensure proper connection handling:
 
 ```python
-from smart_curb_db import SmartCurbDB
+from db_utils import SmartCurbDB
 
 with SmartCurbDB(dbname="my_database", schema="public") as db:
     # Your database operations here
@@ -131,7 +131,7 @@ Append data to an existing table using pandas DataFrame or geopandas GeoDataFram
 
 ```python
 import pandas as pd
-from smart_curb_db import SmartCurbDB
+from db_utils import SmartCurbDB
 
 with SmartCurbDB(dbname="my_database", schema="public") as db:
     df = pd.DataFrame({
@@ -149,7 +149,7 @@ The class validates data and raises appropriate exceptions:
 Example of error checking when reading:
 
 ```python
-from smart_curb_db import SmartCurbDB
+from db_utils import SmartCurbDB
 
 try:
     with SmartCurbDB(dbname="my_database", schema="public") as db:
@@ -163,7 +163,7 @@ except ConnectionError as e:
 Example or error checking when writing
 
 ```python
-from smart_curb_db import SmartCurbDB
+from db_utils import SmartCurbDB
 
 try:
     with SmartCurbDB(dbname="my_database", schema="public") as db:

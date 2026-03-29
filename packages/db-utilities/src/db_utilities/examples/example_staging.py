@@ -1,4 +1,4 @@
-# Example usage of the smart_curb_db module
+# Example usage of the db_utilities module
 
 # This example demonstrates how to use the SmartCurbDB class to connect to a PostgreSQL
 # database and append data to a staging table with a UUID4
@@ -9,8 +9,8 @@
 import uuid
 
 import pandas as pd
+from db_utilities import SmartCurbDB
 from dotenv import load_dotenv
-from smart_curb_db import SmartCurbDB
 
 load_dotenv()
 

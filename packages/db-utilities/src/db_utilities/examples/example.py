@@ -1,4 +1,4 @@
-# Example usage of the smart_curb_db module
+# Example usage of the db_utilities module
 
 # This example demonstrates how to use the SmartCurbDB class to connect to a PostgreSQL
 # database, read geospatial and non-geospatial data, and append data to a table.
@@ -10,8 +10,8 @@
 # it.
 
 import pandas as pd
+from db_utilities import SmartCurbDB
 from dotenv import load_dotenv
-from smart_curb_db import SmartCurbDB
 
 # For testing only, not usually needed.
 from sqlalchemy import Column, Float, Integer, MetaData, String, Table
