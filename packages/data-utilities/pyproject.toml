@@ -15,12 +15,6 @@ dependencies = [
     "gcsfs",
 ]
 
-[dependency-groups]
-dev = [
-    "pre-commit>=4.3.0",
-    "ruff>=0.13.3",
-]
-
 [tool.pytest.ini_options]
 pythonpath = ["."]
 markers = [
