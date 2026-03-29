@@ -1,7 +1,7 @@
 [project]
-name = "smart_prototype"
+name = "data-utilities"
 version = "0.1.0"
-description = "Add your description here"
+description = "Utilities to work with cloud data"
 readme = "README.md"
 requires-python = ">=3.13"
 
