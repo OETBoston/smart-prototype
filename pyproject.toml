@@ -10,6 +10,7 @@ dependencies = ["data-utilities"]
 dev = [
     "pre-commit>=4.3.0",
     "ruff>=0.13.3",
+    "pytest",
 ]
 
 [tool.pytest.ini_options]
