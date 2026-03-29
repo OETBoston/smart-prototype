@@ -10,9 +10,9 @@ dependencies = [
     "geopandas>=0.14.0",
     "pytest",
     "pydantic",
-    "pydantic_settings",
+    "pydantic-settings",
     "fsspec",
-    "gcsfs",
+"gcsfs",
 ]
 
 [tool.pytest.ini_options]
