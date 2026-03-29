@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A project to organize Boston's Curb data"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["data-utilities"]
+dependencies = ["data-utilities", "smart-curb-db"]
 
 [dependency-groups]
 dev = [
@@ -23,6 +23,7 @@ addopts = "-m 'not integration'"
 
 [tool.uv.sources]
 data-utilities = {workspace = true}
+smart-curb-db = { workspace = true}
 
 [tool.uv.workspace]
 members = ["packages/*"]
