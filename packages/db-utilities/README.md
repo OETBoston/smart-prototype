@@ -160,7 +160,7 @@ except ConnectionError as e:
     print(f"Connection error: {e}")
 ```
 
-Example or error checking when writing
+Example of error checking when writing
 
 ```python
 from db_utils import SmartCurbDB
