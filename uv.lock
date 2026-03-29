@@ -207,7 +207,6 @@ dependencies = [
     { name = "google-cloud-bigquery" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "pytest" },
 ]
 
 [package.metadata]
@@ -218,7 +217,6 @@ requires-dist = [
     { name = "google-cloud-bigquery", specifier = ">=3.0.0" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "pytest" },
 ]
 
 [[package]]
