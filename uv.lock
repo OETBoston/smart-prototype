@@ -1292,6 +1292,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "pre-commit" },
+    { name = "pytest" },
     { name = "ruff" },
 ]
 
@@ -1301,6 +1302,7 @@ requires-dist = [{ name = "data-utilities", editable = "packages/data-utilities"
 [package.metadata.requires-dev]
 dev = [
     { name = "pre-commit", specifier = ">=4.3.0" },
+    { name = "pytest" },
     { name = "ruff", specifier = ">=0.13.3" },
 ]
 
