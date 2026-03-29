@@ -53,7 +53,8 @@ class SmartCurbDB:
 
             >>> with SmartCurbDB(dbname="my_db") as db:
             ...     # filter must return one and only one record.
-            ...     db.modify_record("my_table", filter="id=123", field="my_field", value="abcd")
+            ...     db.modify_record("my_table", filter="id=123", field="my_field",
+            ...     value="abcd")
         """
         self.schema = schema
         self.dbname = dbname
@@ -219,7 +220,8 @@ class SmartCurbDB:
 
         Args:
             table_name (str): Name of the table to read.
-            filter (str): SQL WHERE clause to filter rows. Must return exactly one record.
+            filter (str): SQL WHERE clause to filter rows.
+                Must return exactly one record.
             column (str): Column name to update.
             value (str | int | float): New value
 
@@ -261,7 +263,10 @@ class SmartCurbDB:
 
         # Update the column in that selected record
         if self.schema:
-            update_sql = f'UPDATE {self.schema}.{table_name} SET "{column}" = :value WHERE {filter}'
+            update_sql = (
+                f'UPDATE {self.schema}.{table_name} SET "{column}" = :value '
+                f"WHERE {filter}"
+            )
         else:
             update_sql = f'UPDATE {table_name} SET "{column}" = :value WHERE {filter}'
 
