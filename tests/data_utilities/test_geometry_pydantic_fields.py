@@ -3,7 +3,7 @@ import json
 from shapely.geometry import Point, LineString, shape
 from shapely import wkt as wkt_module
 
-from utilities.data_utilities.geometry_support import Geometry
+from data_utilities.geometry_support import Geometry
 from pydantic import BaseModel
 
 

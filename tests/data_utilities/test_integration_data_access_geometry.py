@@ -8,11 +8,11 @@ import geopandas as gpd
 
 from typing import Optional, Protocol, List, Dict, Any, Type, Union, Tuple, Literal, Callable, Sequence
 
-from utilities.data_utilities.accessor import (
+from data_utilities.accessor import (
     DataAccessor, BigQueryClient, QuerySpec, 
     data_frame_to_geo_data_frame, entities_to_data_frame,
     geo_data_frame_to_data_frame, data_frame_to_entities)
-from utilities.data_utilities.queries_and_contracts import (
+from data_utilities.queries_and_contracts import (
     BaseEntity,
     SimpleEntityModel, 
     SimpleEntityFilter, 

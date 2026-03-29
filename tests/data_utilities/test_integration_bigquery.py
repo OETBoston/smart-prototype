@@ -3,8 +3,8 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from utilities.data_utilities.accessor import BigQueryClient, QuerySpec
-from utilities.data_utilities.queries_and_contracts import (
+from data_utilities.accessor import BigQueryClient, QuerySpec
+from data_utilities.queries_and_contracts import (
     SimpleEntityModel, 
     TEST_TABLE_NAME
 )
