@@ -5,8 +5,8 @@ from pydantic import ValidationError
 from pprint import pprint
 from pydantic import BaseModel, ConfigDict
 
-from utilities.data_utilities.accessor import DataAccessor
-from utilities.data_utilities.queries_and_contracts import (
+from data_utilities.accessor import DataAccessor
+from data_utilities.queries_and_contracts import (
     SimpleEntityModel,
     SimpleEntityFilter,
 )

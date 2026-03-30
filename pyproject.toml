@@ -1,24 +1,16 @@
 [project]
-name = "smart_prototype"
+name = "smart-prototype"
 version = "0.1.0"
-description = "Add your description here"
+description = "A project to organize Boston's Curb data"
 readme = "README.md"
 requires-python = ">=3.13"
-
-dependencies = [
-    "google-cloud-bigquery>=3.0.0",
-    "geopandas>=0.14.0",
-    "pytest",
-    "pydantic",
-    "pydantic_settings",
-    "fsspec",
-    "gcsfs",
-]
+dependencies = ["data-utilities", "db-utilities"]
 
 [dependency-groups]
 dev = [
     "pre-commit>=4.3.0",
     "ruff>=0.13.3",
+    "pytest",
 ]
 
 [tool.pytest.ini_options]
@@ -27,6 +19,14 @@ markers = [
     "integration: marks tests that require live Google Cloud resources (slow/expensive)",
 ]
 addopts = "-m 'not integration'"
+
+
+[tool.uv.sources]
+data-utilities = {workspace = true}
+db-utilities = { workspace = true}
+
+[tool.uv.workspace]
+members = ["packages/*"]
 
 [tool.ruff]
 line-length = 88
@@ -51,7 +51,3 @@ ignore = [
 
 [tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["utilities*"]

@@ -7,8 +7,8 @@ import pytest
 import hashlib
 from datetime import datetime
 
-from utilities.data_utilities.storage_utilities import Storage
-from utilities.data_utilities.storage_helpers import (
+from data_utilities.storage_utilities import Storage
+from data_utilities.storage_helpers import (
     create_consistent_storage_suffix,
     create_google_storage_id_from_path
 )
