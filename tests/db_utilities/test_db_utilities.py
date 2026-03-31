@@ -6,15 +6,13 @@ from uuid import UUID, uuid4
 import geopandas as gpd
 import pandas as pd
 import pytest
-from db_utilities import SmartCurbDB
+from db_utilities import InvalidInputError, SmartCurbDB
 from dotenv import load_dotenv
 from geopandas.testing import assert_geodataframe_equal
 from pandas.testing import assert_frame_equal
-from psycopg2.errors import InvalidTextRepresentation
 from pytest import fixture
 from shapely.geometry import Point
 from sqlalchemy import text
-from sqlalchemy.exc import DataError, ProgrammingError
 
 # ── Setup ─___─────────────────────────────────────────────────────────────────
 TEST_DB = "tests"
@@ -121,7 +119,7 @@ def test_append_data_json_as_dict(write_table: WriteTable) -> None:
     db, table_name = write_table
     data = expected_read()
 
-    with pytest.raises(ProgrammingError):
+    with pytest.raises(InvalidInputError):
         db.append_data(table_name, data)
 
 
@@ -136,7 +134,7 @@ def test_append_data_int_as_string(write_table: WriteTable) -> None:
     # Convert int to a string for failure
     write_data["integer_field"] = "Not an integer"
 
-    with pytest.raises(DataError):
+    with pytest.raises(InvalidInputError):
         db.append_data(table_name, write_data)
 
 
@@ -157,7 +155,7 @@ def test_append_geo_data_json_as_dict(write_geo_table: WriteTable) -> None:
     db, table_name = write_geo_table
     data = expected_read_geo()
 
-    with pytest.raises(InvalidTextRepresentation):
+    with pytest.raises(InvalidInputError):
         db.append_data(table_name, data)
 
 
@@ -172,7 +170,7 @@ def test_append_geo_data_int_as_string(write_geo_table: WriteTable) -> None:
     # Convert int to a string for failure
     write_data["integer_field"] = "Not an integer"
 
-    with pytest.raises(InvalidTextRepresentation):
+    with pytest.raises(InvalidInputError):
         db.append_data(table_name, write_data)
 
 

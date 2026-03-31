@@ -4,8 +4,10 @@ from typing import Sequence
 
 import geopandas as gpd
 import pandas as pd
+from psycopg2.errors import InvalidTextRepresentation
 from sqlalchemy import Connection, Engine, Inspector, create_engine, inspect, text
 from sqlalchemy.engine.url import URL
+from sqlalchemy.exc import DataError, ProgrammingError
 
 # TODO:
 # Use pytest to create unit tests for this class.
@@ -137,18 +139,29 @@ class SmartCurbDB:
 
         if isinstance(data, gpd.GeoDataFrame):
             # Write GeoDataFrame
-            data.to_postgis(
-                table_name, self.engine, schema=self.schema, if_exists="append"
-            )
+            try:
+                data.to_postgis(
+                    table_name, self.engine, schema=self.schema, if_exists="append"
+                )
+
+            except InvalidTextRepresentation as e:
+                raise InvalidInputError(
+                    "Failed to write data to PostGIS (likely bad input)"
+                ) from e
         else:
             # Write DataFrame
-            data.to_sql(
-                table_name,
-                self.engine,
-                schema=self.schema,
-                if_exists="append",
-                index=False,
-            )
+            try:
+                data.to_sql(
+                    table_name,
+                    self.engine,
+                    schema=self.schema,
+                    if_exists="append",
+                    index=False,
+                )
+            except (DataError, ProgrammingError) as e:
+                raise InvalidInputError(
+                    "Failed to write data to PostgreSQL (likely bad input)"
+                ) from e
 
     def get_data(
         self,
@@ -345,3 +358,9 @@ class SmartCurbDB:
             )
 
         return [f'"{col}"' for col in columns_list]
+
+
+class InvalidInputError(TypeError):
+    """Raised when invalid data prevents conversion of a dataframe to sql"""
+
+    pass
