@@ -1,16 +1,23 @@
 from collections.abc import Generator
-from uuid import UUID
+from uuid import UUID, uuid4
 
+import geopandas as gpd
 import pandas as pd
 from db_utilities import SmartCurbDB
 from dotenv import load_dotenv
+from geopandas.testing import assert_geodataframe_equal
 from pandas.testing import assert_frame_equal
 from pytest import fixture
+from shapely.geometry import Point
+from sqlalchemy import text
 
 TEST_DB = "tests"
 TEST_SCHEMA = "test_data"
 
 load_dotenv()
+
+
+# ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
 @fixture
@@ -24,6 +31,51 @@ def read_db() -> Generator[SmartCurbDB]:
         yield db
 
 
+@fixture
+def write_table() -> Generator[tuple[SmartCurbDB, str]]:
+    """Create a temporary copy of test_write with a random suffix,
+    yield the db connection and table name, then drop the table."""
+    suffix = uuid4().hex[:8]
+    tmp_table = f"test_write_{suffix}"
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
+        db.connection.execute(
+            text(
+                f"CREATE TABLE {TEST_SCHEMA}.{tmp_table} "
+                f"(LIKE {TEST_SCHEMA}.test_write INCLUDING ALL)"
+            )
+        )
+        db.connection.commit()
+        yield db, tmp_table
+        db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
+        db.connection.commit()
+
+
+@fixture
+def write_geo_table() -> Generator[tuple[SmartCurbDB, str]]:
+    """Create a temporary copy of test_write_geo with a random suffix,
+    yield the db connection and table name, then drop the table."""
+    suffix = uuid4().hex[:8]
+    tmp_table = f"test_write_geo_{suffix}"
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
+        db.connection.execute(
+            text(
+                f"CREATE TABLE {TEST_SCHEMA}.{tmp_table} "
+                f"(LIKE {TEST_SCHEMA}.test_write_geo INCLUDING ALL)"
+            )
+        )
+        db.connection.commit()
+        yield db, tmp_table
+        db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
+        db.connection.commit()
+
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
+
+
 def test_read_table(read_db) -> None:
     df = read_db.get_data("test_read")
     assert_frame_equal(expected_read(), df)
@@ -35,6 +87,46 @@ def test_read_filtered(read_db) -> None:
     ex = complete_ex.loc[complete_ex["integer_field"] > 100].reset_index(drop=True)
 
     assert_frame_equal(ex, df)
+
+
+def test_read_geo_table(read_db) -> None:
+    gdf = read_db.get_data("test_read_geo", geom_col="geometry")
+    assert_geodataframe_equal(expected_read_geo(), gdf)
+
+
+def test_append_data_no_json(write_table) -> None:
+    db: SmartCurbDB = write_table[0]
+    table_name: str = write_table[1]
+    data = expected_read()
+
+    data = data.drop(columns="jsonb_field")
+
+    db.append_data(table_name, data)
+    result = db.get_data(table_name)
+    result = result.drop(columns="jsonb_field")
+
+    assert_frame_equal(data, result)
+
+
+def test_append_data(write_table) -> None:
+    db, table_name = write_table
+    data = expected_read()
+
+    db.append_data(table_name, data)
+    result = db.get_data(table_name)
+    assert_frame_equal(data, result)
+
+
+def test_append_geo_data(write_geo_table) -> None:
+    db, table_name = write_geo_table
+    data = expected_read_geo()
+
+    db.append_data(table_name, data)
+    result = db.get_data(table_name, geom_col="geometry")
+    assert_geodataframe_equal(data, result)
+
+
+# ── Expected Data ─────────────────────────────────────────────────────────────
 
 
 def expected_read() -> pd.DataFrame:
@@ -67,6 +159,46 @@ def expected_read() -> pd.DataFrame:
                 {"numeric": 3.14159, "boolean": False, "text": "hello world"},
             ],
         }
+    )
+
+    return data
+
+
+def expected_read_geo() -> gpd.GeoDataFrame:
+    data = gpd.GeoDataFrame(
+        {
+            "id": [
+                UUID("660e8400-e29b-41d4-a716-446655440001"),
+                UUID("660e8400-e29b-41d4-a716-446655440002"),
+                UUID("660e8400-e29b-41d4-a716-446655440003"),
+                UUID("660e8400-e29b-41d4-a716-446655440004"),
+                UUID("660e8400-e29b-41d4-a716-446655440005"),
+            ],
+            "integer_field": [10, 20, 30, 40, 50],
+            "string_field": [
+                "City Hall",
+                "Rivers Edge",
+                "MIT",
+                "US History",
+                "Parking Clerk",
+            ],
+            "jsonb_field": [
+                {"location": "Boston"},
+                {"location": "Medford"},
+                {"location": "Cambridge"},
+                {"location": "Boston"},
+                {"location": "Boston"},
+            ],
+            "geometry": [
+                Point(-71.05796081347341, 42.36041637870849),
+                Point(-71.0743071567904, 42.41042214024287),
+                Point(-71.0940387442943, 42.3601268800116),
+                Point(-71.05347673995645, 42.36373998244562),
+                Point(-71.0575510602215, 42.360579396935556),
+            ],
+        },
+        geometry="geometry",
+        crs="EPSG:4326",
     )
 
     return data
