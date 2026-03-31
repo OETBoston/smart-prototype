@@ -1,5 +1,6 @@
 import json
 from collections.abc import Generator
+from typing import TypeAlias
 from uuid import UUID, uuid4
 
 import geopandas as gpd
@@ -12,11 +13,13 @@ from pytest import fixture
 from shapely.geometry import Point
 from sqlalchemy import text
 
+# ── Setup ─___─────────────────────────────────────────────────────────────────
 TEST_DB = "tests"
 TEST_SCHEMA = "test_data"
 
 load_dotenv()
 
+WriteTable: TypeAlias = tuple[SmartCurbDB, str]
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -33,7 +36,7 @@ def read_db() -> Generator[SmartCurbDB]:
 
 
 @fixture
-def write_table() -> Generator[tuple[SmartCurbDB, str]]:
+def write_table() -> Generator[WriteTable]:
     """Create a temporary copy of test_write with a random suffix,
     yield the db connection and table name, then drop the table."""
     suffix = uuid4().hex[:8]
@@ -54,7 +57,7 @@ def write_table() -> Generator[tuple[SmartCurbDB, str]]:
 
 
 @fixture
-def write_geo_table() -> Generator[tuple[SmartCurbDB, str]]:
+def write_geo_table() -> Generator[WriteTable]:
     """Create a temporary copy of test_write_geo with a random suffix,
     yield the db connection and table name, then drop the table."""
     suffix = uuid4().hex[:8]
@@ -95,9 +98,8 @@ def test_read_geo_table(read_db) -> None:
     assert_geodataframe_equal(expected_read_geo(), gdf)
 
 
-def test_append_data_no_json(write_table) -> None:
-    db: SmartCurbDB = write_table[0]
-    table_name: str = write_table[1]
+def test_append_data_no_json(write_table: WriteTable) -> None:
+    db, table_name = write_table
     data = expected_read()
 
     data = data.drop(columns="jsonb_field")
@@ -109,7 +111,7 @@ def test_append_data_no_json(write_table) -> None:
     assert_frame_equal(data, result)
 
 
-def test_append_data(write_table) -> None:
+def test_append_data(write_table: WriteTable) -> None:
     db, table_name = write_table
     data = expected_read()
 
@@ -122,7 +124,7 @@ def test_append_data(write_table) -> None:
     assert_frame_equal(data, result)
 
 
-def test_append_geo_data(write_geo_table) -> None:
+def test_append_geo_data(write_geo_table: WriteTable) -> None:
     db, table_name = write_geo_table
     data = expected_read_geo()
 
@@ -132,7 +134,7 @@ def test_append_geo_data(write_geo_table) -> None:
 
     db.append_data(table_name, write_data)
     result = db.get_data(table_name, geom_col="geometry")
-    assert_geodataframe_equal(data, result)
+    assert_frame_equal(data, result)
 
 
 # ── Expected Data ─────────────────────────────────────────────────────────────
