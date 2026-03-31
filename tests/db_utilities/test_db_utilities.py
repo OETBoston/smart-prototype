@@ -1,6 +1,6 @@
 import json
 from collections.abc import Generator
-from typing import TypeAlias
+from typing import Any, TypeAlias, cast
 from uuid import UUID, uuid4
 
 import geopandas as gpd
@@ -172,6 +172,154 @@ def test_append_geo_data_int_as_string(write_geo_table: WriteTable) -> None:
 
     with pytest.raises(InvalidInputError):
         db.append_data(table_name, write_data)
+
+
+def test_update_value_string(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    db.append_data(table_name, write_data)
+
+    # Update a field - both in the database and the expected data
+    update_uuid = "550e8400-e29b-41d4-a716-446655440003"
+    db.modify_record(
+        table_name,
+        filter=f"id = '{update_uuid}'",
+        column="string_field",
+        value="Updated This!",
+    )
+    data.loc[data["id"] == UUID(update_uuid), "string_field"] = "Updated This!"
+
+    # Read and confirm
+    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    assert_frame_equal(data, result)
+
+
+def test_update_value_json(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    db.append_data(table_name, write_data)
+
+    # Update a field - both in the database and the expected data
+    update_uuid = "550e8400-e29b-41d4-a716-446655440003"
+    new_value = {"This is new": 12345}
+    db.modify_record(
+        table_name,
+        filter=f"id = '{update_uuid}'",
+        column="jsonb_field",
+        value=json.dumps(new_value),
+    )
+    data.at[2, "jsonb_field"] = cast(Any, new_value)
+
+    # Read and confirm
+    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    assert_frame_equal(data, result)
+
+
+def test_update_value_int_as_string(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    db.append_data(table_name, write_data)
+
+    # Update a field - both in the database and the expected data
+    update_uuid = "550e8400-e29b-41d4-a716-446655440003"
+
+    with pytest.raises(InvalidInputError):
+        db.modify_record(
+            table_name,
+            filter=f"id = '{update_uuid}'",
+            column="integer_field",
+            value="Not a String",
+        )
+
+
+def test_update_geo_value_string(write_geo_table: WriteTable) -> None:
+    db, table_name = write_geo_table
+    data = expected_read_geo()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    db.append_data(table_name, write_data)
+
+    # Update a field - both in the database and the expected data
+    update_uuid = "660e8400-e29b-41d4-a716-446655440003"
+    db.modify_record(
+        table_name,
+        filter=f"id = '{update_uuid}'",
+        column="string_field",
+        value="Updated This!",
+    )
+    data.loc[data["id"] == UUID(update_uuid), "string_field"] = "Updated This!"
+
+    # Read and confirm
+    result = (
+        db.get_data(table_name, geom_col="geometry")
+        .sort_values(by="id")
+        .reset_index(drop=True)
+    )
+    assert_frame_equal(data, result)
+
+
+def test_update_geo_value_json(write_geo_table: WriteTable) -> None:
+    db, table_name = write_geo_table
+    data = expected_read_geo()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    db.append_data(table_name, write_data)
+
+    # Update a field - both in the database and the expected data
+    update_uuid = "660e8400-e29b-41d4-a716-446655440003"
+    new_value = {"This is new": 12345}
+    db.modify_record(
+        table_name,
+        filter=f"id = '{update_uuid}'",
+        column="jsonb_field",
+        value=json.dumps(new_value),
+    )
+    data.at[2, "jsonb_field"] = cast(Any, new_value)
+
+    # Read and confirm
+    result = (
+        db.get_data(table_name, geom_col="geometry")
+        .sort_values(by="id")
+        .reset_index(drop=True)
+    )
+    assert_frame_equal(data, result)
+
+
+def test_update_value_geo_int_as_string(write_geo_table: WriteTable) -> None:
+    db, table_name = write_geo_table
+    data = expected_read()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    db.append_data(table_name, write_data)
+
+    # Update a field - both in the database and the expected data
+    update_uuid = "550e8400-e29b-41d4-a716-446655440003"
+
+    with pytest.raises(InvalidInputError):
+        db.modify_record(
+            table_name,
+            filter=f"id = '{update_uuid}'",
+            column="integer_field",
+            value="Not a String",
+        )
 
 
 # ── Expected Data ─────────────────────────────────────────────────────────────
