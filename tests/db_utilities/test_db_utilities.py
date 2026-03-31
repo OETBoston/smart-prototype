@@ -5,13 +5,16 @@ from uuid import UUID, uuid4
 
 import geopandas as gpd
 import pandas as pd
+import pytest
 from db_utilities import SmartCurbDB
 from dotenv import load_dotenv
 from geopandas.testing import assert_geodataframe_equal
 from pandas.testing import assert_frame_equal
+from psycopg2.errors import InvalidTextRepresentation
 from pytest import fixture
 from shapely.geometry import Point
 from sqlalchemy import text
+from sqlalchemy.exc import DataError, ProgrammingError
 
 # ── Setup ─___─────────────────────────────────────────────────────────────────
 TEST_DB = "tests"
@@ -98,19 +101,6 @@ def test_read_geo_table(read_db) -> None:
     assert_geodataframe_equal(expected_read_geo(), gdf)
 
 
-def test_append_data_no_json(write_table: WriteTable) -> None:
-    db, table_name = write_table
-    data = expected_read()
-
-    data = data.drop(columns="jsonb_field")
-
-    db.append_data(table_name, data)
-    result = db.get_data(table_name)
-    result = result.drop(columns="jsonb_field")
-
-    assert_frame_equal(data, result)
-
-
 def test_append_data(write_table: WriteTable) -> None:
     db, table_name = write_table
     data = expected_read()
@@ -124,6 +114,32 @@ def test_append_data(write_table: WriteTable) -> None:
     assert_frame_equal(data, result)
 
 
+def test_append_data_json_as_dict(write_table: WriteTable) -> None:
+    """Tests incorrect insertion of dict instead of a json string to a jsonb
+    field
+    """
+    db, table_name = write_table
+    data = expected_read()
+
+    with pytest.raises(ProgrammingError):
+        db.append_data(table_name, data)
+
+
+def test_append_data_int_as_string(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+
+    # Convert int to a string for failure
+    write_data["integer_field"] = "Not an integer"
+
+    with pytest.raises(DataError):
+        db.append_data(table_name, write_data)
+
+
 def test_append_geo_data(write_geo_table: WriteTable) -> None:
     db, table_name = write_geo_table
     data = expected_read_geo()
@@ -135,6 +151,29 @@ def test_append_geo_data(write_geo_table: WriteTable) -> None:
     db.append_data(table_name, write_data)
     result = db.get_data(table_name, geom_col="geometry")
     assert_frame_equal(data, result)
+
+
+def test_append_geo_data_json_as_dict(write_geo_table: WriteTable) -> None:
+    db, table_name = write_geo_table
+    data = expected_read_geo()
+
+    with pytest.raises(InvalidTextRepresentation):
+        db.append_data(table_name, data)
+
+
+def test_append_geo_data_int_as_string(write_geo_table: WriteTable) -> None:
+    db, table_name = write_geo_table
+    data = expected_read_geo()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+
+    # Convert int to a string for failure
+    write_data["integer_field"] = "Not an integer"
+
+    with pytest.raises(InvalidTextRepresentation):
+        db.append_data(table_name, write_data)
 
 
 # ── Expected Data ─────────────────────────────────────────────────────────────
