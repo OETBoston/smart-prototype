@@ -284,7 +284,13 @@ class SmartCurbDB:
             update_sql = f'UPDATE {table_name} SET "{column}" = :value WHERE {filter}'
 
         # Apply the edit
-        self.connection.execute(text(update_sql), {"value": value})
+        try:
+            self.connection.execute(text(update_sql), {"value": value})
+        except DataError as e:
+            raise InvalidInputError(
+                "Failed to write data to PostgreSQL (likely bad input)"
+            ) from e
+
         self.connection.commit()
 
     def _check_db_status(self, table_name: str) -> Inspector:
