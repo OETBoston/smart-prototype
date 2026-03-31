@@ -261,18 +261,20 @@ class SmartCurbDB:
         # Select the record based on filter to verify only one was selected
         where_clause = f" WHERE {filter}"
         if self.schema:
-            sql = f"SELECT * FROM {self.schema}.{table_name}{where_clause}"
+            sql = f"SELECT COUNT(*) FROM {self.schema}.{table_name}{where_clause}"
         else:
-            sql = f"SELECT * FROM {table_name}{where_clause}"
+            sql = f"SELECT COUNT(*) FROM {table_name}{where_clause}"
 
-        result_df = pd.read_sql(text(sql), self.engine)
+        try:
+            count = self.connection.execute(text(sql)).scalar_one()
+        except Exception as e:
+            self.connection.rollback()
+            raise ValueError("Unable to count records - check filter value") from e
 
-        if len(result_df) == 0:
+        if count == 0:
             raise ValueError(f"Filter returned no records: {filter}")
-        if len(result_df) > 1:
-            raise ValueError(
-                f"Filter returned {len(result_df)} records, expected exactly 1."
-            )
+        if count > 1:
+            raise ValueError(f"Filter returned {count} records, expected exactly 1.")
 
         # Update the column in that selected record
         if self.schema:

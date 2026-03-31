@@ -244,6 +244,64 @@ def test_update_value_int_as_string(write_table: WriteTable) -> None:
         )
 
 
+def test_update_value_multiple_rows(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    db.append_data(table_name, write_data)
+
+    # Attempt to update using a filter that returns multiple rows
+
+    with pytest.raises(ValueError):
+        db.modify_record(
+            table_name,
+            filter="integer_field < 100",
+            column="string_field",
+            value="New String",
+        )
+
+
+def test_update_value_zero_rows(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    db.append_data(table_name, write_data)
+
+    # Attempt to update using a filter that returns multiple rows
+
+    with pytest.raises(ValueError):
+        db.modify_record(
+            table_name,
+            filter="integer_field < -100",
+            column="string_field",
+            value="New String",
+        )
+
+
+def test_update_value_invalid_filter(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read()
+
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    db.append_data(table_name, write_data)
+
+    with pytest.raises(ValueError):
+        db.modify_record(
+            table_name,
+            filter="dne < -100",
+            column="string_field",
+            value="New String",
+        )
+
+
 def test_update_geo_value_string(write_geo_table: WriteTable) -> None:
     db, table_name = write_geo_table
     data = expected_read_geo()
