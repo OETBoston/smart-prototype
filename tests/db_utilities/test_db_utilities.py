@@ -29,6 +29,14 @@ def test_read_table(read_db) -> None:
     assert_frame_equal(expected_read(), df)
 
 
+def test_read_filtered(read_db) -> None:
+    df = read_db.get_data("test_read", filter="integer_field > 100")
+    complete_ex = expected_read()
+    ex = complete_ex.loc[complete_ex["integer_field"] > 100].reset_index(drop=True)
+
+    assert_frame_equal(ex, df)
+
+
 def expected_read() -> pd.DataFrame:
     data = pd.DataFrame(
         {
