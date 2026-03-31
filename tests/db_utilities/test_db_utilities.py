@@ -1,3 +1,4 @@
+import json
 from collections.abc import Generator
 from uuid import UUID, uuid4
 
@@ -112,7 +113,11 @@ def test_append_data(write_table) -> None:
     db, table_name = write_table
     data = expected_read()
 
-    db.append_data(table_name, data)
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+
+    db.append_data(table_name, write_data)
     result = db.get_data(table_name)
     assert_frame_equal(data, result)
 
@@ -121,7 +126,11 @@ def test_append_geo_data(write_geo_table) -> None:
     db, table_name = write_geo_table
     data = expected_read_geo()
 
-    db.append_data(table_name, data)
+    # Convert the jsonb field to a string
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+
+    db.append_data(table_name, write_data)
     result = db.get_data(table_name, geom_col="geometry")
     assert_geodataframe_equal(data, result)
 
