@@ -164,18 +164,18 @@ to signs or non-sign assets that caused the segment to be split.
 
 ### curb_segments
 
-| column_name         | column_type          | Notes                                           |
-| :------------------ | :------------------- | :---------------------------------------------- |
-| segment_id          | UUID (PRIMARY KEY)   |                                                 |
-| blockface_id        | UUID (FOREIGN KEY)   |                                                 |
-| job_id              | UUID (FOREIGN KEY)   |                                                 |
-| segment_seq | INTEGER | Sequential value starting at zero, ordered in the direction of traffic flow |
-| is_left_side_oneway | BOOLEAN            | Indicates that the curb segment is on the left side of a one way street. Carried forward from the `curb_blockfaces` table. |
-| geography           | GEOMETRY(LineString) | This could be JSON, WKT, or a PostGIS location. |
-| upstream_location   | UUID (FOREIGN KEY)   |                                                 |
-| downstream_location | UUID (FOREIGN KEY)   |                                                 |
-| upstream_loc_list   | ARRAY (UUID)         | list of upstream locations, contains multiple locations only if multiple assets were snapped to the same location. Null if there are not any assets at the beginning of the segment.  |
-| downstream_loc_list | ARRAY (UUID)         | list of downstream locations, contains multiple locations only if multiple assets were snapped to the same location. Null if there are not any assets at the end of the segment. |
+| column_name         | column_type          | Notes                                                                                                                                                                                |
+| :------------------ | :------------------- |:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| segment_id          | UUID (PRIMARY KEY)   |                                                                                                                                                                                      |
+| blockface_id        | UUID (FOREIGN KEY)   |                                                                                                                                                                                      |
+| job_id              | UUID (FOREIGN KEY)   |                                                                                                                                                                                      |
+| segment_seq | INTEGER | Sequential value starting at zero, ordered in the direction of traffic flow                                                                                                          |
+| is_left_side_oneway | BOOLEAN            | Indicates that the curb segment is on the left side of a one way street. Carried forward from the `curb_blockfaces` table.                                                           |
+| geography           | GEOMETRY(LineString) | This could be JSON, WKT, or a PostGIS location.                                                                                                                                      |
+| upstream_location   | UUID (FOREIGN KEY)   |                                                                                                                                                                                      |
+| downstream_location | UUID (FOREIGN KEY)   |                                                                                                                                                                                      |
+| upstream_loc_list   | ARRAY (UUID)         | List of upstream locations, contains multiple locations only if multiple assets were snapped to the same location. Null if there are not any assets at the beginning of the segment. |
+| downstream_loc_list | ARRAY (UUID)         | List of downstream locations, contains multiple locations only if multiple assets were snapped to the same location. Null if there are not any assets at the end of the segment.     |
 
 
 ### curb_segment_jobs
