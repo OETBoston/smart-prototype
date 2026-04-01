@@ -16,7 +16,7 @@ ACTIVITY REQUIREMENTS:
 TIME SPAN REQUIREMENTS:
 - Use 12-hour time formats ("H:MM AM/PM").
 - If a policy applies all day, do not output time information. Do not use "All Day".
-- Exclusde any information about days of the week the policy applies.
+- Exclude any information about days of the week the policy applies.
 
 MAXIMUM STAY REQUIREMENTS:
 - Format as "Number-Unit" (hyphenated). No other words. 
