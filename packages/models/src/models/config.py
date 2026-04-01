@@ -2,8 +2,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-# from google import genai
-
 _GEMINI_DEFAULTS = {
     "model": "gemini-3-flash-preview",
     "temperature": 0,
