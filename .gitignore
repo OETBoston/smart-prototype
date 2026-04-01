@@ -1,3 +1,6 @@
+# Special Example Files
+**/*.RESULT.*
+
 # Filesystems
 .DS_Store
 

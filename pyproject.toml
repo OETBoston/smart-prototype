@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A project to organize Boston's Curb data"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["data-utilities", "db-utilities"]
+dependencies = ["data-utilities", "db-utilities", "models"]
 
 [dependency-groups]
 dev = [
@@ -24,6 +24,7 @@ addopts = "-m 'not integration'"
 [tool.uv.sources]
 data-utilities = {workspace = true}
 db-utilities = { workspace = true}
+models = {workspace = true}
 
 [tool.uv.workspace]
 members = ["packages/*"]

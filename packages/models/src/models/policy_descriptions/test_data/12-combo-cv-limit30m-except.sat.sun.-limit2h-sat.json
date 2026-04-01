@@ -1,0 +1,59 @@
+{
+    "signs": [
+        {
+            "arrow": "right",
+            "policy": {
+                "rules": [
+                    {
+                        "activity": "loading",
+                        "max_stay": 30,
+                        "max_stay_unit": "minute",
+                        "user_classes": [
+                            "commercial_vehicle"
+                        ]
+                    },
+                    {
+                        "activity": "no parking",
+                        "user_classes_except": [
+                            "commercial_vehicle"
+                        ]
+                    }
+                ],
+                "time_spans": [
+                    {
+                        "days_of_week": [
+                            "mon",
+                            "tue",
+                            "wed",
+                            "thu",
+                            "fri"
+                        ],
+                        "time_of_day_start": "07:00",
+                        "time_of_day_end": "19:00"
+                    }
+                ]
+            }
+        },
+        {
+            "arrow": "right",
+            "policy": {
+                "rules": [
+                    {
+                        "activity": "parking",
+                        "max_stay": 2,
+                        "max_stay_unit": "hour"
+                    }
+                ],
+                "time_spans": [
+                    {
+                        "days_of_week": [
+                            "sat"
+                        ],
+                        "time_of_day_start": "08:00",
+                        "time_of_day_end": "18:00"
+                    }
+                ]
+            }
+        }
+    ]
+}

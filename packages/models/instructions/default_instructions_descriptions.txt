@@ -1,0 +1,1 @@
+Generate brief descriptions for parking policies that can be easily understood by a human, based on JSON inputs.
