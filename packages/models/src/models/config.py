@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -44,11 +43,3 @@ class GeminiModelConfig(ModelConfig):
             self.thinking_level = "low"
 
         return self
-
-
-def valid_path(path: Path | str) -> Path:
-    if isinstance(path, str):
-        path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(f"No such Configuration File {path}")
-    return path
