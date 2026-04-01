@@ -174,6 +174,9 @@ to signs or non-sign assets that caused the segment to be split.
 | geography           | GEOMETRY(LineString) | This could be JSON, WKT, or a PostGIS location. |
 | upstream_location   | UUID (FOREIGN KEY)   |                                                 |
 | downstream_location | UUID (FOREIGN KEY)   |                                                 |
+| upstream_loc_list   | ARRAY (UUID)         | list of upstream locations, contains multiple locations only if multiple assets were snapped to the same location. Null if there are not any assets at the beginning of the segment.  |
+| downstream_loc_list | ARRAY (UUID)         | list of downstream locations, contains multiple locations only if multiple assets were snapped to the same location. Null if there are not any assets at the end of the segment. |
+
 
 ### curb_segment_jobs
 
