@@ -108,6 +108,8 @@ CREATE TABLE staging_next.curb_segments (
 	geography public.geometry(linestring, 4326) NOT NULL,
 	upstream_location uuid NULL,
 	downstream_location uuid NULL,
+	upstream_loc_list ARRAY(uuid),
+	downstream_loc_list ARRAY (uuid),
 	CONSTRAINT curb_segments_pkey PRIMARY KEY (segment_id),
 	CONSTRAINT curb_segments_blockface_id_fkey FOREIGN KEY (blockface_id) REFERENCES staging_next.curb_blockfaces(blockface_id),
 	CONSTRAINT curb_segments_downstream_location_fkey FOREIGN KEY (downstream_location) REFERENCES staging_next.asset_locations(asset_location_id),
