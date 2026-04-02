@@ -18,15 +18,12 @@ default_instruction = load_from_txt(DEFAULT_INSTRUCTION_PATH)
 default_prompt = load_from_txt(DEFAULT_PROMPT_PATH)
 
 # Default configuration options
-DEFAULT_GEMINI_OPTIONS_DESCRIPTIONS = {
-    "model": "gemini-2.5-flash-lite",
-    "temperature": 0.1,
-    "thinking_level": None,
-    "include_thoughts": False,
-    "system_instructions": default_instruction,
-}
-
-DEFAULT_CONFIG = GeminiModelConfig(**DEFAULT_GEMINI_OPTIONS_DESCRIPTIONS)
+DEFAULT_CONFIG = GeminiModelConfig(
+    model="gemini-3.1-flash-lite-preview",
+    temperature=0.1,
+    thinking_level=None,
+    include_thoughts=False,
+)
 
 
 def add_json_to_prompt(prompt: str, policy_json: str) -> str:
@@ -35,7 +32,10 @@ def add_json_to_prompt(prompt: str, policy_json: str) -> str:
 
 
 def generate_description(
-    prompt: str, config: GeminiModelConfig | None, api_key: str | None = None
+    prompt: str = default_prompt,
+    system_instruction=default_instruction,
+    config: GeminiModelConfig | None = None,
+    api_key: str | None = None,
 ) -> str:
     """
     Generate a Policy Description using Google Gemini.
@@ -57,7 +57,7 @@ def generate_description(
         config = DEFAULT_CONFIG
 
     config_gemini_typed = genai.types.GenerateContentConfig(
-        system_instruction=config.system_instructions,
+        system_instruction=system_instruction,
         response_mime_type="text/plain",
         temperature=config.temperature,
         thinking_config=genai.types.ThinkingConfig(
@@ -75,7 +75,7 @@ def generate_description(
         if not response.text:
             return "NO DESCRIPTION AVAILABLE"
 
-        return response.text
+    return response.text
 
 
 def run_examples(api_key) -> None:
