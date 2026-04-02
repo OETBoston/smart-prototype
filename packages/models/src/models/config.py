@@ -2,6 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+# Useful Defaults for Sign Reader
 _GEMINI_DEFAULTS = {
     "model": "gemini-3-flash-preview",
     "temperature": 0,
@@ -20,12 +21,11 @@ class ModelConfig(BaseModel):
 
 class GeminiModelConfig(ModelConfig):
     model: str = Field(default=_GEMINI_DEFAULTS["model"])
-    temperature: float = Field(default=_GEMINI_DEFAULTS["temperature"])
+    temperature: float = Field(default=_GEMINI_DEFAULTS["temperature"], ge=0, le=2)
     thinking_level: Literal["minimal", "low", "medium", "high", "dynamic"] | None = (
         Field(default=_GEMINI_DEFAULTS["thinking_level"])
     )
     include_thoughts: bool | None = Field(default=_GEMINI_DEFAULTS["include_thoughts"])
-    system_instructions: str
 
     @model_validator(mode="after")
     def validate_thinking_level(self) -> "GeminiModelConfig":
