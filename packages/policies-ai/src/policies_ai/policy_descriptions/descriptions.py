@@ -2,9 +2,9 @@ from pathlib import Path
 
 from google import genai
 
-from models.clients import init_gemini_client
-from models.config import GeminiOptions
-from models.utils import load_from_txt
+from policies_ai.clients import init_gemini_client
+from policies_ai.config import GeminiOptions
+from policies_ai.utils import load_from_txt
 
 # Instruction Paths
 INSTRUCTIONS_DIRECTORY = Path(__file__).parents[3] / "instructions"
