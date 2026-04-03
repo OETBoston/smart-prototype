@@ -18,7 +18,7 @@ default_instruction = load_from_txt(DEFAULT_INSTRUCTION_PATH)
 default_prompt = load_from_txt(DEFAULT_PROMPT_PATH)
 
 # Default configuration options
-DEFAULT_CONFIG = GeminiOptions(
+DEFAULT_OPTIONS = GeminiOptions(
     model="gemini-3.1-flash-lite-preview",
     temperature=0.1,
     thinking_level=None,
@@ -34,7 +34,7 @@ def add_json_to_prompt(prompt: str, policy_json: str) -> str:
 def generate_description(
     prompt: str = default_prompt,
     system_instruction=default_instruction,
-    config: GeminiOptions | None = None,
+    model_opts: GeminiOptions | None = None,
     api_key: str | None = None,
 ) -> str:
     """
@@ -52,24 +52,24 @@ def generate_description(
     Returns:
         str: Policy description string.
     """
-    if not config:
+    if not model_opts:
         # use the defaults
-        config = DEFAULT_CONFIG
+        model_opts = DEFAULT_OPTIONS
 
     config_gemini_typed = genai.types.GenerateContentConfig(
         system_instruction=system_instruction,
         response_mime_type="text/plain",
-        temperature=config.temperature,
+        temperature=model_opts.temperature,
         thinking_config=genai.types.ThinkingConfig(
-            include_thoughts=config.include_thoughts,
-            thinking_level=config.thinking_level,  # type: ignore
+            include_thoughts=model_opts.include_thoughts,
+            thinking_level=model_opts.thinking_level,  # type: ignore
         ),
     )
 
     with init_gemini_client(api_key) as client:
         contents = [genai.types.Part.from_text(text=prompt)]
         response = client.models.generate_content(
-            model=config.model, contents=contents, config=config_gemini_typed
+            model=model_opts.model, contents=contents, config=config_gemini_typed
         )
 
         if not response.text:
@@ -97,7 +97,7 @@ def run_examples(api_key) -> None:
         outfile = p.with_suffix(".RESULT.txt")
         p_json = read_policy_example(p)
         prompt = add_json_to_prompt(default_prompt, p_json)
-        description = generate_description(prompt, config=None, api_key=api_key)
+        description = generate_description(prompt, model_opts=None, api_key=api_key)
         with open(outfile, "w+") as f:
             f.write(description)
         end = perf_counter()
