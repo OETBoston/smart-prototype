@@ -160,7 +160,7 @@ def test_append_geo_data(write_geo_table: WriteTable) -> None:
 
     db.append_data(table_name, write_data)
     result = db.get_data(table_name, geom_col="geometry")
-    assert_frame_equal(data, result)
+    assert_geodataframe_equal(data, result)
 
 
 def test_append_geo_data_json_as_dict(write_geo_table: WriteTable) -> None:
@@ -339,7 +339,7 @@ def test_update_geo_value_string(write_geo_table: WriteTable) -> None:
         .sort_values(by="id")
         .reset_index(drop=True)
     )
-    assert_frame_equal(data, result)
+    assert_geodataframe_equal(data, result)
 
 
 def test_update_geo_value_json(write_geo_table: WriteTable) -> None:
@@ -368,7 +368,7 @@ def test_update_geo_value_json(write_geo_table: WriteTable) -> None:
         .sort_values(by="id")
         .reset_index(drop=True)
     )
-    assert_frame_equal(data, result)
+    assert_geodataframe_equal(data, result)
 
 
 def test_update_value_geo_int_as_string(write_geo_table: WriteTable) -> None:
