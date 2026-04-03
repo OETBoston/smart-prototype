@@ -22,12 +22,12 @@ class SmartCurbDB:
 
     """
 
-    def __init__(self, dbname: str, schema: str | None = None) -> None:
+    def __init__(self, dbname: str, schema: str) -> None:
         """Initializes a SmartCurbDB instance with database connection parameters.
 
         Args:
             dbname (str): Name of the database to connect to.
-            schema (str | None, optional): Name of the schema to use. Defaults to None.
+            schema (str): Name of the schema to use.
 
         Example:
             Basic usage with context manager:
@@ -38,7 +38,7 @@ class SmartCurbDB:
 
             With WHERE clause row filtering and specific columns:
 
-            >>> with SmartCurbDB(dbname="my_db") as db:
+            >>> with SmartCurbDB(dbname="my_db", schema="public") as db:
             ...     df = db.get_data(
             ...         "my_table",
             ...         filter="age > 30 AND city = 'Boston'",
@@ -47,17 +47,20 @@ class SmartCurbDB:
 
             Appending data:
 
-            >>> with SmartCurbDB(dbname="my_db") as db:
+            >>> with SmartCurbDB(dbname="my_db", schema="public") as db:
             ...     df = pd.DataFrame({"col1": [1, 2], "col2": ["a", "b"]})
             ...     db.append_data("my_table", df)
 
             Modifying data:
 
-            >>> with SmartCurbDB(dbname="my_db") as db:
+            >>> with SmartCurbDB(dbname="my_db", schema="public") as db:
             ...     # filter must return one and only one record.
             ...     db.modify_record("my_table", filter="id=123", field="my_field",
             ...     value="abcd")
         """
+        if not dbname or not schema:
+            raise ValueError("Missing required dbname or schema argument.")
+
         self.schema = schema
         self.dbname = dbname
         self.engine: Engine | None = None
@@ -98,10 +101,10 @@ class SmartCurbDB:
         )
         self.engine = create_engine(url)
         self.connection = self.engine.connect()
-        if self.schema:
-            # Set the search path to the specified schema
-            self.connection.execute(text(f"SET search_path TO {self.schema}, public"))
-            self.connection.commit()
+
+        # Set the search path to the specified schema
+        self.connection.execute(text(f"SET search_path TO {self.schema}, public"))
+        self.connection.commit()
 
     def close(self) -> None:
         """Closes the database connection and disposes of the engine."""
@@ -212,12 +215,7 @@ class SmartCurbDB:
             )
 
         # Build the SQL statement
-        if self.schema:
-            sql = (
-                f"SELECT {columns_clause} FROM {self.schema}.{table_name}{where_clause}"
-            )
-        else:
-            sql = f"SELECT {columns_clause} FROM {table_name}{where_clause}"
+        sql = f"SELECT {columns_clause} FROM {self.schema}.{table_name}{where_clause}"
 
         # Read as DataFrame
         if geom_col is None:
@@ -260,10 +258,7 @@ class SmartCurbDB:
 
         # Select the record based on filter to verify only one was selected
         where_clause = f" WHERE {filter}"
-        if self.schema:
-            sql = f"SELECT COUNT(*) FROM {self.schema}.{table_name}{where_clause}"
-        else:
-            sql = f"SELECT COUNT(*) FROM {table_name}{where_clause}"
+        sql = f"SELECT COUNT(*) FROM {self.schema}.{table_name}{where_clause}"
 
         try:
             count = self.connection.execute(text(sql)).scalar_one()
@@ -277,13 +272,9 @@ class SmartCurbDB:
             raise ValueError(f"Filter returned {count} records, expected exactly 1.")
 
         # Update the column in that selected record
-        if self.schema:
-            update_sql = (
-                f'UPDATE {self.schema}.{table_name} SET "{column}" = :value '
-                f"WHERE {filter}"
-            )
-        else:
-            update_sql = f'UPDATE {table_name} SET "{column}" = :value WHERE {filter}'
+        update_sql = (
+            f'UPDATE {self.schema}.{table_name} SET "{column}" = :value WHERE {filter}'
+        )
 
         # Apply the edit
         try:
