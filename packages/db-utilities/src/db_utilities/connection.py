@@ -91,8 +91,8 @@ class SmartCurbDB:
         """Establishes a connection to the PostgreSQL database.
 
         Creates a SQLAlchemy engine and connection using environment variables
-        for host, port, user, and password. Sets the search path to the specified
-        schema if provided.
+        for host, port, user, and password. Operations are performed on the
+        specified schema.
         """
         url = URL.create(
             drivername="postgresql+psycopg2",
