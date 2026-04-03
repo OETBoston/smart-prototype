@@ -8,9 +8,12 @@ def init_gemini_client(api_key: str | None) -> genai.Client:
     Initialize a Gemini Client. If no API key is provided,
     will attempt to load from the environment variable "GEMINI_API_KEY".
 
+    Typically, should be passed to callables querying Gemini as the first argument
+    to allow reuse of client across multiple API calls.
+
     Usage:
         with init_gemini_client(MY_KEY) as client:
-            # gemini calls
+            response = func(client, ...)
 
     Args:
         api_key (str, optional): Valid Google Gemini API Key.
