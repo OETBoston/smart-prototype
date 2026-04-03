@@ -392,27 +392,15 @@ def test_update_value_geo_int_as_string(write_geo_table: WriteTable) -> None:
         )
 
 
-def test_no_password() -> None:
+def test_no_password(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify ValueError failure if the database password is not set"""
-    import os
 
-    # Save the original password
-    password_var = "DB_PASSWORD"
-    original_password = os.environ.get(password_var)
+    monkeypatch.delenv("DB_PASSWORD", raising=False)
 
-    try:
-        # Remove the password from environment
-        if password_var in os.environ:
-            del os.environ[password_var]
-
-        # Attempt to create a connection without password
-        with pytest.raises(ValueError):
-            with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA):
-                pass
-    finally:
-        # Restore the original password
-        if original_password is not None:
-            os.environ[password_var] = original_password
+    # Attempt to create a connection without password
+    with pytest.raises(ValueError):
+        with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA):
+            pass
 
 
 # ── Expected Data ─────────────────────────────────────────────────────────────
