@@ -311,10 +311,6 @@ class SmartCurbDB:
 
         # Make sure the table exists, provide ValueError if not
         inspector = inspect(self.engine)
-        if inspector is None:
-            raise ConnectionError(
-                "Could not connect to the database engine to verify table exists."
-            )
         inspector: Inspector
         if not inspector.has_table(table_name, schema=self.schema):
             raise ValueError(
