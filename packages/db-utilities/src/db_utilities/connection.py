@@ -54,7 +54,7 @@ class SmartCurbDB:
 
             >>> with SmartCurbDB(dbname="my_db", schema="public") as db:
             ...     # filter must return one and only one record.
-            ...     db.modify_record("my_table", filter="id=123", field="my_field",
+            ...     db.modify_record("my_table", filter="id=123", column="my_field",
             ...     value="abcd")
         """
         if not dbname or not schema:
