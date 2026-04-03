@@ -1,6 +1,6 @@
 import os
 from types import TracebackType
-from typing import Sequence
+from typing import Sequence, overload
 
 import geopandas as gpd
 import pandas as pd
@@ -171,6 +171,24 @@ class SmartCurbDB:
                 raise InvalidInputError(
                     "Failed to write data to PostgreSQL (likely bad input)"
                 ) from e
+
+    @overload
+    def get_data(
+        self,
+        table_name: str,
+        geom_col: None = None,
+        filter: str | None = None,
+        columns: Sequence[str] | None = None,
+    ) -> pd.DataFrame: ...
+
+    @overload
+    def get_data(
+        self,
+        table_name: str,
+        geom_col: str,
+        filter: str | None = None,
+        columns: Sequence[str] | None = None,
+    ) -> gpd.GeoDataFrame: ...
 
     def get_data(
         self,
