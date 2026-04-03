@@ -32,6 +32,7 @@ def add_json_to_prompt(prompt: str, policy_json: str) -> str:
 
 
 def generate_description(
+    client: genai.Client,
     prompt: str = default_prompt,
     system_instruction=default_instruction,
     model_opts: GeminiOptions | None = None,
@@ -42,6 +43,7 @@ def generate_description(
     Allowing default model configuration and prompting is recommended.
 
     Args:
+        client (genai.Client): Gemini Client
         prompt (str): user prompt to guide description generation.
         config (GeminiModelConfig | None, optional):
             Config object containing options to pass to Gemini. Defaults to None.
@@ -66,14 +68,13 @@ def generate_description(
         ),
     )
 
-    with init_gemini_client(api_key) as client:
-        contents = [genai.types.Part.from_text(text=prompt)]
-        response = client.models.generate_content(
-            model=model_opts.model, contents=contents, config=config_gemini_typed
-        )
+    contents = [genai.types.Part.from_text(text=prompt)]
+    response = client.models.generate_content(
+        model=model_opts.model, contents=contents, config=config_gemini_typed
+    )
 
-        if not response.text:
-            return "NO DESCRIPTION AVAILABLE"
+    if not response.text:
+        return "NO DESCRIPTION AVAILABLE"
 
     return response.text
 
@@ -91,19 +92,22 @@ def run_examples(api_key) -> None:
 
     examples_dir = Path(__file__).parent / "test_data"
 
-    for p in examples_dir.glob("*.json"):
-        print(f"Generating Description for {p}")
-        start = perf_counter()
-        outfile = p.with_suffix(".RESULT.txt")
-        p_json = read_policy_example(p)
-        prompt = add_json_to_prompt(default_prompt, p_json)
-        description = generate_description(prompt, model_opts=None, api_key=api_key)
-        with open(outfile, "w+") as f:
-            f.write(description)
-        end = perf_counter()
-        elapsed = round(end - start, 3)
-        print(f"Processed file in {elapsed}s")
-        print("=" * 20)
+    with init_gemini_client(api_key) as client:
+        for p in examples_dir.glob("*.json"):
+            print(f"Generating Description for {p}")
+            start = perf_counter()
+            outfile = p.with_suffix(".RESULT.txt")
+            p_json = read_policy_example(p)
+            prompt = add_json_to_prompt(default_prompt, p_json)
+            description = generate_description(
+                client, prompt, model_opts=None, api_key=api_key
+            )
+            with open(outfile, "w+") as f:
+                f.write(description)
+            end = perf_counter()
+            elapsed = round(end - start, 3)
+            print(f"Processed file in {elapsed}s")
+            print("=" * 20)
 
 
 if __name__ == "__main__":
