@@ -69,8 +69,11 @@ class SmartCurbDB:
         # Load config from env variables
         self.host = os.environ.get("DB_HOST", "localhost")
         self.port = int(os.environ.get("DB_PORT", "5432"))
-        self.user = os.environ.get("DB_USER", "postgres")
-        self.password = os.environ.get("DB_PASSWORD", "postgres")
+        self.user = os.environ.get("DB_USER")
+        self.password = os.environ.get("DB_PASSWORD")
+
+        if self.user is None or self.password is None:
+            raise ValueError("Missing required db connection environment variables")
 
     def __enter__(self) -> "SmartCurbDB":
         self.connect()
