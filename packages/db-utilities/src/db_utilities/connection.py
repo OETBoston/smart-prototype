@@ -9,9 +9,6 @@ from sqlalchemy import Connection, Engine, Inspector, create_engine, inspect, te
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import DataError, ProgrammingError
 
-# TODO:
-# Use pytest to create unit tests for this class.
-
 
 class SmartCurbDB:
     """WARNING: Do not use this class with untrusted inputs.
