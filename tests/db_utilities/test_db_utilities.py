@@ -13,6 +13,7 @@ from pandas.testing import assert_frame_equal
 from pytest import fixture
 from shapely.geometry import Point
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 # ── Setup ─___─────────────────────────────────────────────────────────────────
 TEST_DB = "tests"
@@ -84,6 +85,17 @@ def write_geo_table() -> Generator[WriteTable]:
 def test_read_table(read_db) -> None:
     df = read_db.get_data("test_read")
     assert_frame_equal(expected_read(), df)
+
+
+def test_read_table_dne(read_db) -> None:
+    with pytest.raises(ValueError):
+        read_db.get_data("test_dne")
+
+
+def test_read_db_dne() -> None:
+    with pytest.raises(OperationalError):
+        with SmartCurbDB(dbname="THIS_DB_DNE", schema=TEST_SCHEMA) as _:
+            pass
 
 
 def test_read_filtered(read_db) -> None:
