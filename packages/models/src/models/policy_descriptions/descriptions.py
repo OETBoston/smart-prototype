@@ -3,7 +3,7 @@ from pathlib import Path
 from google import genai
 
 from models.clients import init_gemini_client
-from models.config import GeminiModelConfig
+from models.config import GeminiOptions
 from models.utils import load_from_txt
 
 # Instruction Paths
@@ -18,7 +18,7 @@ default_instruction = load_from_txt(DEFAULT_INSTRUCTION_PATH)
 default_prompt = load_from_txt(DEFAULT_PROMPT_PATH)
 
 # Default configuration options
-DEFAULT_CONFIG = GeminiModelConfig(
+DEFAULT_CONFIG = GeminiOptions(
     model="gemini-3.1-flash-lite-preview",
     temperature=0.1,
     thinking_level=None,
@@ -34,7 +34,7 @@ def add_json_to_prompt(prompt: str, policy_json: str) -> str:
 def generate_description(
     prompt: str = default_prompt,
     system_instruction=default_instruction,
-    config: GeminiModelConfig | None = None,
+    config: GeminiOptions | None = None,
     api_key: str | None = None,
 ) -> str:
     """
