@@ -11,7 +11,7 @@ _GEMINI_DEFAULTS = {
 }
 
 
-class ModelConfig(BaseModel):
+class ModelOptions(BaseModel):
     """Base class for Configuring Multimodal Language Models.
     Implmentation is on a per-model basis.
     """
@@ -19,7 +19,7 @@ class ModelConfig(BaseModel):
     ...
 
 
-class GeminiModelConfig(ModelConfig):
+class GeminiOptions(ModelOptions):
     model: str = Field(default=_GEMINI_DEFAULTS["model"])
     temperature: float = Field(default=_GEMINI_DEFAULTS["temperature"], ge=0, le=2)
     thinking_level: Literal["minimal", "low", "medium", "high", "dynamic"] | None = (
@@ -28,7 +28,7 @@ class GeminiModelConfig(ModelConfig):
     include_thoughts: bool | None = Field(default=_GEMINI_DEFAULTS["include_thoughts"])
 
     @model_validator(mode="after")
-    def validate_thinking_level(self) -> "GeminiModelConfig":
+    def validate_thinking_level(self) -> "GeminiOptions":
         """Adjusts Thinking Levels based on Model Support"""
         model = self.model
         thinking_level = self.thinking_level
