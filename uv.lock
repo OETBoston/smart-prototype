@@ -10,7 +10,7 @@ resolution-markers = [
 members = [
     "data-utilities",
     "db-utilities",
-    "models",
+    "policies-ai",
     "smart-prototype",
 ]
 
@@ -818,17 +818,6 @@ wheels = [
 ]
 
 [[package]]
-name = "models"
-version = "0.1.0"
-source = { editable = "packages/models" }
-dependencies = [
-    { name = "google-genai" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "google-genai", specifier = ">=1.69.0" }]
-
-[[package]]
 name = "multidict"
 version = "6.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1043,6 +1032,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
 ]
+
+[[package]]
+name = "policies-ai"
+version = "0.1.0"
+source = { editable = "packages/policies-ai" }
+dependencies = [
+    { name = "google-genai" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "google-genai", specifier = ">=1.69.0" }]
 
 [[package]]
 name = "pre-commit"
@@ -1568,7 +1568,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "data-utilities" },
     { name = "db-utilities" },
-    { name = "models" },
+    { name = "policies-ai" },
 ]
 
 [package.dev-dependencies]
@@ -1582,7 +1582,7 @@ dev = [
 requires-dist = [
     { name = "data-utilities", editable = "packages/data-utilities" },
     { name = "db-utilities", editable = "packages/db-utilities" },
-    { name = "models", editable = "packages/models" },
+    { name = "policies-ai", editable = "packages/policies-ai" },
 ]
 
 [package.metadata.requires-dev]
