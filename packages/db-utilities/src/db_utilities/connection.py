@@ -14,7 +14,9 @@ from sqlalchemy.exc import DataError, ProgrammingError
 
 
 class SmartCurbDB:
-    """Manages connections and queries to a PostgreSQL database with support for
+    """WARNING: Do not use this class with untrusted inputs.
+
+    Manages connections and queries to a PostgreSQL database with support for
     geospatial data.
 
     This class provides methods to read from and write to PostgreSQL tables, with
@@ -88,7 +90,9 @@ class SmartCurbDB:
         self.close()
 
     def connect(self) -> None:
-        """Establishes a connection to the PostgreSQL database.
+        """WARNING: Do not use this method with untrusted inputs.
+
+        Establishes a connection to the PostgreSQL database.
 
         Creates a SQLAlchemy engine and connection using environment variables
         for host, port, user, and password. Operations are performed on the
@@ -121,7 +125,9 @@ class SmartCurbDB:
     def append_data(
         self, table_name: str, data: pd.DataFrame | gpd.GeoDataFrame
     ) -> None:
-        """Appends data to the specified table in the database.
+        """WARNING: Do not use this method with untrusted inputs.
+
+        Appends data to the specified table in the database.
 
         Args:
             table_name (str): Name of the table to write to.
@@ -176,7 +182,9 @@ class SmartCurbDB:
         filter: str | None = None,
         columns: Sequence[str] | None = None,
     ) -> pd.DataFrame | gpd.GeoDataFrame:
-        """Retrieves data from a database table as a DataFrame or GeoDataFrame.
+        """WARNING: Do not use this method with untrusted inputs.
+
+        Retrieves data from a database table as a DataFrame or GeoDataFrame.
 
         To return a GeoDataFrame, provide the geom_col parameter.
 
@@ -230,7 +238,9 @@ class SmartCurbDB:
     def modify_record(
         self, table_name: str, filter: str, column: str, value: str | int | float
     ) -> None:
-        """Updates a single value in a record and column.
+        """WARNING: Do not use this method with untrusted inputs.
+
+        Updates a single value in a record and column.
 
         Args:
             table_name (str): Name of the table to read.
@@ -290,7 +300,9 @@ class SmartCurbDB:
         self.connection.commit()
 
     def _check_db_status(self, table_name: str) -> Inspector:
-        """Checks if the database connection is open and if the specified table exists.
+        """WARNING: Do not use this method with untrusted inputs.
+
+        Checks if the database connection is open and if the specified table exists.
 
         Args:
             table_name (str): Name of the table to verify.
