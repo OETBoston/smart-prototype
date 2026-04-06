@@ -336,10 +336,11 @@ def test_update_geo_value_string(write_geo_table: WriteTable) -> None:
     data.loc[data["id"] == UUID(update_uuid), "string_field"] = "Updated This!"
 
     # Read and confirm
-    result = (
+    result = cast(
+        gpd.GeoDataFrame,
         db.get_data(table_name, geom_col="geometry")
         .sort_values(by="id")
-        .reset_index(drop=True)
+        .reset_index(drop=True),
     )
     assert_geodataframe_equal(data, result)
 
@@ -365,10 +366,11 @@ def test_update_geo_value_json(write_geo_table: WriteTable) -> None:
     data.at[2, "jsonb_field"] = cast(Any, new_value)
 
     # Read and confirm
-    result = (
+    result = cast(
+        gpd.GeoDataFrame,
         db.get_data(table_name, geom_col="geometry")
         .sort_values(by="id")
-        .reset_index(drop=True)
+        .reset_index(drop=True),
     )
     assert_geodataframe_equal(data, result)
 
