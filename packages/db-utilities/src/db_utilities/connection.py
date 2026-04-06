@@ -308,6 +308,7 @@ class SmartCurbDB:
         try:
             self.connection.execute(text(update_sql), {"value": value})
         except DataError as e:
+            self.connection.rollback()
             raise InvalidInputError(
                 "Failed to write data to PostgreSQL (likely bad input)"
             ) from e
