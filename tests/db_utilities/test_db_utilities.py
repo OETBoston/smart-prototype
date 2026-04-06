@@ -255,6 +255,8 @@ def test_update_value_int_as_string(write_table: WriteTable) -> None:
             value="Not a String",
         )
 
+    assert db.connection and not db.connection.in_transaction()
+
 
 def test_update_value_multiple_rows(write_table: WriteTable) -> None:
     db, table_name = write_table
@@ -390,6 +392,8 @@ def test_update_value_geo_int_as_string(write_geo_table: WriteTable) -> None:
             column="integer_field",
             value="Not a String",
         )
+
+    assert db.connection and not db.connection.in_transaction()
 
 
 def test_no_password(monkeypatch: pytest.MonkeyPatch) -> None:
