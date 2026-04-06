@@ -4,6 +4,14 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 -- Create test_data schema if it doesn't exist
 CREATE SCHEMA IF NOT EXISTS test_data;
 
+-- Delete tables if they exist so they can be created from scratch each time
+-- this is run.
+DROP TABLE IF EXISTS test_data.test_read;
+DROP TABLE IF EXISTS test_data.test_read_geo;
+DROP TABLE IF EXISTS test_data.test_write;
+DROP TABLE IF EXISTS test_data.test_write_geo;
+
+
 -- Create test_read in test_data schema
 CREATE TABLE IF NOT EXISTS test_data.test_read (
     id UUID PRIMARY KEY,
