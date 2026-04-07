@@ -1,6 +1,7 @@
 import os
 from types import TracebackType
 from typing import Sequence, overload
+from uuid import uuid4
 
 import geopandas as gpd
 import pandas as pd
@@ -170,6 +171,157 @@ class SmartCurbDB:
             except (DataError, ProgrammingError) as e:
                 raise InvalidInputError(
                     "Failed to write data to PostgreSQL (likely bad input)"
+                ) from e
+
+    def update_or_append(
+        self,
+        table_name: str,
+        data: pd.DataFrame | gpd.GeoDataFrame,
+        key_columns: Sequence[str],
+    ) -> None:
+        """WARNING: Do not use this method with untrusted inputs.
+
+        Updates existing records and appends new ones to the specified table.
+
+        For each row in data, if a record matching key_columns already exists it is
+        updated with the provided column values. Columns present in the table but absent
+        from data are left unchanged on update. If no matching record exists the row is
+        inserted.
+
+        key_columns must correspond to a UNIQUE or PRIMARY KEY constraint on the table.
+        When inserting new rows, all NOT NULL columns without defaults must be present
+        in data.
+
+        Args:
+            table_name (str): Name of the table to write to.
+            data (pd.DataFrame | gpd.GeoDataFrame): Data to upsert.
+            key_columns (Sequence[str]): Column(s) used to match existing records.
+                Must correspond to a UNIQUE or PRIMARY KEY constraint on the table.
+
+        Raises:
+            ValueError: If data is not a DataFrame or GeoDataFrame.
+            ValueError: If key_columns are not present in data or the table.
+            ValueError: If key_columns do not match a UNIQUE or PRIMARY KEY constraint.
+            ValueError: If data contains only key columns with no columns to update.
+            ValueError: If the specified table does not exist.
+            ConnectionError: If the database connection is not open.
+            InvalidInputError: If the data cannot be written to the database.
+        """
+        if not isinstance(data, (pd.DataFrame, gpd.GeoDataFrame)):
+            raise ValueError(
+                "Data must be a pandas DataFrame or geopandas GeoDataFrame."
+            )
+
+        inspector = self._check_db_status(table_name)
+        # for type checker, guaranteed by _check_db_status
+        assert self.engine is not None
+        assert self.connection is not None
+
+        key_columns_list = list(key_columns)
+
+        # Validate key_columns exist in data
+        missing_from_data = [col for col in key_columns_list if col not in data.columns]
+        if missing_from_data:
+            raise ValueError(
+                f"key_columns {missing_from_data} are not present in the provided data."
+            )
+
+        # Validate key_columns exist in the table
+        available_columns = {
+            col["name"] for col in inspector.get_columns(table_name, schema=self.schema)
+        }
+        missing_from_table = [
+            col for col in key_columns_list if col not in available_columns
+        ]
+        if missing_from_table:
+            raise ValueError(
+                f"key_columns {missing_from_table} do not "
+                + "exist in table '{table_name}'."
+            )
+
+        # Validate key_columns match a UNIQUE or PRIMARY KEY constraint
+        pk = inspector.get_pk_constraint(table_name, schema=self.schema)
+        pk_cols = set(pk.get("constrained_columns", []))
+        unique_constraints = inspector.get_unique_constraints(
+            table_name, schema=self.schema
+        )
+        unique_col_sets = [set(uc["column_names"]) for uc in unique_constraints]
+        key_col_set = set(key_columns_list)
+
+        if key_col_set != pk_cols and key_col_set not in unique_col_sets:
+            raise ValueError(
+                f"key_columns {key_columns_list} do not match any UNIQUE or PRIMARY KEY"
+                f" constraint on table '{table_name}'."
+            )
+
+        # Determine columns to update (all data columns that are not key columns)
+        non_key_columns = [col for col in data.columns if col not in key_col_set]
+        if not non_key_columns:
+            raise ValueError(
+                "Data contains only key columns — there are no columns to update."
+            )
+
+        # Build the upsert SQL
+        data_columns = list(data.columns)
+        staging_table = f"_upsert_staging_{uuid4().hex[:8]}"
+        quoted_cols = [f'"{col}"' for col in data_columns]
+        quoted_keys = [f'"{col}"' for col in key_columns_list]
+        quoted_non_keys = [f'"{col}"' for col in non_key_columns]
+
+        cols_clause = ", ".join(quoted_cols)
+        conflict_clause = ", ".join(quoted_keys)
+        update_clause = ", ".join(f"{col} = EXCLUDED.{col}" for col in quoted_non_keys)
+
+        upsert_sql = (
+            f"INSERT INTO {self.schema}.{table_name} ({cols_clause}) "
+            f"SELECT {cols_clause} FROM {staging_table} "
+            f"ON CONFLICT ({conflict_clause}) "
+            f"DO UPDATE SET {update_clause}"
+        )
+
+        # Update the database in a transaction
+        with self.engine.begin() as tx_connection:
+            # Create an empty temporary table based on the target
+            create_sql = (
+                f"CREATE TEMP TABLE {staging_table} "
+                + f"(LIKE {self.schema}.{table_name}) "
+                + "ON COMMIT DROP;"
+            )
+            tx_connection.execute(text(create_sql))
+
+            # Append to the temporary table, no schema for a temporary table
+            if isinstance(data, gpd.GeoDataFrame):
+                try:
+                    data.to_postgis(
+                        staging_table,
+                        tx_connection,
+                        if_exists="append",
+                        index=False,
+                    )
+                except InvalidTextRepresentation as e:
+                    raise InvalidInputError(
+                        "Failed to write data to PostGIS temporary table "
+                        + "(likely bad input)"
+                    ) from e
+            else:
+                try:
+                    data.to_sql(
+                        staging_table,
+                        tx_connection,
+                        if_exists="append",
+                        index=False,
+                    )
+                except (DataError, ProgrammingError) as e:
+                    raise InvalidInputError(
+                        "Failed to write data to PostgreSQL temporary table "
+                        + "(likely bad input)"
+                    ) from e
+
+            try:
+                tx_connection.execute(text(upsert_sql))
+            except (DataError, ProgrammingError) as e:
+                raise InvalidInputError(
+                    "Failed to upsert data to PostgreSQL (likely bad input)"
                 ) from e
 
     @overload
