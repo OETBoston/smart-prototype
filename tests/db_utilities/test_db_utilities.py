@@ -398,6 +398,133 @@ def test_update_value_geo_int_as_string(write_geo_table: WriteTable) -> None:
     assert db.connection and not db.connection.in_transaction()
 
 
+def test_update_or_append_inserts_new(write_table: WriteTable) -> None:
+    """All rows are new — behaves like append_data."""
+    db, table_name = write_table
+    data = expected_read()
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+
+    db.update_or_append(table_name, write_data, key_columns=["id"])
+    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    assert_frame_equal(data, result)
+
+
+def test_update_or_append_updates_existing(write_table: WriteTable) -> None:
+    """All rows already exist — all are updated."""
+    db, table_name = write_table
+    data = expected_read()
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+
+    db.append_data(table_name, write_data)
+
+    updated = write_data.copy()
+    updated["string_field"] = "Updated"
+    db.update_or_append(table_name, updated, key_columns=["id"])
+
+    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    expected = data.copy()
+    expected["string_field"] = "Updated"
+    assert_frame_equal(expected, result)
+
+
+def test_update_or_append_mixed(write_table: WriteTable) -> None:
+    """Some rows exist (updated), some are new (inserted)."""
+    db, table_name = write_table
+    data = expected_read()
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+
+    # Pre-populate only the first three rows
+    db.append_data(table_name, write_data.iloc[:3])
+
+    # Upsert all five — rows 1-3 updated, rows 4-5 inserted
+    updated = write_data.copy()
+    updated.loc[updated.index[:3], "string_field"] = "Updated"
+    db.update_or_append(table_name, updated, key_columns=["id"])
+
+    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    expected = data.copy()
+    expected.loc[expected.index[:3], "string_field"] = "Updated"
+    assert_frame_equal(expected, result)
+
+
+def test_update_or_append_partial_columns(write_table: WriteTable) -> None:
+    """Only a subset of non-key columns provided — other columns left unchanged."""
+    db, table_name = write_table
+    data = expected_read()
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    db.append_data(table_name, write_data)
+
+    # Update only string_field for the first three rows
+    partial = write_data[["id", "string_field"]].iloc[:3].copy()
+    partial["string_field"] = "Partial Update"
+    db.update_or_append(table_name, partial, key_columns=["id"])
+
+    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    expected = data.copy()
+    expected.loc[expected.index[:3], "string_field"] = "Partial Update"
+    assert_frame_equal(expected, result)
+
+
+def test_update_or_append_geo(write_geo_table: WriteTable) -> None:
+    """GeoDataFrame: some rows exist (updated), some are new (inserted)."""
+    db, table_name = write_geo_table
+    data = expected_read_geo()
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+
+    # Pre-populate only the first three rows
+    db.append_data(table_name, write_data.iloc[:3])
+
+    # Upsert all five — rows 1-3 updated, rows 4-5 inserted
+    updated = write_data.copy()
+    updated.loc[updated.index[:3], "string_field"] = "Updated"
+    db.update_or_append(table_name, updated, key_columns=["id"])
+
+    result = cast(
+        gpd.GeoDataFrame,
+        db.get_data(table_name, geom_col="geometry")
+        .sort_values(by="id")
+        .reset_index(drop=True),
+    )
+    expected = data.copy()
+    expected.loc[expected.index[:3], "string_field"] = "Updated"
+    assert_geodataframe_equal(expected, result)
+
+
+def test_update_or_append_key_not_in_data(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read().drop(columns=["id"])
+    with pytest.raises(ValueError, match="key_columns"):
+        db.update_or_append(table_name, data, key_columns=["id"])
+
+
+def test_update_or_append_key_not_in_table(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read()
+    data["nonexistent"] = "x"
+    with pytest.raises(ValueError, match="key_columns"):
+        db.update_or_append(table_name, data, key_columns=["nonexistent"])
+
+
+def test_update_or_append_no_constraint(write_table: WriteTable) -> None:
+    """key_columns that exist in both data and table but have no constraint."""
+    db, table_name = write_table
+    data = expected_read()
+    with pytest.raises(ValueError, match="UNIQUE or PRIMARY KEY"):
+        db.update_or_append(table_name, data, key_columns=["string_field"])
+
+
+def test_update_or_append_only_key_columns(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read()[["id"]]
+    with pytest.raises(ValueError, match="no columns to update"):
+        db.update_or_append(table_name, data, key_columns=["id"])
+
+
 def test_no_password(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify ValueError failure if the database password is not set"""
 
