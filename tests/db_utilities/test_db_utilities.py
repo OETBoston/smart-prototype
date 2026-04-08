@@ -1,6 +1,6 @@
 import json
 from collections.abc import Generator
-from typing import Any, TypeAlias, cast, overload
+from typing import Any, Tuple, TypeAlias, cast, overload
 from uuid import UUID, uuid4
 
 import geopandas as gpd
@@ -134,11 +134,7 @@ def test_read_geo_table(read_db: SmartCurbDB) -> None:
 
 def test_append_data(write_table: WriteTable) -> None:
     db, table_name = write_table
-    data = expected_read()
-
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    data, write_data = expected_write()
 
     db.append_data(table_name, write_data)
     result = db.get_data(table_name)
@@ -158,11 +154,7 @@ def test_append_data_json_as_dict(write_table: WriteTable) -> None:
 
 def test_append_data_int_as_string(write_table: WriteTable) -> None:
     db, table_name = write_table
-    data = expected_read()
-
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    _, write_data = expected_write()
 
     # Convert int to a string for failure
     write_data["integer_field"] = "Not an integer"
@@ -173,11 +165,7 @@ def test_append_data_int_as_string(write_table: WriteTable) -> None:
 
 def test_append_geo_data(write_geo_table: WriteTable) -> None:
     db, table_name = write_geo_table
-    data = expected_read_geo()
-
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    data, write_data = expected_write_geo()
 
     db.append_data(table_name, write_data)
     result = db.get_data(table_name, geom_col="geometry")
@@ -194,11 +182,7 @@ def test_append_geo_data_json_as_dict(write_geo_table: WriteTable) -> None:
 
 def test_append_geo_data_int_as_string(write_geo_table: WriteTable) -> None:
     db, table_name = write_geo_table
-    data = expected_read_geo()
-
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    _, write_data = expected_write_geo()
 
     # Convert int to a string for failure
     write_data["integer_field"] = "Not an integer"
@@ -209,11 +193,7 @@ def test_append_geo_data_int_as_string(write_geo_table: WriteTable) -> None:
 
 def test_update_value_string(write_table: WriteTable) -> None:
     db, table_name = write_table
-    data = expected_read()
-
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    data, write_data = expected_write()
     db.append_data(table_name, write_data)
 
     # Update a field - both in the database and the expected data
@@ -233,11 +213,8 @@ def test_update_value_string(write_table: WriteTable) -> None:
 
 def test_update_value_json(write_table: WriteTable) -> None:
     db, table_name = write_table
-    data = expected_read()
+    data, write_data = expected_write()
 
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
     db.append_data(table_name, write_data)
 
     # Update a field - both in the database and the expected data
@@ -258,11 +235,8 @@ def test_update_value_json(write_table: WriteTable) -> None:
 
 def test_update_value_int_as_string(write_table: WriteTable) -> None:
     db, table_name = write_table
-    data = expected_read()
+    _, write_data = expected_write()
 
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
     db.append_data(table_name, write_data)
 
     # Update a field - both in the database and the expected data
@@ -281,11 +255,8 @@ def test_update_value_int_as_string(write_table: WriteTable) -> None:
 
 def test_update_value_multiple_rows(write_table: WriteTable) -> None:
     db, table_name = write_table
-    data = expected_read()
+    data, write_data = expected_write()
 
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
     db.append_data(table_name, write_data)
 
     # Attempt to update using a filter that returns multiple rows
@@ -301,11 +272,8 @@ def test_update_value_multiple_rows(write_table: WriteTable) -> None:
 
 def test_update_value_zero_rows(write_table: WriteTable) -> None:
     db, table_name = write_table
-    data = expected_read()
+    _, write_data = expected_write()
 
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
     db.append_data(table_name, write_data)
 
     # Attempt to update using a filter that returns multiple rows
@@ -321,11 +289,8 @@ def test_update_value_zero_rows(write_table: WriteTable) -> None:
 
 def test_update_value_invalid_filter(write_table: WriteTable) -> None:
     db, table_name = write_table
-    data = expected_read()
+    data, write_data = expected_write()
 
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
     db.append_data(table_name, write_data)
 
     with pytest.raises(ValueError):
@@ -339,11 +304,8 @@ def test_update_value_invalid_filter(write_table: WriteTable) -> None:
 
 def test_update_geo_value_string(write_geo_table: WriteTable) -> None:
     db, table_name = write_geo_table
-    data = expected_read_geo()
+    data, write_data = expected_write_geo()
 
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
     db.append_data(table_name, write_data)
 
     # Update a field - both in the database and the expected data
@@ -363,11 +325,8 @@ def test_update_geo_value_string(write_geo_table: WriteTable) -> None:
 
 def test_update_geo_value_json(write_geo_table: WriteTable) -> None:
     db, table_name = write_geo_table
-    data = expected_read_geo()
+    data, write_data = expected_write_geo()
 
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
     db.append_data(table_name, write_data)
 
     # Update a field - both in the database and the expected data
@@ -388,11 +347,8 @@ def test_update_geo_value_json(write_geo_table: WriteTable) -> None:
 
 def test_update_value_geo_int_as_string(write_geo_table: WriteTable) -> None:
     db, table_name = write_geo_table
-    data = expected_read()
+    _, write_data = expected_write()
 
-    # Convert the jsonb field to a string
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
     db.append_data(table_name, write_data)
 
     # Update a field - both in the database and the expected data
@@ -412,9 +368,7 @@ def test_update_value_geo_int_as_string(write_geo_table: WriteTable) -> None:
 def test_update_or_append_inserts_new(write_table: WriteTable) -> None:
     """All rows are new — behaves like append_data."""
     db, table_name = write_table
-    data = expected_read()
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    data, write_data = expected_write()
 
     db.update_or_append(table_name, write_data, key_columns=["id"])
     result = qsort(db.get_data(table_name))
@@ -424,9 +378,7 @@ def test_update_or_append_inserts_new(write_table: WriteTable) -> None:
 def test_update_or_append_updates_existing(write_table: WriteTable) -> None:
     """All rows already exist — all are updated."""
     db, table_name = write_table
-    data = expected_read()
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    data, write_data = expected_write()
 
     db.append_data(table_name, write_data)
 
@@ -443,9 +395,7 @@ def test_update_or_append_updates_existing(write_table: WriteTable) -> None:
 def test_update_or_append_mixed(write_table: WriteTable) -> None:
     """Some rows exist (updated), some are new (inserted)."""
     db, table_name = write_table
-    data = expected_read()
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    data, write_data = expected_write()
 
     # Pre-populate only the first three rows
     db.append_data(table_name, write_data.iloc[:3])
@@ -464,9 +414,7 @@ def test_update_or_append_mixed(write_table: WriteTable) -> None:
 def test_update_or_append_geo(write_geo_table: WriteTable) -> None:
     """GeoDataFrame: some rows exist (updated), some are new (inserted)."""
     db, table_name = write_geo_table
-    data = expected_read_geo()
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+    data, write_data = expected_write_geo()
 
     # Pre-populate only the first three rows
     db.append_data(table_name, write_data.iloc[:3])
@@ -568,6 +516,14 @@ def expected_read() -> pd.DataFrame:
     return data.sort_values("id").reset_index(drop=True)
 
 
+def expected_write() -> Tuple[pd.DataFrame, pd.DataFrame]:
+    data = expected_read()
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+
+    return (data, write_data)
+
+
 def expected_read_geo() -> gpd.GeoDataFrame:
     data = gpd.GeoDataFrame(
         {
@@ -606,3 +562,11 @@ def expected_read_geo() -> gpd.GeoDataFrame:
     )
 
     return data.sort_values("id").reset_index(drop=True)
+
+
+def expected_write_geo() -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    data = expected_read_geo()
+    write_data = data.copy()
+    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
+
+    return (data, write_data)
