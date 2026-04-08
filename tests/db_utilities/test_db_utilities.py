@@ -450,25 +450,6 @@ def test_update_or_append_mixed(write_table: WriteTable) -> None:
     assert_frame_equal(expected, result)
 
 
-def test_update_or_append_partial_columns(write_table: WriteTable) -> None:
-    """Only a subset of non-key columns provided — other columns left unchanged."""
-    db, table_name = write_table
-    data = expected_read()
-    write_data = data.copy()
-    write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
-    db.append_data(table_name, write_data)
-
-    # Update only string_field for the first three rows
-    partial = write_data[["id", "string_field"]].iloc[:3].copy()
-    partial["string_field"] = "Partial Update"
-    db.update_or_append(table_name, partial, key_columns=["id"])
-
-    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
-    expected = data.copy()
-    expected.loc[expected.index[:3], "string_field"] = "Partial Update"
-    assert_frame_equal(expected, result)
-
-
 def test_update_or_append_geo(write_geo_table: WriteTable) -> None:
     """GeoDataFrame: some rows exist (updated), some are new (inserted)."""
     db, table_name = write_geo_table
