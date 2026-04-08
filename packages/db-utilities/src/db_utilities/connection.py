@@ -184,13 +184,11 @@ class SmartCurbDB:
         Updates existing records and appends new ones to the specified table.
 
         For each row in data, if a record matching key_columns already exists it is
-        updated with the provided column values. Columns present in the table but absent
-        from data are left unchanged on update. If no matching record exists the row is
+        updated with the provided column values. If no matching record exists the row is
         inserted.
 
         key_columns must correspond to a UNIQUE or PRIMARY KEY constraint on the table.
-        When inserting new rows, all NOT NULL columns without defaults must be present
-        in data.
+        When inserting new rows, all columns must be present in the data.
 
         Args:
             table_name (str): Name of the table to write to.
@@ -236,7 +234,7 @@ class SmartCurbDB:
         if missing_from_table:
             raise ValueError(
                 f"key_columns {missing_from_table} do not "
-                + "exist in table '{table_name}'."
+                + f"exist in table '{table_name}'."
             )
 
         # Validate key_columns match a UNIQUE or PRIMARY KEY constraint
@@ -543,15 +541,15 @@ class SmartCurbDB:
     ) -> str:
         """Creates an empty table based on the source table. If
         the source table is a spatial table, the empty table is also a
-        spatial table. The temporary table is NOT dropped on commit.
-        The caller is advised to drop the table on commit.
+        spatial table. The table is NOT dropped on commit.
+        The caller is advised to drop the table when done with it.
 
         The connection argument overrides the objects active connection,
         which can be useful for applying this function within a transaction.
 
         Args:
             source (str): Name of the table to be copied
-            conn (Connection | None): SQLAlcmemy connection to use, or None to use the
+            conn (Connection | None): SQLAlchemy connection to use, or None to use the
             object's connection property.
 
         Returns:
@@ -588,8 +586,13 @@ class SmartCurbDB:
     def _get_geometry_columns(
         self, table: str, conn: Connection | None = None
     ) -> Sequence[Row[Any]]:
-        """Get a list of geometry columns, returning the following for each column:
-        (column name, column type, SRID, number of dimensions )
+        """Get a list of geometry columns, returning the a sequence of information
+        about each row:
+
+         - f_geometry_column: column name
+         - type: geometry type
+         - srid: coordinate system
+         - coord_dimension: Number of dimensions
 
         Args:
             table (str): table to check
@@ -597,7 +600,8 @@ class SmartCurbDB:
             object's connection property.
 
         Returns:
-            bool: list of geometry columns, or None
+            Sequence[Row[Any]]: Geometry column rows. Each row contains the
+            column name, geometry type, SRID, and number of dimensions.
         """
 
         tx_conn = self._parse_connection_arg(conn)
