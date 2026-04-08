@@ -225,11 +225,11 @@ class SmartCurbDB:
             )
 
         # Validate key_columns exist in the table
-        available_columns = {
+        table_columns = {
             col["name"] for col in inspector.get_columns(table_name, schema=self.schema)
         }
         missing_from_table = [
-            col for col in key_columns_list if col not in available_columns
+            col for col in key_columns_list if col not in table_columns
         ]
         if missing_from_table:
             raise ValueError(
@@ -257,6 +257,13 @@ class SmartCurbDB:
         if not non_key_columns:
             raise ValueError(
                 "Data contains only key columns — there are no columns to update."
+            )
+
+        # Verify all table columns are included in the dataframe
+        missing_from_df = [col for col in table_columns if col not in data.columns]
+        if missing_from_df:
+            raise ValueError(
+                "Dataframe does not contain all columns present in the database table"
             )
 
         # Update the database in a transaction
