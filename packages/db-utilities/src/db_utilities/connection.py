@@ -1,12 +1,12 @@
 import os
 from types import TracebackType
-from typing import Sequence, overload
+from typing import Any, Sequence, overload
 from uuid import uuid4
 
 import geopandas as gpd
 import pandas as pd
 from psycopg2.errors import InvalidTextRepresentation
-from sqlalchemy import Connection, Engine, Inspector, create_engine, inspect, text
+from sqlalchemy import Connection, Engine, Inspector, Row, create_engine, inspect, text
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import DataError, ProgrammingError
 
@@ -261,33 +261,9 @@ class SmartCurbDB:
                 "Data contains only key columns — there are no columns to update."
             )
 
-        # Build the upsert SQL
-        data_columns = list(data.columns)
-        staging_table = f"_upsert_staging_{uuid4().hex[:8]}"
-        quoted_cols = [f'"{col}"' for col in data_columns]
-        quoted_keys = [f'"{col}"' for col in key_columns_list]
-        quoted_non_keys = [f'"{col}"' for col in non_key_columns]
-
-        cols_clause = ", ".join(quoted_cols)
-        conflict_clause = ", ".join(quoted_keys)
-        update_clause = ", ".join(f"{col} = EXCLUDED.{col}" for col in quoted_non_keys)
-
-        upsert_sql = (
-            f"INSERT INTO {self.schema}.{table_name} ({cols_clause}) "
-            f"SELECT {cols_clause} FROM {staging_table} "
-            f"ON CONFLICT ({conflict_clause}) "
-            f"DO UPDATE SET {update_clause}"
-        )
-
         # Update the database in a transaction
         with self.engine.begin() as tx_connection:
-            # Create an empty temporary table based on the target
-            create_sql = (
-                f"CREATE TEMP TABLE {staging_table} "
-                + f"(LIKE {self.schema}.{table_name}) "
-                + "ON COMMIT DROP;"
-            )
-            tx_connection.execute(text(create_sql))
+            staging_table = self._create_empty_table_copy(table_name, tx_connection)
 
             # Append to the temporary table, no schema for a temporary table
             if isinstance(data, gpd.GeoDataFrame):
@@ -295,6 +271,7 @@ class SmartCurbDB:
                     data.to_postgis(
                         staging_table,
                         tx_connection,
+                        schema=self.schema,
                         if_exists="append",
                         index=False,
                     )
@@ -308,6 +285,7 @@ class SmartCurbDB:
                     data.to_sql(
                         staging_table,
                         tx_connection,
+                        schema=self.schema,
                         if_exists="append",
                         index=False,
                     )
@@ -317,12 +295,35 @@ class SmartCurbDB:
                         + "(likely bad input)"
                     ) from e
 
+            # Build the upsert SQL
+            data_columns = list(data.columns)
+            quoted_cols = [f'"{col}"' for col in data_columns]
+            quoted_keys = [f'"{col}"' for col in key_columns_list]
+            quoted_non_keys = [f'"{col}"' for col in non_key_columns]
+
+            cols_clause = ", ".join(quoted_cols)
+            conflict_clause = ", ".join(quoted_keys)
+            update_clause = ", ".join(
+                f"{col} = EXCLUDED.{col}" for col in quoted_non_keys
+            )
+
+            upsert_sql = (
+                f"INSERT INTO {self.schema}.{table_name} ({cols_clause}) "
+                f"SELECT {cols_clause} FROM {self.schema}.{staging_table} "
+                f"ON CONFLICT ({conflict_clause}) "
+                f"DO UPDATE SET {update_clause}"
+            )
+
+            # Execute the upsert SQL
             try:
                 tx_connection.execute(text(upsert_sql))
             except (DataError, ProgrammingError) as e:
                 raise InvalidInputError(
                     "Failed to upsert data to PostgreSQL (likely bad input)"
                 ) from e
+
+            # Drop the staging table
+            tx_connection.execute(text(f"DROP TABLE {self.schema}.{staging_table};"))
 
     @overload
     def get_data(
@@ -536,6 +537,107 @@ class SmartCurbDB:
             )
 
         return [f'"{col}"' for col in columns_list]
+
+    def _create_empty_table_copy(
+        self, source: str, conn: Connection | None = None
+    ) -> str:
+        """Creates an empty table based on the source table. If
+        the source table is a spatial table, the empty table is also a
+        spatial table. The temporary table is NOT dropped on commit.
+        The caller is advised to drop the table on commit.
+
+        The connection argument overrides the objects active connection,
+        which can be useful for applying this function within a transaction.
+
+        Args:
+            source (str): Name of the table to be copied
+            conn (Connection | None): SQLAlcmemy connection to use, or None to use the
+            object's connection property.
+
+        Returns:
+            str: Name of the temporary table
+        """
+
+        tx_conn = self._parse_connection_arg(conn)
+
+        # Create an empty copy
+        temp_table = f"temp_table_{uuid4().hex[:8]}"
+        tx_conn.execute(
+            text(f"""
+           CREATE TABLE {self.schema}.{temp_table} 
+           (LIKE {self.schema}.{source}) 
+            """)
+        )
+
+        # If the source table has geometry columns, we need to alter the
+        # temporary table also have geometry columns
+        geo_cols = self._get_geometry_columns(source, tx_conn)
+
+        for col in geo_cols:
+            tx_conn.execute(
+                text(f"""
+                    ALTER TABLE {self.schema}.{temp_table} 
+                    ALTER COLUMN "{col.f_geometry_column}" 
+                    TYPE geometry({col.type}, {col.srid})
+                    USING "{col.f_geometry_column}"::geometry({col.type}, {col.srid})
+                """)
+            )
+
+        return temp_table
+
+    def _get_geometry_columns(
+        self, table: str, conn: Connection | None = None
+    ) -> Sequence[Row[Any]]:
+        """Get a list of geometry columns, returning the following for each column:
+        (column name, column type, SRID, number of dimensions )
+
+        Args:
+            table (str): table to check
+            conn (Connection | None): SQLAlcmemy connection to use, or None to use the
+            object's connection property.
+
+        Returns:
+            bool: list of geometry columns, or None
+        """
+
+        tx_conn = self._parse_connection_arg(conn)
+
+        sql = text("""
+        SELECT f_geometry_column, type, srid, coord_dimension
+        FROM geometry_columns
+        WHERE f_table_schema = :schema
+        AND f_table_name = :table
+        """)
+
+        result = tx_conn.execute(
+            sql,
+            {"schema": self.schema, "table": table},
+        )
+
+        return result.fetchall()
+
+    def _parse_connection_arg(self, conn: Connection | None) -> Connection:
+        """Parse an optional connection argument, return either the
+        passed argument, or the object's active connection.
+
+        Fails if conn and self.connection are both None
+
+        Args:
+            conn (_type_): Optional connection
+
+        Raises:
+            ConnectionError: Both the conn argument and self.connection are null
+
+        Returns:
+            Connection: connection to use, prioritizing conn
+        """
+
+        # Select the connection to use
+        rv = conn or self.connection
+        if rv is None:
+            raise ConnectionError("Database connection failed")
+
+        return rv
 
 
 class InvalidInputError(TypeError):
