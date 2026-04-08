@@ -1,6 +1,6 @@
 import json
 from collections.abc import Generator
-from typing import Any, TypeAlias, cast
+from typing import Any, TypeAlias, cast, overload
 from uuid import UUID, uuid4
 
 import geopandas as gpd
@@ -79,15 +79,36 @@ def write_geo_table() -> Generator[WriteTable]:
         db.connection.commit()
 
 
+# ── Convenience Functions ─────────────────────────────────────────────────────
+
+
+@overload
+def qsort(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame: ...
+
+
+@overload
+def qsort(df: pd.DataFrame) -> pd.DataFrame: ...
+
+
+def qsort(df: pd.DataFrame | gpd.GeoDataFrame) -> pd.DataFrame | gpd.GeoDataFrame:
+    """Quickly sort and reset the index of a dataframe. Addresses potential
+    for the pg database to return data in an undefined order.
+
+    Retains the correct df or gdf type.
+
+    """
+    return df.sort_values("id").reset_index(drop=True)
+
+
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 
-def test_read_table(read_db) -> None:
-    df = read_db.get_data("test_read")
+def test_read_table(read_db: SmartCurbDB) -> None:
+    df = qsort(read_db.get_data("test_read"))
     assert_frame_equal(expected_read(), df)
 
 
-def test_read_table_dne(read_db) -> None:
+def test_read_table_dne(read_db: SmartCurbDB) -> None:
     with pytest.raises(ValueError):
         read_db.get_data("test_dne")
 
@@ -98,16 +119,16 @@ def test_read_db_dne() -> None:
             pass
 
 
-def test_read_filtered(read_db) -> None:
-    df = read_db.get_data("test_read", filter="integer_field > 100")
+def test_read_filtered(read_db: SmartCurbDB) -> None:
+    df = qsort(read_db.get_data("test_read", filter="integer_field > 100"))
     complete_ex = expected_read()
     ex = complete_ex.loc[complete_ex["integer_field"] > 100].reset_index(drop=True)
 
     assert_frame_equal(ex, df)
 
 
-def test_read_geo_table(read_db) -> None:
-    gdf = read_db.get_data("test_read_geo", geom_col="geometry")
+def test_read_geo_table(read_db: SmartCurbDB) -> None:
+    gdf = qsort(read_db.get_data("test_read_geo", geom_col="geometry"))
     assert_geodataframe_equal(expected_read_geo(), gdf)
 
 
@@ -206,7 +227,7 @@ def test_update_value_string(write_table: WriteTable) -> None:
     data.loc[data["id"] == UUID(update_uuid), "string_field"] = "Updated This!"
 
     # Read and confirm
-    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    result = qsort(db.get_data(table_name))
     assert_frame_equal(data, result)
 
 
@@ -231,7 +252,7 @@ def test_update_value_json(write_table: WriteTable) -> None:
     data.at[2, "jsonb_field"] = cast(Any, new_value)
 
     # Read and confirm
-    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    result = qsort(db.get_data(table_name))
     assert_frame_equal(data, result)
 
 
@@ -336,12 +357,7 @@ def test_update_geo_value_string(write_geo_table: WriteTable) -> None:
     data.loc[data["id"] == UUID(update_uuid), "string_field"] = "Updated This!"
 
     # Read and confirm
-    result = cast(
-        gpd.GeoDataFrame,
-        db.get_data(table_name, geom_col="geometry")
-        .sort_values(by="id")
-        .reset_index(drop=True),
-    )
+    result = qsort(db.get_data(table_name, geom_col="geometry"))
     assert_geodataframe_equal(data, result)
 
 
@@ -366,12 +382,7 @@ def test_update_geo_value_json(write_geo_table: WriteTable) -> None:
     data.at[2, "jsonb_field"] = cast(Any, new_value)
 
     # Read and confirm
-    result = cast(
-        gpd.GeoDataFrame,
-        db.get_data(table_name, geom_col="geometry")
-        .sort_values(by="id")
-        .reset_index(drop=True),
-    )
+    result = qsort(db.get_data(table_name, geom_col="geometry"))
     assert_geodataframe_equal(data, result)
 
 
@@ -406,7 +417,7 @@ def test_update_or_append_inserts_new(write_table: WriteTable) -> None:
     write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
 
     db.update_or_append(table_name, write_data, key_columns=["id"])
-    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    result = qsort(db.get_data(table_name))
     assert_frame_equal(data, result)
 
 
@@ -423,7 +434,7 @@ def test_update_or_append_updates_existing(write_table: WriteTable) -> None:
     updated["string_field"] = "Updated"
     db.update_or_append(table_name, updated, key_columns=["id"])
 
-    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    result = qsort(db.get_data(table_name))
     expected = data.copy()
     expected["string_field"] = "Updated"
     assert_frame_equal(expected, result)
@@ -444,7 +455,7 @@ def test_update_or_append_mixed(write_table: WriteTable) -> None:
     updated.loc[updated.index[:3], "string_field"] = "Updated"
     db.update_or_append(table_name, updated, key_columns=["id"])
 
-    result = db.get_data(table_name).sort_values(by="id").reset_index(drop=True)
+    result = qsort(db.get_data(table_name))
     expected = data.copy()
     expected.loc[expected.index[:3], "string_field"] = "Updated"
     assert_frame_equal(expected, result)
@@ -465,12 +476,7 @@ def test_update_or_append_geo(write_geo_table: WriteTable) -> None:
     updated.loc[updated.index[:3], "string_field"] = "Updated"
     db.update_or_append(table_name, updated, key_columns=["id"])
 
-    result = cast(
-        gpd.GeoDataFrame,
-        db.get_data(table_name, geom_col="geometry")
-        .sort_values(by="id")
-        .reset_index(drop=True),
-    )
+    result = qsort(db.get_data(table_name, geom_col="geometry"))
     expected = data.copy()
     expected.loc[expected.index[:3], "string_field"] = "Updated"
     assert_geodataframe_equal(expected, result)
@@ -559,7 +565,7 @@ def expected_read() -> pd.DataFrame:
         }
     )
 
-    return data
+    return data.sort_values("id").reset_index(drop=True)
 
 
 def expected_read_geo() -> gpd.GeoDataFrame:
@@ -599,4 +605,4 @@ def expected_read_geo() -> gpd.GeoDataFrame:
         crs="EPSG:4326",
     )
 
-    return data
+    return data.sort_values("id").reset_index(drop=True)
