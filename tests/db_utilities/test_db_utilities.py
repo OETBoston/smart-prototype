@@ -506,6 +506,13 @@ def test_update_or_append_only_key_columns(write_table: WriteTable) -> None:
         db.update_or_append(table_name, data, key_columns=["id"])
 
 
+def test_update_or_append_missing_one_column(write_table: WriteTable) -> None:
+    db, table_name = write_table
+    data = expected_read()[["id", "integer_field"]]
+    with pytest.raises(ValueError, match="does not contain all columns"):
+        db.update_or_append(table_name, data, key_columns=["id"])
+
+
 def test_no_password(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify ValueError failure if the database password is not set"""
 
