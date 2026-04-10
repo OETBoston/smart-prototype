@@ -1,3 +1,3 @@
-from db_utilities.connection import SmartCurbDB
+from db_utilities.connection import InvalidInputError, SmartCurbDB
 
-__all__ = ["SmartCurbDB"]
+__all__ = ["SmartCurbDB", "InvalidInputError"]
