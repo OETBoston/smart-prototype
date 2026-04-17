@@ -15,8 +15,8 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import yaml
+from curb_utils.db_utils import SmartCurbDB
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
-from smart_curb_db import SmartCurbDB
 
 
 # Functions
