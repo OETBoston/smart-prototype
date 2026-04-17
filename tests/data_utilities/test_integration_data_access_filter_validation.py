@@ -1,20 +1,17 @@
 from datetime import datetime
 from uuid import uuid4
-import pytest
-from pydantic import ValidationError
-from pprint import pprint
-from pydantic import BaseModel, ConfigDict
 
+import pytest
 from data_utilities.accessor import DataAccessor
 from data_utilities.queries_and_contracts import (
-    SimpleEntityModel,
     SimpleEntityFilter,
+    SimpleEntityModel,
 )
+from pydantic import ConfigDict, ValidationError
 
 
 @pytest.mark.integration
 class TestFilterBrittleness:
-
     @pytest.fixture(scope="class")
     def accessor(self):
         """Load DataAccessor using application config."""
@@ -44,31 +41,27 @@ class TestFilterBrittleness:
                 time=now,
                 location="POINT(2 2)",
             ),
-
             # For type_contains="bike"
             SimpleEntityModel(
                 id=f"{unique}-Bike",
-                type="MountainBike",         # "bike" in .lower()
+                type="MountainBike",  # "bike" in .lower()
                 time=now,
                 location="POINT(3 3)",
             ),
-
             # For type_prefix="ab"
             SimpleEntityModel(
                 id=f"{unique}-Prefix",
-                type="absolutely",           # startswith("ab")
+                type="absolutely",  # startswith("ab")
                 time=now,
                 location="POINT(4 4)",
             ),
-
             # For type_suffix="zz"
             SimpleEntityModel(
                 id=f"{unique}-Suffix",
-                type="fizzbuzz",             # endswith("zz")
+                type="fizzbuzz",  # endswith("zz")
                 time=now,
                 location="POINT(5 5)",
             ),
-
             # For id="123" minimal projection tests
             SimpleEntityModel(
                 id="123",
@@ -76,7 +69,6 @@ class TestFilterBrittleness:
                 time=now,
                 location="POINT(6 6)",
             ),
-
             # Optional: for time_suffix=":00"
             SimpleEntityModel(
                 id=f"{unique}-At00",
@@ -111,7 +103,7 @@ class TestFilterBrittleness:
         results = accessor.get(SimpleEntityModel, f, limit=5)
 
         assert isinstance(results, list)
-        assert len(results)<=1
+        assert len(results) <= 1
         for entity in results:
             assert isinstance(entity, SimpleEntityModel)
             assert "bike" in entity.type.lower()
@@ -141,7 +133,6 @@ class TestFilterBrittleness:
             assert getattr(entity, "time", None) is None
             assert getattr(entity, "location", None) is None
 
-
     # ---------------------------------------------
     # 6. Prefix & suffix operators work and affect `type`
     # ---------------------------------------------
@@ -170,14 +161,11 @@ class TestFilterBrittleness:
     def test_minimal_only_id_included(self, accessor):
         f = SimpleEntityFilter(
             minimal=True,
-            id_included=True, 
+            id_included=True,
         )
-
-
 
         results = accessor.get(SimpleEntityModel, f, limit=5)
         assert isinstance(results, list)
-
 
         for entity in results:
             assert isinstance(entity, SimpleEntityModel)
@@ -211,7 +199,6 @@ class TestFilterBrittleness:
             assert isinstance(entity, SimpleEntityModel)
             assert entity.i.endswith("z")
 
-
     def test_valid_suffix_for_compound_field(self, accessor):
         # time_type_prefix is legal
         f = SimpleEntityModel.Filter(time_type_prefix="abc")
@@ -222,7 +209,6 @@ class TestFilterBrittleness:
         for entity in results:
             assert isinstance(entity, SimpleEntityModel)
             assert entity.time_type.startswith("abc")
-
 
     import pytest
     from pydantic import ValidationError
@@ -245,14 +231,16 @@ class TestFilterBrittleness:
         assert "extra inputs" in msg
         assert "ix_contains" in msg
 
-    def test_accessor_rejects_unknown_fields_even_if_pydantic_is_bypassed(self,accessor):
+    def test_accessor_rejects_unknown_fields_even_if_pydantic_is_bypassed(
+        self, accessor
+    ):
         # Construct an illegal filter instance without Pydantic validation
         class FilterIgnoreExtra(SimpleEntityModel.Filter):
             model_config = ConfigDict(extra="ignore")
 
         f = FilterIgnoreExtra.model_construct(
             **{
-                "time_typ_suffix": "zzz"   # NOT a real field
+                "time_typ_suffix": "zzz"  # NOT a real field
             }
         )
 

@@ -1,19 +1,16 @@
-import pytest
+import hashlib
 import json
 import os
-import uuid
 import tempfile
-import pytest
-import hashlib
+import uuid
 from datetime import datetime
 
+import pytest
+from data_utilities.storage_helpers import create_consistent_storage_suffix
 from data_utilities.storage_utilities import Storage
-from data_utilities.storage_helpers import (
-    create_consistent_storage_suffix,
-    create_google_storage_id_from_path
-)
 
 pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def storage():
@@ -29,7 +26,6 @@ def storage():
 
     # Fall back to ADC (user account creds)
     return Storage(storage_options={})
-
 
 
 @pytest.fixture
@@ -73,6 +69,7 @@ def sha256_file(path):
 # ---------------------------------------------------------------------------
 #                             INTEGRATION TESTS
 # ---------------------------------------------------------------------------
+
 
 def test_upload_random_json(storage, test_prefix):
     """

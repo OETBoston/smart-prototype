@@ -1,27 +1,23 @@
-import pytest
 import os
 import uuid
 from datetime import datetime, timezone
 
-from data_utilities.accessor import BigQueryClient, QuerySpec
-from data_utilities.queries_and_contracts import (
-    SimpleEntityModel, 
-    TEST_TABLE_NAME
-)
-
 import dotenv
+import pytest
+from data_utilities.accessor import BigQueryClient, QuerySpec
+from data_utilities.queries_and_contracts import TEST_TABLE_NAME, SimpleEntityModel
+
 dotenv.load_dotenv(".env", override=True)
 
 
 # Read test-related vars from .env (or fall back)
 TEST_PROJECT_ID = os.environ.get("TEST_GCP_PROJECT_ID")
 TEST_DATASET_ID = os.environ.get("TEST_BQ_DATASET_ID")
-TEST_TABLE_ID   = os.environ.get("TEST_BQ_TABLE_ID")
+TEST_TABLE_ID = os.environ.get("TEST_BQ_TABLE_ID")
 
 
 @pytest.mark.integration
 class TestBigQueryClientEnvConfig:
-
     def test_01_client_initializes(self):
         """Ensure BigQueryClient.initialize() works w/ env-based config."""
         client_wrapper = BigQueryClient.initialize()
@@ -63,23 +59,16 @@ class TestBigQueryClientEnvConfig:
                 id=f"{base_id}-1",
                 type="test_insert",
                 time=now,
-                location="POINT(-100 40)"
+                location="POINT(-100 40)",
             ),
             SimpleEntityModel(
-                id=f"{base_id}-2",
-                type="test_insert",
-                time=now,
-                location="POINT(2 48)"
+                id=f"{base_id}-2", type="test_insert", time=now, location="POINT(2 48)"
             ),
         ]
 
         table_fqn = f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}.{TEST_TABLE_NAME}"
 
-        insert_spec = QuerySpec(
-            operation="INSERT",
-            table=table_fqn,
-            payload=rows
-        )
+        insert_spec = QuerySpec(operation="INSERT", table=table_fqn, payload=rows)
 
         # Insert
         affected = client_wrapper.execute_query(insert_spec)
