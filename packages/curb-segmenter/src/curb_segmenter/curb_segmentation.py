@@ -197,11 +197,12 @@ def add_upstream_downstream_assets(
     """
     Add upstream_asset and downstream_asset columns based on asset ID lookups.
 
-    Asset priority order: parking sign (PS), fire hydrant (FH), bus stop (BS).
+    Asset priority order: parking sign (PS), fire hydrant (FH), bus stop (BS), meter policy (MP).
     """
     ps = asset_dict.get("parking_sign")
     fh = asset_dict.get("fire_hydrant")
     bs = asset_dict.get("bus_stop")
+    mp = asset_dict.get("meter_policies")
 
     ps_ids = (
         set(ps["ps_id"].dropna()) if ps is not None and "ps_id" in ps.columns else set()
@@ -211,6 +212,9 @@ def add_upstream_downstream_assets(
     )
     bs_ids = (
         set(bs["bs_id"].dropna()) if bs is not None and "bs_id" in bs.columns else set()
+    )
+    mp_ids = (
+        set(mp["mp_id"].dropna()) if mp is not None and "mp_id" in mp.columns else set()
     )
 
     def lookup_asset(value):
@@ -222,6 +226,8 @@ def add_upstream_downstream_assets(
             return "FH"
         if value in bs_ids:
             return "BS"
+        if value in mp_ids:
+            return "MP"
         return None
 
     out = curb_segments.copy()
@@ -1162,7 +1168,7 @@ def run_segmentation_by_parking_signs(
     )
 
     # Create curb segments
-    curb_segments = create_curb_segments_with_parking_signs(
+    curb_segments = create_curb_segments_with_parking_asset(
         curbs_clean=clean_curbs,
         curb_id_col=curb_id_col,
         fraction_df=snapped_ps,
@@ -1181,7 +1187,7 @@ def run_segmentation_by_parking_signs(
     return curb_segments
 
 
-def create_curb_segments_with_parking_signs(
+def create_curb_segments_with_parking_asset(
     curbs_clean: gpd.GeoDataFrame,
     curb_id_col: str,
     fraction_df: gpd.GeoDataFrame,
@@ -1193,7 +1199,7 @@ def create_curb_segments_with_parking_signs(
     verbose: bool = False,
 ) -> gpd.GeoDataFrame | None:
     """
-    Create curb segments using fractions for parking signs points.
+    Create curb segments using fractions for parking signs points and parking meter points.
 
     Args:
         curbs_clean (gpd.GeoDataFrame): Clean curbs segmented by fire hydrants and bus stops.
@@ -1297,7 +1303,7 @@ def create_curb_segments_with_parking_signs(
 
     if logger_obj:
         logger_obj.info(
-            f"Total segments after segmentation by parking sign: {len(segments_gdf):,}"
+            f"Total segments after segmentation by parking asset: {len(segments_gdf):,}"
         )
 
     return segments_gdf
@@ -1578,6 +1584,68 @@ def create_curb_segments_with_bus_stops(
     return segments_gdf
 
 
+def run_segmentation_by_parking_meters(
+    configuration: dict,
+    asset_dict: dict[str, gpd.GeoDataFrame],
+    clean_curbs: gpd.GeoDataFrame,
+    segment_id_cols: list,
+    logger_obj: logging.Logger,
+    verbose: bool,
+) -> gpd.GeoDataFrame:
+    """
+    Wrapper function to run segmentation by parking meters.
+
+    Args:
+        configuration (dict): Dictionary of configuration parameters.
+        asset_dict (dict[str, gpd.GeoDataFrame]): Dictionary of asset data.
+        clean_curbs (gpd.GeoDataFrame): Cleaned curb GeoDataFrame,
+            previously segmented by parking signs, fire hydrants, and bus stops.
+        segment_id_cols (list): List of points_id_cols to be brought to the final df.
+        logger_obj (logging.Logger): Logger object.
+        verbose (bool): Verbose flag.
+
+    Returns:
+        curb_segmentation (gpd.GeoDataFrame):
+            Cleaned curb segments after segmentation by parking meters
+    """
+    asset_type = "meter_policies"
+    point_id_col = configuration["assets"]["parking_meters"][asset_type]["new_id_col"]
+    curb_id_col = "blockface_id"
+
+    if logger_obj:
+        logger_obj.info(
+            f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}..."
+        )
+
+    # Get the parking meters file
+    pm = asset_dict[asset_type].copy()
+
+    # Snap parking meters to the curb
+    snapped_pm, unsnapped_pm = snap_points_to_curbs(
+        points_clean=pm,
+        points_id_col=point_id_col,
+        curbs_clean=clean_curbs,
+        curb_id_col=curb_id_col,
+        logger_obj=logger_obj,
+        snap_tolerance_ft=configuration["snap_tolerance_ft"],
+        proj_crs=configuration["proj_crs"],
+    )
+
+    # Create curb segments
+    curb_segments = create_curb_segments_with_parking_asset(
+        curbs_clean=clean_curbs,
+        curb_id_col=curb_id_col,
+        fraction_df=snapped_pm,
+        points_id_col=point_id_col,
+        seg_prefix="PM",
+        point_id_cols=segment_id_cols,
+        min_segment_len_ft=configuration["min_segment_len_ft"],
+        logger_obj=logger_obj,
+        verbose=verbose,
+    )
+    return curb_segments
+
+
 def find_segment_length(
     curb_row: pd.Series,
     start_frac: float,
@@ -1615,7 +1683,9 @@ def find_segment_length(
             return True, segment_length_ft, None
 
     # Create segment geometry using substring with normalized coordinates
-    segment_geom = substring(curb_geom, start_frac, end_frac, normalized=True)
+    segment_geom = convert_point_to_line(
+        substring(curb_geom, start_frac, end_frac, normalized=True)
+    )
 
     return False, segment_length_ft, segment_geom
 
@@ -1725,7 +1795,6 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
     Create the final format of curb segments for export.
     """
-
     # Create `curb_id` and `segment_uid` columns
     gdf = gdf.rename(columns={"blockface_id": "segment_uid"})
     gdf["blockface_id"] = gdf["segment_uid"].str.split(":").str[0]
@@ -1736,18 +1805,19 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     # Create column for segment IDs (S1, S2, S3, ..., etc.)
     # Split segment_uid into parts
     parts = gdf["segment_uid"].str.split(":", expand=True)
-    parts.columns = ["blockface_str", "bs_str", "fs_str", "ps_str"]
+    parts.columns = ["blockface_str", "bs_str", "fs_str", "ps_str", "pm_str"]
 
     # Extract numeric values
     gdf["blockface_num"] = parts["blockface_str"]
     gdf["bs_num"] = parts["bs_str"].str.replace("BS", "").astype(int)
     gdf["fs_num"] = parts["fs_str"].str.replace("FS", "").astype(int)
     gdf["ps_num"] = parts["ps_str"].str.replace("PS", "").astype(int)
+    gdf["pm_num"] = parts["pm_str"].str.replace("PM", "").astype(int)
 
-    # Sort by all four parts
-    gdf = gdf.sort_values(["blockface_num", "bs_num", "fs_num", "ps_num"]).reset_index(
-        drop=True
-    )
+    # Sort by all five parts
+    gdf = gdf.sort_values(
+        ["blockface_num", "bs_num", "fs_num", "ps_num", "pm_num"]
+    ).reset_index(drop=True)
 
     # Create increasing segment sequence 0, 1, 2, ...
     gdf["segment_seq"] = gdf.groupby("blockface_id").cumcount().astype(int)
@@ -1766,6 +1836,8 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         "fh_id",
         "start_ps_id",
         "end_ps_id",
+        "start_mp_id",
+        "end_mp_id",
         "geometry",
     ]
 
@@ -1773,7 +1845,7 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def create_curb_segments_table(
-    gdf: gpd.GeoDataFrame,
+    gdf: gpd.GeoDataFrame, output_crs: str = "epsg:4326"
 ) -> tuple[gpd.GeoDataFrame, uuid.UUID, str]:
     """
     Creates a new GeoDataFrame containing curb segment data derived from an input
@@ -1792,6 +1864,7 @@ def create_curb_segments_table(
         columns "blockface_id", "start_ps_id", "end_ps_id", "fh_id", and "bs_id".
         The function assumes these inputs represent consistent identifiers for
         parking signs, fire hydrants, and bus stops.
+        output_crs (str): Coordinate Reference System for the output GeoDataFrame.
 
     Returns:
         gpd.GeoDataFrame: Output GeoDataFrame containing the calculated segment
@@ -1815,7 +1888,6 @@ def create_curb_segments_table(
     gdf = format_curb_segments(gdf)
 
     # Reproject to EPSG:4326
-    output_crs = "epsg:4326"
     gdf_4326 = gdf.to_crs(output_crs)
 
     # Initialize output GeoDataFrame
@@ -1834,13 +1906,18 @@ def create_curb_segments_table(
     # Upstream / downstream logic (Prioritized fill: PS > FH > BS)
     fh = gdf_4326["fh_id"]
     bs = gdf_4326["bs_id"]
+    start_ps = gdf_4326["start_ps_id"]
+    end_ps = gdf_4326["end_ps_id"]
 
     out["upstream_location"] = (
-        gdf_4326["start_ps_id"].combine_first(fh).combine_first(bs)
+        gdf_4326["start_mp_id"]
+        .combine_first(start_ps)
+        .combine_first(fh)
+        .combine_first(bs)
     )
 
     out["downstream_location"] = (
-        gdf_4326["end_ps_id"].combine_first(fh).combine_first(bs)
+        gdf_4326["end_mp_id"].combine_first(end_ps).combine_first(fh).combine_first(bs)
     )
 
     # Create job ID and run date

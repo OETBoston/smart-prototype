@@ -139,6 +139,14 @@ def load_asset_gdfs_from_pg(
             native_id_col = "feature_id"
             native_location_id_col = "feature_location"
             select_cols = [native_id_col, native_location_id_col]
+        elif asset == "parking_meters":
+            table_name = "meter_policies"
+            native_id_col = "meter_policy_id"
+            native_location_id_cols = [
+                "start_asset_location_id",
+                "end_asset_location_id",
+            ]
+            select_cols = [native_id_col] + native_location_id_cols
         else:
             raise ValueError(f"Invalid asset type: {asset}")
 
@@ -151,13 +159,15 @@ def load_asset_gdfs_from_pg(
                     if asset == "nonsign_assets"
                     else None,
                 )
+                if asset_type == "meter_policies":
+                    assets = assets.melt(native_id_col)
+                    native_location_id_col = "value"
                 assets = assets.rename(
                     columns={
                         native_id_col: asset_spec["new_id_col"],
                         native_location_id_col: "location_id",
                     }
                 )
-
                 # Select active sign assets: "sign_removed_date" column is null for them
                 if asset == "sign_assets":
                     assets = assets[assets["sign_removed_date"].isna()].drop(
@@ -175,7 +185,6 @@ def load_asset_gdfs_from_pg(
                 asset_locations = asset_locations.rename(
                     columns={"asset_location_id": "location_id", "location": "geometry"}
                 )
-
                 # Check if curb dataset is already in GeoDataFrame
                 cs.confirm_gdf(asset_locations)
 
@@ -185,7 +194,6 @@ def load_asset_gdfs_from_pg(
                     gdf=gpd.GeoDataFrame(assets, geometry="geometry"),
                     proj_crs=target_crs,
                 )
-
                 # Keep unique locations only. Consider location IDs as asset IDs.
                 assets = (
                     assets.drop_duplicates(subset=["location_id"])
@@ -193,7 +201,6 @@ def load_asset_gdfs_from_pg(
                     .rename(columns={"location_id": asset_spec["new_id_col"]})
                 )
                 asset_gdfs[asset_type] = assets
-
     return asset_gdfs
 
 
