@@ -4,7 +4,7 @@
 debug_mode: False
 
 # Input settings
-roadway_path: "inputs\\Road_Inventory_2024.feather"
+roadway_path: "inputs/Road_Inventory_2024.feather"
 
 # Dictionary of values to keep
 include_filters: {'City': [35]}
@@ -27,5 +27,5 @@ output_crs: "epsg:4326"
 # Postgres DB export settings
 dbname: "cds"
 schema: "staging_next"
-job_name: "Blockfaces with new fields"
-job_description: "Blockface with a new field 'is_left_side_oneway' to indicate if the curb is on the left side of a oneway roadway."
+job_name: "monorepo blockface run"
+job_description: "Re-run blockfaces from the combined monorepo"

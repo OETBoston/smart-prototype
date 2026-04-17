@@ -16,7 +16,9 @@ logger.info("Running curb generation process...")
 
 if __name__ == "__main__":
     # 0. Load configurations
-    config = cg.load_config("config.yaml")
+    config = cg.load_config(
+        "packages/blockface-creator/src/blockface_creator/config.yaml"
+    )
     logger.info(
         "Configuration loaded. Running on DEBUG_MODE=%s...", config["debug_mode"]
     )
