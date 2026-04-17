@@ -20,6 +20,7 @@ import uuid
 import warnings
 from collections import defaultdict
 from datetime import datetime, timezone
+
 import dummylog
 import geopandas as gpd
 import numpy as np
@@ -28,7 +29,7 @@ import pyproj
 from rtree import index
 from shapely.geometry import LineString
 from shapely.geometry.base import BaseGeometry
-from shapely.ops import substring, linemerge, unary_union
+from shapely.ops import linemerge, substring, unary_union
 
 warnings.filterwarnings("ignore")
 
@@ -188,10 +189,10 @@ def length_in_feet(geom, crs) -> float | None:
 
 
 def add_upstream_downstream_assets(
-        curb_segments: pd.DataFrame,
-        asset_dict: dict[str, gpd.GeoDataFrame],
-        upstream_col: str = "upstream_location",
-        downstream_col: str = "downstream_location",
+    curb_segments: pd.DataFrame,
+    asset_dict: dict[str, gpd.GeoDataFrame],
+    upstream_col: str = "upstream_location",
+    downstream_col: str = "downstream_location",
 ) -> pd.DataFrame:
     """
     Add upstream_asset and downstream_asset columns based on asset ID lookups.
@@ -202,9 +203,15 @@ def add_upstream_downstream_assets(
     fh = asset_dict.get("fire_hydrant")
     bs = asset_dict.get("bus_stop")
 
-    ps_ids = set(ps["ps_id"].dropna()) if ps is not None and "ps_id" in ps.columns else set()
-    fh_ids = set(fh["fh_id"].dropna()) if fh is not None and "fh_id" in fh.columns else set()
-    bs_ids = set(bs["bs_id"].dropna()) if bs is not None and "bs_id" in bs.columns else set()
+    ps_ids = (
+        set(ps["ps_id"].dropna()) if ps is not None and "ps_id" in ps.columns else set()
+    )
+    fh_ids = (
+        set(fh["fh_id"].dropna()) if fh is not None and "fh_id" in fh.columns else set()
+    )
+    bs_ids = (
+        set(bs["bs_id"].dropna()) if bs is not None and "bs_id" in bs.columns else set()
+    )
 
     def lookup_asset(value):
         if pd.isna(value):
@@ -227,11 +234,11 @@ def add_upstream_downstream_assets(
 
 
 def clean_curb_geometries(
-        curb_lines: gpd.GeoDataFrame,
-        min_curb_len_ft: float = 2.0,
-        eps_fraction: float = 1e-6,
-        logger_obj: logging.Logger = None,
-        verbose: bool = True
+    curb_lines: gpd.GeoDataFrame,
+    min_curb_len_ft: float = 2.0,
+    eps_fraction: float = 1e-6,
+    logger_obj: logging.Logger = None,
+    verbose: bool = True,
 ) -> gpd.GeoDataFrame:
     """
     Clean and preprocess curb LineStrings for the segmentation process.
@@ -266,21 +273,21 @@ def clean_curb_geometries(
         curbs_clean = curbs_clean.rename_geometry("geometry")
 
     # Ensure required columns are present in curb dataset
-    required_columns = [
-        "blockface_id",
-        "is_left_side_oneway",
-        "geometry"
-    ]
+    required_columns = ["blockface_id", "is_left_side_oneway", "geometry"]
 
     missing_columns = [c for c in required_columns if c not in curbs_clean.columns]
 
     if missing_columns:
-        raise KeyError(f"Curb dataset is missing these required columns: {missing_columns}")
+        raise KeyError(
+            f"Curb dataset is missing these required columns: {missing_columns}"
+        )
 
     # Check if curb IDs are duplicated
     if curbs_clean["blockface_id"].duplicated().any():
         if logger_obj:
-            logger_obj.info("'blockface_id' column has duplicate IDs. Removing duplicate IDs...")
+            logger_obj.info(
+                "'blockface_id' column has duplicate IDs. Removing duplicate IDs..."
+            )
         curbs_clean = curbs_clean.drop_duplicates(subset=["blockface_id"], keep="first")
 
     # Check if any geometry is not a LineString
@@ -296,10 +303,12 @@ def clean_curb_geometries(
         curbs_clean["curb_length_ft"] = curbs_clean.geometry.length
 
     # Drop short segments
-    short_segments = curbs_clean[curbs_clean["curb_length_ft"] < (min_curb_len_ft - eps_fraction)]
+    short_segments = curbs_clean[
+        curbs_clean["curb_length_ft"] < (min_curb_len_ft - eps_fraction)
+    ]
     curbs_clean = curbs_clean[
         curbs_clean["curb_length_ft"] >= (min_curb_len_ft - eps_fraction)
-        ].copy()
+    ].copy()
     curbs_clean.reset_index(drop=True, inplace=True)
     curbs_clean["segment_length_ft"] = curbs_clean["curb_length_ft"]
     # Reduce columns; dropped columns can be merged again from the initial curb DataFrame
@@ -317,9 +326,13 @@ def clean_curb_geometries(
             logger_obj.info("=== Curb Cleaning Summary ===")
             logger_obj.info(f"Input features:         {total_before:,}")
             logger_obj.info(f"Invalid/empty dropped:  {invalid_count:,}")
-            logger_obj.info(f"Short segments dropped: {len(short_segments):,} (< {min_curb_len_ft} ft)")
+            logger_obj.info(
+                f"Short segments dropped: {len(short_segments):,} (< {min_curb_len_ft} ft)"
+            )
             logger_obj.info(f"Final valid curbs:      {len(curbs_clean):,}")
-            logger_obj.info(f"Average length (ft):    {curbs_clean['curb_length_ft'].mean():.2f}")
+            logger_obj.info(
+                f"Average length (ft):    {curbs_clean['curb_length_ft'].mean():.2f}"
+            )
             logger_obj.info("==============================")
         else:
             raise ValueError("Logger object is required for verbose=True.")
@@ -331,13 +344,13 @@ def clean_curb_geometries(
 
 
 def snap_points_to_curbs(
-        points_clean: gpd.GeoDataFrame,
-        points_id_col: str,
-        curbs_clean: gpd.GeoDataFrame,
-        curb_id_col: str,
-        logger_obj: logging.Logger = None,
-        snap_tolerance_ft: float = 25,
-        proj_crs: str = "epsg:2249",
+    points_clean: gpd.GeoDataFrame,
+    points_id_col: str,
+    curbs_clean: gpd.GeoDataFrame,
+    curb_id_col: str,
+    logger_obj: logging.Logger = None,
+    snap_tolerance_ft: float = 25,
+    proj_crs: str = "epsg:2249",
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """
     Snap points to the nearest curb lines within a specified tolerance.
@@ -384,7 +397,7 @@ def snap_points_to_curbs(
             point_geom.x - snap_tolerance_ft,
             point_geom.y - snap_tolerance_ft,
             point_geom.x + snap_tolerance_ft,
-            point_geom.y + snap_tolerance_ft
+            point_geom.y + snap_tolerance_ft,
         )
 
         candidate_curb_indices = list(curb_idx.intersection(search_bounds))
@@ -416,28 +429,32 @@ def snap_points_to_curbs(
 
                 # Calculate the fraction along the line
                 line_length = curb_geom.length
-                best_fraction = curb_geom.project(point_geom) / line_length if line_length > 0 else 0
+                best_fraction = (
+                    curb_geom.project(point_geom) / line_length
+                    if line_length > 0
+                    else 0
+                )
                 best_curb_length = line_length
 
         # Check if the minimum distance is within snap tolerance
         if min_dist <= snap_tolerance_ft:
-            snapped_data.append({
-                points_id_col: point_id,
-                curb_id_col: best_curb_id,
-                "segment_length_ft": best_curb_length,
-                "projected_fraction": best_fraction,
-                "distance_ft": min_dist,
-                "geometry": best_projected_point,
-            })
+            snapped_data.append(
+                {
+                    points_id_col: point_id,
+                    curb_id_col: best_curb_id,
+                    "segment_length_ft": best_curb_length,
+                    "projected_fraction": best_fraction,
+                    "distance_ft": min_dist,
+                    "geometry": best_projected_point,
+                }
+            )
         else:
             unsnapped_ids.append(point_id)
 
     # Create projected points GeoDataFrame
     if snapped_data:
         projected_points_df = gpd.GeoDataFrame(
-            snapped_data,
-            geometry="geometry",
-            crs=points_clean.crs
+            snapped_data, geometry="geometry", crs=points_clean.crs
         )
     else:
         # Create empty GeoDataFrame with correct schema
@@ -451,7 +468,7 @@ def snap_points_to_curbs(
                 "geometry",
             ],
             geometry="geometry",
-            crs=points_clean.crs
+            crs=points_clean.crs,
         )
 
     unsnapped_points_df = points_clean[points_clean[points_id_col].isin(unsnapped_ids)]
@@ -460,16 +477,18 @@ def snap_points_to_curbs(
         logger_obj.info(f"Snapped points: {len(projected_points_df):,}")
         logger_obj.info(f"Unsnapped points: {len(unsnapped_ids):,}")
 
-    return projected_points_df.reset_index(drop=True), unsnapped_points_df.reset_index(drop=True)
+    return projected_points_df.reset_index(drop=True), unsnapped_points_df.reset_index(
+        drop=True
+    )
 
 
 def calculate_fractions_for_fh_buffer_zones(
-        projected_points: gpd.GeoDataFrame,
-        points_id_col: str,
-        curb_id_col: str,
-        buffer_distance_ft: float,
-        logger_obj: logging.Logger = None,
-        verbose: bool = False
+    projected_points: gpd.GeoDataFrame,
+    points_id_col: str,
+    curb_id_col: str,
+    buffer_distance_ft: float,
+    logger_obj: logging.Logger = None,
+    verbose: bool = False,
 ) -> tuple[dict[int | str, list[float]], pd.DataFrame]:
     """
     For each curb:
@@ -497,22 +516,31 @@ def calculate_fractions_for_fh_buffer_zones(
         fractions_df: DataFrame with columns [curb_id_col, "fractions", "num_fractions"]
     """
     if logger_obj:
-        logger_obj.info("Calculating fractions for buffer zones (with multi-cluster overlap envelopes)...")
+        logger_obj.info(
+            "Calculating fractions for buffer zones (with multi-cluster overlap envelopes)..."
+        )
 
     # Validate inputs
     if buffer_distance_ft <= 0:
         raise ValueError("Buffer distance must be positive.")
 
-    required_columns = [points_id_col, curb_id_col, "projected_fraction", "segment_length_ft"]
-    missing_columns = [col for col in required_columns if col not in projected_points.columns]
+    required_columns = [
+        points_id_col,
+        curb_id_col,
+        "projected_fraction",
+        "segment_length_ft",
+    ]
+    missing_columns = [
+        col for col in required_columns if col not in projected_points.columns
+    ]
     if missing_columns:
         raise ValueError(f"Missing required columns: {missing_columns}")
 
     # Check for invalid fractions
     invalid_fractions = projected_points[
-        (projected_points["projected_fraction"] < 0) |
-        (projected_points["projected_fraction"] > 1)
-        ]
+        (projected_points["projected_fraction"] < 0)
+        | (projected_points["projected_fraction"] > 1)
+    ]
     if len(invalid_fractions) > 0 and logger_obj:
         logger_obj.warning(
             f"Warning: {len(invalid_fractions):,} points have fraction outside [0,1] range."
@@ -521,11 +549,7 @@ def calculate_fractions_for_fh_buffer_zones(
 
     # First pass: compute intervals per curb: curb_id -> list[(start_fraction, end_fraction)]
     curb_intervals: dict[int | str, list[tuple[float, float]]] = defaultdict(list)
-    stats = {
-        "points_processed": 0,
-        "curbs_updated": 0,
-        "curbs_reused": 0
-    }
+    stats = {"points_processed": 0, "curbs_updated": 0, "curbs_reused": 0}
     seen_curbs = set()
 
     for _, point in projected_points.iterrows():
@@ -536,11 +560,15 @@ def calculate_fractions_for_fh_buffer_zones(
         # Skip if invalid data
         if curb_length <= 0 or point_fraction < 0 or point_fraction > 1:
             if verbose:
-                print(f"Warning: Skipping point {point[points_id_col]} with invalid data")
+                print(
+                    f"Warning: Skipping point {point[points_id_col]} with invalid data"
+                )
             continue
 
         # Compute buffer-edge fractions
-        start_fraction = (curb_length * point_fraction - buffer_distance_ft) / curb_length
+        start_fraction = (
+            curb_length * point_fraction - buffer_distance_ft
+        ) / curb_length
         end_fraction = (curb_length * point_fraction + buffer_distance_ft) / curb_length
 
         # Clamp to [0, 1]
@@ -633,9 +661,15 @@ def calculate_fractions_for_fh_buffer_zones(
     # Logging / verbose summary
     if verbose:
         if logger_obj:
-            logger_obj.info(f"Completed: {stats['points_processed']:,} points processed")
-            logger_obj.info(f"Completed: {len(fractions_dict):,} curbs with fraction sets")
-            logger_obj.info(f"Completed: {stats['curbs_reused']:,} curbs reused multiple times")
+            logger_obj.info(
+                f"Completed: {stats['points_processed']:,} points processed"
+            )
+            logger_obj.info(
+                f"Completed: {len(fractions_dict):,} curbs with fraction sets"
+            )
+            logger_obj.info(
+                f"Completed: {stats['curbs_reused']:,} curbs reused multiple times"
+            )
             logger_obj.info(
                 "Completed: Average "
                 f"{sum(len(f) for f in fractions_dict.values()) / max(len(fractions_dict), 1):.1f} "
@@ -645,19 +679,25 @@ def calculate_fractions_for_fh_buffer_zones(
             raise ValueError("Logger object is required for verbose=True.")
 
     # Convert to DataFrame
-    fractions_df = pd.DataFrame([
-        {curb_id_col: curb_id, "fractions": fractions, "num_fractions": len(fractions)}
-        for curb_id, fractions in fractions_dict.items()
-    ])
+    fractions_df = pd.DataFrame(
+        [
+            {
+                curb_id_col: curb_id,
+                "fractions": fractions,
+                "num_fractions": len(fractions),
+            }
+            for curb_id, fractions in fractions_dict.items()
+        ]
+    )
 
     return fractions_dict, fractions_df
 
 
 def collapse_fire_hydrant_ids(
-        gdf: gpd.GeoDataFrame,
-        fh_col: str = "fh_id",
-        sort_ids: bool = True,
-        empty_as_none: bool = True
+    gdf: gpd.GeoDataFrame,
+    fh_col: str = "fh_id",
+    sort_ids: bool = True,
+    empty_as_none: bool = True,
 ) -> gpd.GeoDataFrame:
     """
     Collapse fh_id values into a list whenever all other fields are identical.
@@ -676,9 +716,8 @@ def collapse_fire_hydrant_ids(
             return None if empty_as_none else ()
         return tuple(vals)
 
-    grouped = (
-        gdf.groupby(group_cols, dropna=False, as_index=False)
-        .agg({fh_col: agg_fh})
+    grouped = gdf.groupby(group_cols, dropna=False, as_index=False).agg(
+        {fh_col: agg_fh}
     )
 
     # Ensure we get back a GeoDataFrame with the correct geometry column
@@ -687,16 +726,16 @@ def collapse_fire_hydrant_ids(
 
 
 def create_curb_segments_with_fh_point_buffer(
-        curbs_clean: gpd.GeoDataFrame,
-        curb_id_col: str,
-        fraction_dict: dict[int, list[float]],
-        projected_points: gpd.GeoDataFrame,
-        points_id_col: str,
-        seg_prefix: str,
-        point_id_cols: list,
-        min_segment_len_ft: float = 1.0,
-        logger_obj: logging.Logger = None,
-        verbose: bool = False
+    curbs_clean: gpd.GeoDataFrame,
+    curb_id_col: str,
+    fraction_dict: dict[int, list[float]],
+    projected_points: gpd.GeoDataFrame,
+    points_id_col: str,
+    seg_prefix: str,
+    point_id_cols: list,
+    min_segment_len_ft: float = 1.0,
+    logger_obj: logging.Logger = None,
+    verbose: bool = False,
 ) -> gpd.GeoDataFrame | None:
     """
     Create curb segments using fractions for point buffer boundaries.
@@ -719,10 +758,14 @@ def create_curb_segments_with_fh_point_buffer(
 
     # Filter curbs to only those in fraction_dict
     selected_curb_ids = list(fraction_dict.keys())
-    selected_curbs = curbs_clean[curbs_clean[curb_id_col].isin(selected_curb_ids)].copy()
+    selected_curbs = curbs_clean[
+        curbs_clean[curb_id_col].isin(selected_curb_ids)
+    ].copy()
 
     if logger_obj:
-        logger_obj.info(f"Processing {len(selected_curbs):,} curbs with fraction sets...")
+        logger_obj.info(
+            f"Processing {len(selected_curbs):,} curbs with fraction sets..."
+        )
 
     segments_data = []
     point_assignments = []
@@ -731,7 +774,7 @@ def create_curb_segments_with_fh_point_buffer(
         "total_segments_created": 0,
         "segments_filtered_out": 0,
         "points_assigned": 0,
-        "curbs_processed": 0
+        "curbs_processed": 0,
     }
 
     for _, curb_row in selected_curbs.iterrows():
@@ -749,7 +792,6 @@ def create_curb_segments_with_fh_point_buffer(
 
         # Create consecutive fraction pairs
         for i in range(len(fractions) - 1):
-
             start_frac = fractions[i]
             end_frac = fractions[i + 1]
 
@@ -773,7 +815,7 @@ def create_curb_segments_with_fh_point_buffer(
                 "end_fraction": end_frac,
                 "segment_length_ft": segment_length_ft,
                 "is_left_side_oneway": curb_row["is_left_side_oneway"],
-                "geometry": segment_geom
+                "geometry": segment_geom,
             }
             for col in point_id_cols:
                 segment_record[col] = curb_row[col]
@@ -785,12 +827,14 @@ def create_curb_segments_with_fh_point_buffer(
             for _, point in curb_points.iterrows():
                 point_frac = point["projected_fraction"]
                 if start_frac <= point_frac <= end_frac:
-                    point_assignments.append({
-                        points_id_col: point[points_id_col],
-                        "segment_id": f"{seg_prefix}{segment_id_counter}",
-                        curb_id_col: curb_id,
-                        f"{points_id_col}_fraction": point_frac
-                    })
+                    point_assignments.append(
+                        {
+                            points_id_col: point[points_id_col],
+                            "segment_id": f"{seg_prefix}{segment_id_counter}",
+                            curb_id_col: curb_id,
+                            f"{points_id_col}_fraction": point_frac,
+                        }
+                    )
                     curb_points_assigned += 1
                     stats["points_assigned"] += 1
 
@@ -800,9 +844,7 @@ def create_curb_segments_with_fh_point_buffer(
     # Create outputs
     if segments_data:
         segments_gdf = gpd.GeoDataFrame(
-            segments_data,
-            geometry="geometry",
-            crs=curbs_clean.crs
+            segments_data, geometry="geometry", crs=curbs_clean.crs
         )
     else:
         segments_gdf = gpd.GeoDataFrame(
@@ -813,10 +855,10 @@ def create_curb_segments_with_fh_point_buffer(
                 "end_fraction",
                 "segment_length_ft",
                 "is_left_side_oneway",
-                "geometry"
+                "geometry",
             ],
             geometry="geometry",
-            crs=curbs_clean.crs
+            crs=curbs_clean.crs,
         )
 
     point_assignments_df = pd.DataFrame(point_assignments)
@@ -841,9 +883,7 @@ def create_curb_segments_with_fh_point_buffer(
     point_id_cols.append(points_id_col)
     if (len(segments_gdf) > 0) & (pt_df_len > 0):
         segments_gdf = segments_gdf.merge(
-            point_assignments_df,
-            on=[curb_id_col, "segment_id"],
-            how="left"
+            point_assignments_df, on=[curb_id_col, "segment_id"], how="left"
         )
 
         # Use null-able integer data type
@@ -856,15 +896,16 @@ def create_curb_segments_with_fh_point_buffer(
                 "segment_length_ft",
                 "is_left_side_oneway",
                 "geometry",
-            ] + point_id_cols
             ]
+            + point_id_cols
+        ]
         segments_gdf = add_curbs_not_segmented_by_point(
             curb_segments=segments_gdf,
             curbs_clean=curbs_clean,
             curb_id_col=curb_id_col,
             points_id_col=points_id_col,
             seg_prefix=seg_prefix,
-            logger_obj=logger_obj
+            logger_obj=logger_obj,
         )
         # Collapse fh_id values into a list whenever all other fields are identical.
         # This applies to the cases where fire hydrant buffer zones overlap.
@@ -873,22 +914,26 @@ def create_curb_segments_with_fh_point_buffer(
         # Keep just one Fire Hydrant ID per segment.
         # When overlapping buffer zones are present, we keep the first one.
         # Those fire hydrant zones will have a longer length. It should not impact downstream processes.
-        segments_gdf[points_id_col] = keep_tuple_item(segments_gdf[points_id_col], "first")
+        segments_gdf[points_id_col] = keep_tuple_item(
+            segments_gdf[points_id_col], "first"
+        )
 
         if logger_obj:
-            logger_obj.info(f"Total segments after segmentation by fire hydrant: {len(segments_gdf):,}")
+            logger_obj.info(
+                f"Total segments after segmentation by fire hydrant: {len(segments_gdf):,}"
+            )
         return segments_gdf
     else:
         return None
 
 
 def add_curbs_not_segmented_by_point(
-        curb_segments: pd.DataFrame,
-        curbs_clean: gpd.GeoDataFrame,
-        curb_id_col: str,
-        points_id_col: str,
-        seg_prefix: str,
-        logger_obj: logging.Logger = None
+    curb_segments: pd.DataFrame,
+    curbs_clean: gpd.GeoDataFrame,
+    curb_id_col: str,
+    points_id_col: str,
+    seg_prefix: str,
+    logger_obj: logging.Logger = None,
 ) -> gpd.GeoDataFrame:
     """
     Add the curbs that are not segmented to create a comprehensive curb segment dataset.
@@ -919,31 +964,36 @@ def add_curbs_not_segmented_by_point(
                 f"Each of them were added as a single segment..."
             )
 
-    if not "segment_length_ft" in curbs_not_segmented.columns:
-        curbs_not_segmented["segment_length_ft"] = curbs_not_segmented["segment_length_ft"]
+    if "segment_length_ft" not in curbs_not_segmented.columns:
+        curbs_not_segmented["segment_length_ft"] = curbs_not_segmented[
+            "segment_length_ft"
+        ]
     curbs_not_segmented["segment_id"] = f"{seg_prefix}1"
     curbs_not_segmented[points_id_col] = pd.Series(
-        [np.nan] * len(curbs_not_segmented),
-        dtype='Int64'
+        [np.nan] * len(curbs_not_segmented), dtype="Int64"
     )
     curbs_not_segmented = curbs_not_segmented[curb_segments.columns]
 
     # Concatenate curb segments with whole curbs which were not segmented.
     curb_segments = pd.concat([curb_segments, curbs_not_segmented])
 
-    curb_segments = curb_segments.sort_values(by=[curb_id_col, "segment_id"]).reset_index(drop=True)
-    curb_segments = gpd.GeoDataFrame(curb_segments, geometry="geometry", crs=curbs_clean.crs)
+    curb_segments = curb_segments.sort_values(
+        by=[curb_id_col, "segment_id"]
+    ).reset_index(drop=True)
+    curb_segments = gpd.GeoDataFrame(
+        curb_segments, geometry="geometry", crs=curbs_clean.crs
+    )
 
     return curb_segments
 
 
 def run_segmentation_by_fire_hydrants(
-        configuration: dict,
-        asset_dict: dict[str, gpd.GeoDataFrame],
-        clean_curbs: gpd.GeoDataFrame,
-        segment_id_cols: list,
-        logger_obj: logging.Logger,
-        verbose: bool,
+    configuration: dict,
+    asset_dict: dict[str, gpd.GeoDataFrame],
+    clean_curbs: gpd.GeoDataFrame,
+    segment_id_cols: list,
+    logger_obj: logging.Logger,
+    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by fire hydrants.
@@ -961,12 +1011,18 @@ def run_segmentation_by_fire_hydrants(
             Cleaned curb segments after segmentation by fire hydrants
     """
     asset_type = "fire_hydrant"
-    point_id_col = configuration["assets"]["nonsign_assets"]["fire_hydrant"]["new_id_col"]
+    point_id_col = configuration["assets"]["nonsign_assets"]["fire_hydrant"][
+        "new_id_col"
+    ]
     curb_id_col = "blockface_id"
-    buffer_distance_ft = configuration["assets"]["nonsign_assets"]["fire_hydrant"]["buffer_distance_ft"]
+    buffer_distance_ft = configuration["assets"]["nonsign_assets"]["fire_hydrant"][
+        "buffer_distance_ft"
+    ]
 
     if logger_obj:
-        logger_obj.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
+        logger_obj.info(
+            f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}..."
+        )
 
     # Get the fire hydrants file
     fh = asset_dict[asset_type].copy()
@@ -989,7 +1045,7 @@ def run_segmentation_by_fire_hydrants(
         curb_id_col=curb_id_col,
         buffer_distance_ft=buffer_distance_ft,
         logger_obj=logger_obj,
-        verbose=verbose
+        verbose=verbose,
     )
 
     # Create curb segments
@@ -1003,12 +1059,14 @@ def run_segmentation_by_fire_hydrants(
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
         logger_obj=logger_obj,
-        verbose=verbose
+        verbose=verbose,
     )
 
     if curb_segments is None or curb_segments.empty:
         if logger_obj:
-            logger_obj.info("No curb segments were created; returning empty GeoDataFrame.")
+            logger_obj.info(
+                "No curb segments were created; returning empty GeoDataFrame."
+            )
         return gpd.GeoDataFrame(
             columns=[
                 f"parent_{curb_id_col}",
@@ -1026,26 +1084,25 @@ def run_segmentation_by_fire_hydrants(
         # Combine curb IDs with segment IDs to create a new curb ID column.
         # New curb ID column will be input for the later processes.
         curb_segments.insert(
-            loc=0,
-            column=f"parent_{curb_id_col}",
-            value=curb_segments[f"{curb_id_col}"]
+            loc=0, column=f"parent_{curb_id_col}", value=curb_segments[f"{curb_id_col}"]
         )
         curb_segments.drop(columns=[curb_id_col], inplace=True)
 
         curb_segments.insert(
             loc=1,
             column=curb_id_col,
-            value=curb_segments[f"parent_{curb_id_col}"].astype(str) + ":" + \
-                  curb_segments["segment_id"].astype(str)
+            value=curb_segments[f"parent_{curb_id_col}"].astype(str)
+            + ":"
+            + curb_segments["segment_id"].astype(str),
         )
 
         cols_to_keep = [
-                           f"parent_{curb_id_col}",
-                           curb_id_col,
-                           "segment_length_ft",
-                           "is_left_side_oneway",
-                           "geometry",
-                       ] + segment_id_cols
+            f"parent_{curb_id_col}",
+            curb_id_col,
+            "segment_length_ft",
+            "is_left_side_oneway",
+            "geometry",
+        ] + segment_id_cols
 
         # Keep relevant columns only
         curb_segments = curb_segments[cols_to_keep]
@@ -1058,12 +1115,12 @@ def run_segmentation_by_fire_hydrants(
 
 
 def run_segmentation_by_parking_signs(
-        configuration: dict,
-        asset_dict: dict[str, gpd.GeoDataFrame],
-        clean_curbs: gpd.GeoDataFrame,
-        segment_id_cols: list,
-        logger_obj: logging.Logger,
-        verbose: bool
+    configuration: dict,
+    asset_dict: dict[str, gpd.GeoDataFrame],
+    clean_curbs: gpd.GeoDataFrame,
+    segment_id_cols: list,
+    logger_obj: logging.Logger,
+    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by parking signs.
@@ -1086,7 +1143,9 @@ def run_segmentation_by_parking_signs(
     curb_id_col = "blockface_id"
 
     if logger_obj:
-        logger_obj.info(f"--> Starting curb segmentation by {asset_type.replace("_", " ")}...")
+        logger_obj.info(
+            f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}..."
+        )
 
     # Get the parking signs file
     ps = asset_dict[asset_type].copy()
@@ -1112,7 +1171,7 @@ def run_segmentation_by_parking_signs(
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
         logger_obj=logger_obj,
-        verbose=verbose
+        verbose=verbose,
     )
 
     # Final checks
@@ -1123,15 +1182,15 @@ def run_segmentation_by_parking_signs(
 
 
 def create_curb_segments_with_parking_signs(
-        curbs_clean: gpd.GeoDataFrame,
-        curb_id_col: str,
-        fraction_df: gpd.GeoDataFrame,
-        points_id_col: str,
-        seg_prefix: str,
-        point_id_cols: list,
-        min_segment_len_ft: float = 1.0,
-        logger_obj: logging.Logger = None,
-        verbose: bool = False
+    curbs_clean: gpd.GeoDataFrame,
+    curb_id_col: str,
+    fraction_df: gpd.GeoDataFrame,
+    points_id_col: str,
+    seg_prefix: str,
+    point_id_cols: list,
+    min_segment_len_ft: float = 1.0,
+    logger_obj: logging.Logger = None,
+    verbose: bool = False,
 ) -> gpd.GeoDataFrame | None:
     """
     Create curb segments using fractions for parking signs points.
@@ -1155,7 +1214,9 @@ def create_curb_segments_with_parking_signs(
     selected_curb_ids = list(fraction_df[curb_id_col])
     selected_curbs = curbs_clean[curbs_clean[curb_id_col].isin(selected_curb_ids)]
     if logger_obj:
-        logger_obj.info(f"Processing {len(selected_curbs):,} curbs with fraction sets...")
+        logger_obj.info(
+            f"Processing {len(selected_curbs):,} curbs with fraction sets..."
+        )
 
     segments_data = []
 
@@ -1163,7 +1224,7 @@ def create_curb_segments_with_parking_signs(
         "total_segments_created": 0,
         "segments_filtered_out": 0,
         "points_assigned": 0,
-        "curbs_processed": 0
+        "curbs_processed": 0,
     }
 
     for _, curb_row in selected_curbs.iterrows():
@@ -1193,11 +1254,7 @@ def create_curb_segments_with_parking_signs(
             end_frac = frac_row["next_frac"]
 
             if_skip, segment_length_ft, segment_geom = find_segment_length(
-                curb_row,
-                start_frac,
-                end_frac,
-                stats,
-                min_segment_len_ft
+                curb_row, start_frac, end_frac, stats, min_segment_len_ft
             )
 
             if if_skip:
@@ -1213,7 +1270,7 @@ def create_curb_segments_with_parking_signs(
                 f"start_{points_id_col}": frac_row[points_id_col],
                 f"end_{points_id_col}": frac_row["next_sign"],
                 "is_left_side_oneway": curb_row["is_left_side_oneway"],
-                "geometry": segment_geom
+                "geometry": segment_geom,
             }
             for col in point_id_cols:
                 segment_record[col] = curb_row[col]
@@ -1235,22 +1292,24 @@ def create_curb_segments_with_parking_signs(
         seg_prefix,
         stats,
         logger_obj,
-        verbose
+        verbose,
     )
 
     if logger_obj:
-        logger_obj.info(f"Total segments after segmentation by parking sign: {len(segments_gdf):,}")
+        logger_obj.info(
+            f"Total segments after segmentation by parking sign: {len(segments_gdf):,}"
+        )
 
     return segments_gdf
 
 
 def run_segmentation_by_bus_stops(
-        configuration: dict,
-        asset_dict: dict[str, gpd.GeoDataFrame],
-        clean_curbs: gpd.GeoDataFrame,
-        segment_id_cols: list,
-        logger_obj: logging.Logger,
-        verbose: bool,
+    configuration: dict,
+    asset_dict: dict[str, gpd.GeoDataFrame],
+    clean_curbs: gpd.GeoDataFrame,
+    segment_id_cols: list,
+    logger_obj: logging.Logger,
+    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by bus stops.
@@ -1272,7 +1331,9 @@ def run_segmentation_by_bus_stops(
     curb_id_col = "blockface_id"
 
     if logger_obj:
-        logger_obj.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
+        logger_obj.info(
+            f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}..."
+        )
 
     # Get the bus stops file
     bs = asset_dict[asset_type].copy()
@@ -1302,7 +1363,7 @@ def run_segmentation_by_bus_stops(
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
         logger_obj=logger_obj,
-        verbose=verbose
+        verbose=verbose,
     )
 
     # Final checks
@@ -1313,8 +1374,7 @@ def run_segmentation_by_bus_stops(
 
 
 def find_bus_stop_type(
-        fraction_df: gpd.GeoDataFrame,
-        asset_type_config: dict
+    fraction_df: gpd.GeoDataFrame, asset_type_config: dict
 ) -> gpd.GeoDataFrame:
     """
     Finds the bus stop type based on the fraction of a curb and finds the bus stop end point.
@@ -1332,59 +1392,71 @@ def find_bus_stop_type(
         low, high = definitions["range"]
         buffer_multiplier_lu[stop_type] = definitions["buffer_multiplier"]
         if definitions["inclusive"]:
-            mask = (fraction_df["projected_fraction"] >= low) & \
-                   (fraction_df["projected_fraction"] <= high)
+            mask = (fraction_df["projected_fraction"] >= low) & (
+                fraction_df["projected_fraction"] <= high
+            )
         else:
-            mask = (fraction_df["projected_fraction"] > low) & \
-                   (fraction_df["projected_fraction"] < high)
+            mask = (fraction_df["projected_fraction"] > low) & (
+                fraction_df["projected_fraction"] < high
+            )
         conditions.append(mask)
         labels.append(stop_type)
 
     fraction_df["stop_type"] = None
-    for cond, label in zip(conditions, labels):
+    for cond, label in zip(conditions, labels, strict=False):
         fraction_df.loc[cond, "stop_type"] = label
 
     # Gets buffer distance for the stop type
-    fraction_df["buffer_multiplier"] = fraction_df["stop_type"].replace(buffer_multiplier_lu)
+    fraction_df["buffer_multiplier"] = fraction_df["stop_type"].replace(
+        buffer_multiplier_lu
+    )
     fraction_df["buffer_distance"] = 75 * fraction_df["buffer_multiplier"]
 
     # Get buffer distances for each bus stop
-    fraction_df["point_a"] = fraction_df["projected_fraction"] * fraction_df["segment_length_ft"]
+    fraction_df["point_a"] = (
+        fraction_df["projected_fraction"] * fraction_df["segment_length_ft"]
+    )
     # Get valid end points
     fraction_df["point_b"] = (
-            fraction_df["point_a"] + fraction_df["buffer_distance"]
+        fraction_df["point_a"] + fraction_df["buffer_distance"]
     ).apply(lambda x: max(0, x))
     fraction_df["point_b"] = fraction_df.apply(
-        lambda x: min(x["point_b"], x["segment_length_ft"]),
-        axis=1
+        lambda x: min(x["point_b"], x["segment_length_ft"]), axis=1
     )
-    fraction_df["fraction_b"] = fraction_df["point_b"] / fraction_df["segment_length_ft"]
+    fraction_df["fraction_b"] = (
+        fraction_df["point_b"] / fraction_df["segment_length_ft"]
+    )
     fraction_df["start_fraction"] = np.where(
         fraction_df["point_a"] > fraction_df["point_b"],
         fraction_df["fraction_b"],
-        fraction_df["projected_fraction"]
+        fraction_df["projected_fraction"],
     )
     fraction_df["end_fraction"] = np.where(
         fraction_df["point_a"] > fraction_df["point_b"],
         fraction_df["projected_fraction"],
-        fraction_df["fraction_b"]
+        fraction_df["fraction_b"],
     )
     keep_cols = [
-        "bs_id", "blockface_id", "segment_length_ft", "start_fraction", "end_fraction", "geometry"
+        "bs_id",
+        "blockface_id",
+        "segment_length_ft",
+        "start_fraction",
+        "end_fraction",
+        "geometry",
     ]
     return fraction_df[keep_cols]
 
 
 def create_curb_segments_with_bus_stops(
-        curbs_clean: gpd.GeoDataFrame,
-        curb_id_col: str,
-        fraction_df: gpd.GeoDataFrame,
-        points_id_col: str,
-        seg_prefix: str,
-        point_id_cols: list,
-        min_segment_len_ft: float = 1.0,
-        logger_obj: logging.Logger = None,
-        verbose: bool = False
+    curbs_clean: gpd.GeoDataFrame,
+    curb_id_col: str,
+    fraction_df: gpd.GeoDataFrame,
+    points_id_col: str,
+    seg_prefix: str,
+    point_id_cols: list,
+    min_segment_len_ft: float = 1.0,
+    logger_obj: logging.Logger = None,
+    verbose: bool = False,
 ) -> gpd.GeoDataFrame | None:
     """
     Create curb segments using fractions for bus stops.
@@ -1409,7 +1481,9 @@ def create_curb_segments_with_bus_stops(
     selected_curb_ids = list(fraction_df[curb_id_col])
     selected_curbs = curbs_clean[curbs_clean[curb_id_col].isin(selected_curb_ids)]
     if logger_obj:
-        logger_obj.info(f"Processing {len(selected_curbs):,} curbs with fraction sets...")
+        logger_obj.info(
+            f"Processing {len(selected_curbs):,} curbs with fraction sets..."
+        )
 
     segments_data = []
 
@@ -1417,7 +1491,7 @@ def create_curb_segments_with_bus_stops(
         "total_segments_created": 0,
         "segments_filtered_out": 0,
         "points_assigned": 0,
-        "curbs_processed": 0
+        "curbs_processed": 0,
     }
 
     for _, curb_row in selected_curbs.iterrows():
@@ -1434,15 +1508,17 @@ def create_curb_segments_with_bus_stops(
         segment_id_counter = 1
 
         # Fill in rows with new intervals if needed for consecutive fractions
-        boundaries = [0] + fractions["start_fraction"].tolist() + \
-                     fractions["end_fraction"].tolist() + [1.0]
+        boundaries = (
+            [0]
+            + fractions["start_fraction"].tolist()
+            + fractions["end_fraction"].tolist()
+            + [1.0]
+        )
         boundaries = sorted(boundaries)
         for i in range(len(boundaries) - 1):
             start_frac = boundaries[i]
             end_frac = boundaries[i + 1]
-            match = fractions[
-                fractions["start_fraction"] == start_frac
-                ]
+            match = fractions[fractions["start_fraction"] == start_frac]
             if not match.empty:
                 bs_id = match[points_id_col].iloc[0]
             else:
@@ -1469,7 +1545,7 @@ def create_curb_segments_with_bus_stops(
                 "end_fraction": end_frac,
                 "segment_length_ft": segment_length_ft,
                 "is_left_side_oneway": curb_row["is_left_side_oneway"],
-                "geometry": segment_geom
+                "geometry": segment_geom,
             }
             for col in point_id_cols:
                 segment_record[col] = curb_row[col]
@@ -1491,22 +1567,24 @@ def create_curb_segments_with_bus_stops(
         seg_prefix,
         stats,
         logger_obj,
-        verbose
+        verbose,
     )
 
     if logger_obj:
-        logger_obj.info(f"Total segments after segmentation by bus stop: {len(segments_gdf):,}")
+        logger_obj.info(
+            f"Total segments after segmentation by bus stop: {len(segments_gdf):,}"
+        )
 
     return segments_gdf
 
 
 def find_segment_length(
-        curb_row: pd.Series,
-        start_frac: float,
-        end_frac: float,
-        stats: dict,
-        min_segment_len_ft: float = 1.0,
-        drop_tiny_segments: bool = False,
+    curb_row: pd.Series,
+    start_frac: float,
+    end_frac: float,
+    stats: dict,
+    min_segment_len_ft: float = 1.0,
+    drop_tiny_segments: bool = False,
 ) -> tuple[bool, float, LineString | None]:
     """
     Finds segment lengths for each part of a given curb and the geometries of these segments.
@@ -1543,15 +1621,15 @@ def find_segment_length(
 
 
 def make_curb_gdf(
-        segments_data: list,
-        curbs_clean: gpd.GeoDataFrame,
-        point_id_cols: list,
-        points_id_col: str,
-        curb_id_col: str,
-        seg_prefix: str,
-        stats: dict,
-        logger_obj: logging.Logger = None,
-        verbose=False
+    segments_data: list,
+    curbs_clean: gpd.GeoDataFrame,
+    point_id_cols: list,
+    points_id_col: str,
+    curb_id_col: str,
+    seg_prefix: str,
+    stats: dict,
+    logger_obj: logging.Logger = None,
+    verbose=False,
 ) -> gpd.GeoDataFrame | None:
     """
     Makes a GeoDataFrame from a list of curb segments.
@@ -1572,23 +1650,19 @@ def make_curb_gdf(
         gpd.GeoDataFrame | None: GeoDataFrame of curb segments (if any)
     """
     cols_to_keep = [
-                       curb_id_col,
-                       "segment_length_ft",
-                       "is_left_side_oneway",
-                       "geometry"
-                   ] + point_id_cols
+        curb_id_col,
+        "segment_length_ft",
+        "is_left_side_oneway",
+        "geometry",
+    ] + point_id_cols
 
     if segments_data:
         segments_gdf = gpd.GeoDataFrame(
-            segments_data,
-            geometry="geometry",
-            crs=curbs_clean.crs
+            segments_data, geometry="geometry", crs=curbs_clean.crs
         )
     else:
         segments_gdf = gpd.GeoDataFrame(
-            columns=cols_to_keep,
-            geometry="geometry",
-            crs=curbs_clean.crs
+            columns=cols_to_keep, geometry="geometry", crs=curbs_clean.crs
         )
 
     # Print statistics
@@ -1606,19 +1680,23 @@ def make_curb_gdf(
             curb_id_col=curb_id_col,
             points_id_col=points_id_col,
             seg_prefix=seg_prefix,
-            logger_obj=logger_obj
+            logger_obj=logger_obj,
         )
 
         seperator = ":"
-        segments_gdf[curb_id_col] = segments_gdf[[curb_id_col, "segment_id"]].astype(str).agg(seperator.join, axis=1)
+        segments_gdf[curb_id_col] = (
+            segments_gdf[[curb_id_col, "segment_id"]]
+            .astype(str)
+            .agg(seperator.join, axis=1)
+        )
         return segments_gdf[cols_to_keep]
     else:
         return None
 
 
 def log_segment_process_verbose(
-        stats: dict[str, int],
-        logger_obj: logging.Logger = None,
+    stats: dict[str, int],
+    logger_obj: logging.Logger = None,
 ) -> None:
     """
     Logs statistics related to the output of curb segmentation.
@@ -1631,12 +1709,14 @@ def log_segment_process_verbose(
         ValueError: Raises error if no logger object passed.
     """
     if logger_obj:
-        curbs_processed = stats['curbs_processed']
-        total_segments = stats['total_segments_created']
+        curbs_processed = stats["curbs_processed"]
+        total_segments = stats["total_segments_created"]
         # filtered_segments = stats['segments_filtered_out']
         logger_obj.info(f"Curbs processed: {curbs_processed:,}")
         logger_obj.info(f"Segments created: {total_segments:,}")
-        logger_obj.info(f"Average segments/curb: {total_segments / max(1, curbs_processed):.1f}")
+        logger_obj.info(
+            f"Average segments/curb: {total_segments / max(1, curbs_processed):.1f}"
+        )
     else:
         raise ValueError("Logger object is required for verbose=True.")
 
@@ -1649,7 +1729,9 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     # Create `curb_id` and `segment_uid` columns
     gdf = gdf.rename(columns={"blockface_id": "segment_uid"})
     gdf["blockface_id"] = gdf["segment_uid"].str.split(":").str[0]
-    gdf["blockface_id"] = gdf["blockface_id"].map(lambda x: uuid.UUID(x) if x is not None else None)
+    gdf["blockface_id"] = gdf["blockface_id"].map(
+        lambda x: uuid.UUID(x) if x is not None else None
+    )
 
     # Create column for segment IDs (S1, S2, S3, ..., etc.)
     # Split segment_uid into parts
@@ -1663,7 +1745,9 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     gdf["ps_num"] = parts["ps_str"].str.replace("PS", "").astype(int)
 
     # Sort by all four parts
-    gdf = gdf.sort_values(["blockface_num", "bs_num", "fs_num", "ps_num"]).reset_index(drop=True)
+    gdf = gdf.sort_values(["blockface_num", "bs_num", "fs_num", "ps_num"]).reset_index(
+        drop=True
+    )
 
     # Create increasing segment sequence 0, 1, 2, ...
     gdf["segment_seq"] = gdf.groupby("blockface_id").cumcount().astype(int)
@@ -1682,14 +1766,14 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         "fh_id",
         "start_ps_id",
         "end_ps_id",
-        "geometry"
+        "geometry",
     ]
 
     return gdf[cols_to_reorder]
 
 
 def create_curb_segments_table(
-        gdf: gpd.GeoDataFrame,
+    gdf: gpd.GeoDataFrame,
 ) -> tuple[gpd.GeoDataFrame, uuid.UUID, str]:
     """
     Creates a new GeoDataFrame containing curb segment data derived from an input
@@ -1752,15 +1836,11 @@ def create_curb_segments_table(
     bs = gdf_4326["bs_id"]
 
     out["upstream_location"] = (
-        gdf_4326["start_ps_id"]
-        .combine_first(fh)
-        .combine_first(bs)
+        gdf_4326["start_ps_id"].combine_first(fh).combine_first(bs)
     )
 
     out["downstream_location"] = (
-        gdf_4326["end_ps_id"]
-        .combine_first(fh)
-        .combine_first(bs)
+        gdf_4326["end_ps_id"].combine_first(fh).combine_first(bs)
     )
 
     # Create job ID and run date
@@ -1795,7 +1875,7 @@ def create_curb_segments_table(
 
 
 def fill_up_down_locations(
-        gdf: gpd.GeoDataFrame,
+    gdf: gpd.GeoDataFrame,
 ) -> gpd.GeoDataFrame:
     """
     Fills missing upstream and downstream locations for a given DataFrame.
@@ -1835,18 +1915,20 @@ def fill_up_down_locations(
 
     # Find if there is a conflict between the previous and next locations
     out["conflict_prev_boundary"] = (
-            out[upstream_col].notna()
-            & prev_down.notna()
-            & (out[upstream_col] != prev_down)
-            & ~is_first
+        out[upstream_col].notna()
+        & prev_down.notna()
+        & (out[upstream_col] != prev_down)
+        & ~is_first
     )
     out["conflict_next_boundary"] = (
-            out[downstream_col].notna()
-            & next_up.notna()
-            & (out[downstream_col] != next_up)
-            & ~is_last
+        out[downstream_col].notna()
+        & next_up.notna()
+        & (out[downstream_col] != next_up)
+        & ~is_last
     )
-    out["has_any_boundary_conflict"] = out["conflict_prev_boundary"] | out["conflict_next_boundary"]
+    out["has_any_boundary_conflict"] = (
+        out["conflict_prev_boundary"] | out["conflict_next_boundary"]
+    )
 
     # Create new columns with the filled upstream and downstream locations
     out[new_up_col] = out[upstream_col].combine_first(prev_down)
@@ -1857,9 +1939,9 @@ def fill_up_down_locations(
 
     # Final override: if upstream == downstream (and both present), copy originals
     same_anchor = (
-            out[upstream_col].notna()
-            & out[downstream_col].notna()
-            & (out[upstream_col] == out[downstream_col])
+        out[upstream_col].notna()
+        & out[downstream_col].notna()
+        & (out[upstream_col] == out[downstream_col])
     )
     out.loc[same_anchor, new_up_col] = out.loc[same_anchor, upstream_col]
     out.loc[same_anchor, new_down_col] = out.loc[same_anchor, downstream_col]
@@ -1871,7 +1953,9 @@ def fill_up_down_locations(
     # If the *next* row is same-anchor, do NOT change this row's downstream if it is already not null
     next_is_same = g["_same_anchor"].shift(-1).fillna(False)
     preserve_prev_down = out[downstream_col].notna() & next_is_same
-    out.loc[preserve_prev_down, new_down_col] = out.loc[preserve_prev_down, downstream_col]
+    out.loc[preserve_prev_down, new_down_col] = out.loc[
+        preserve_prev_down, downstream_col
+    ]
 
     # If the *previous* row is same-anchor, do NOT change this row's upstream if it is already not null
     prev_is_same = g["_same_anchor"].shift(1).fillna(False)
@@ -1880,13 +1964,16 @@ def fill_up_down_locations(
 
     # Create additional QA flags
     out["upstream_was_filled"] = out[upstream_col].isna() & out[new_up_col].notna()
-    out["downstream_was_filled"] = out[downstream_col].isna() & out[new_down_col].notna()
-    out["any_location_filled"] = out["upstream_was_filled"] | out["downstream_was_filled"]
+    out["downstream_was_filled"] = (
+        out[downstream_col].isna() & out[new_down_col].notna()
+    )
+    out["any_location_filled"] = (
+        out["upstream_was_filled"] | out["downstream_was_filled"]
+    )
 
     out["any_location_changed"] = (
-            (out[upstream_col].notna() & (out[upstream_col] != out[new_up_col])) |
-            (out[downstream_col].notna() & (out[downstream_col] != out[new_down_col]))
-    )
+        out[upstream_col].notna() & (out[upstream_col] != out[new_up_col])
+    ) | (out[downstream_col].notna() & (out[downstream_col] != out[new_down_col]))
 
     # Select columns only
     columns_to_keep = [
@@ -1900,7 +1987,9 @@ def fill_up_down_locations(
         "segment_seq",
     ]
 
-    out = out[columns_to_keep].rename(columns={new_up_col: upstream_col, new_down_col: downstream_col})
+    out = out[columns_to_keep].rename(
+        columns={new_up_col: upstream_col, new_down_col: downstream_col}
+    )
 
     # Replace <pd.NA> with None
     out = nan_to_none(out)
@@ -1909,9 +1998,9 @@ def fill_up_down_locations(
 
 
 def _assign_merge_groups_for_blockface(
-        seg_length: np.ndarray,
-        upstream_asset: np.ndarray,
-        length_threshold: float,
+    seg_length: np.ndarray,
+    upstream_asset: np.ndarray,
+    length_threshold: float,
 ) -> np.ndarray:
     """
     Assign merged-group ids for one ordered blockface.
@@ -1960,7 +2049,7 @@ def _assign_merge_groups_for_blockface(
 
     # Trailing tiny run -> upstream into last non-tiny
     if last_long < n - 1:
-        group_ids[last_long + 1:] = long_to_group[last_long]
+        group_ids[last_long + 1 :] = long_to_group[last_long]
 
     # Middle tiny runs
     i = first_long + 1
@@ -1987,13 +2076,13 @@ def _assign_merge_groups_for_blockface(
             group_ids[run_end] = next_group
         else:
             # Entire tiny run upstream.
-            group_ids[run_start:run_end + 1] = prev_group
+            group_ids[run_start : run_end + 1] = prev_group
 
     return group_ids
 
 
 def _adjust_merge_group_locations_assets(
-        df: pd.DataFrame | gpd.GeoDataFrame,
+    df: pd.DataFrame | gpd.GeoDataFrame,
 ) -> pd.DataFrame | gpd.GeoDataFrame:
     """
     Adjust updated asset and location columns from the merged list columns.
@@ -2045,8 +2134,12 @@ def _adjust_merge_group_locations_assets(
                 deduped.append(value)
             return deduped
 
-        upstream_locations = dedupe_preserve_order(as_list(row.get("upstream_locations")))
-        downstream_locations = dedupe_preserve_order(as_list(row.get("downstream_locations")))
+        upstream_locations = dedupe_preserve_order(
+            as_list(row.get("upstream_locations"))
+        )
+        downstream_locations = dedupe_preserve_order(
+            as_list(row.get("downstream_locations"))
+        )
         upstream_assets = dedupe_preserve_order(as_list(row.get("upstream_assets")))
         downstream_assets = dedupe_preserve_order(as_list(row.get("downstream_assets")))
 
@@ -2086,7 +2179,7 @@ def _adjust_merge_group_locations_assets(
 
 
 def _remove_none_from_location_lists(
-        df: pd.DataFrame | gpd.GeoDataFrame,
+    df: pd.DataFrame | gpd.GeoDataFrame,
 ) -> pd.DataFrame | gpd.GeoDataFrame:
     """
     Remove None values from *_locations lists when the list length is > 1.
@@ -2143,11 +2236,12 @@ def _remove_none_from_location_lists(
 
 
 def merge_tiny_curb_segments(
-        gdf: gpd.GeoDataFrame,
-        length_threshold: float = 3.0,
-        preserve_extra_columns: bool = True,
-        asset_dict: dict | None = None,
-        logger_obj: logging.Logger | None = None) -> gpd.GeoDataFrame:
+    gdf: gpd.GeoDataFrame,
+    length_threshold: float = 3.0,
+    preserve_extra_columns: bool = True,
+    asset_dict: dict | None = None,
+    logger_obj: logging.Logger | None = None,
+) -> gpd.GeoDataFrame:
     """
     Merge short curb segments within each blockface.
 
@@ -2197,7 +2291,9 @@ def merge_tiny_curb_segments(
 
     """
     if logger_obj is not None:
-        logger_obj.info(f"Starting merge of tiny segments with threshold {length_threshold} ft ...")
+        logger_obj.info(
+            f"Starting merge of tiny segments with threshold {length_threshold} ft ..."
+        )
 
     gdf = add_upstream_downstream_assets(gdf, asset_dict)
 
@@ -2216,12 +2312,14 @@ def merge_tiny_curb_segments(
         raise ValueError(f"Missing required columns: {missing}")
 
     # Drop blockfaces with a single tiny segment and no upstream/downstream location.
-    blockface_sizes = gdf.groupby("blockface_id", sort=False, observed=True)["segment_id"].transform("size")
+    blockface_sizes = gdf.groupby("blockface_id", sort=False, observed=True)[
+        "segment_id"
+    ].transform("size")
     drop_mask = (
-            blockface_sizes.eq(1)
-            & (gdf["seg_length"] < length_threshold)
-            & gdf["upstream_location"].isna()
-            & gdf["downstream_location"].isna()
+        blockface_sizes.eq(1)
+        & (gdf["seg_length"] < length_threshold)
+        & gdf["upstream_location"].isna()
+        & gdf["downstream_location"].isna()
     )
     if drop_mask.any():
         gdf = gdf.loc[~drop_mask].copy()
@@ -2230,16 +2328,17 @@ def merge_tiny_curb_segments(
     geometry_col = gdf.geometry.name if is_geo else None
 
     # Stable sort once. Mergesort preserves deterministic behavior.
-    df = gdf.sort_values(
-        ["blockface_id", "segment_seq"],
-        kind="mergesort"
-    ).reset_index(drop=True)
+    df = gdf.sort_values(["blockface_id", "segment_seq"], kind="mergesort").reset_index(
+        drop=True
+    )
 
     used_cols = set(required_cols)
     if is_geo:
         used_cols.add(geometry_col)
 
-    extra_cols = [c for c in df.columns if c not in used_cols] if preserve_extra_columns else []
+    extra_cols = (
+        [c for c in df.columns if c not in used_cols] if preserve_extra_columns else []
+    )
 
     out_rows = []
 
@@ -2264,7 +2363,7 @@ def merge_tiny_curb_segments(
         starts = np.flatnonzero(change)
         ends = np.r_[starts[1:], len(group_ids)]
 
-        for new_seq, (start, end) in enumerate(zip(starts, ends)):
+        for new_seq, (start, end) in enumerate(zip(starts, ends, strict=False)):
             grp = bf.iloc[start:end]
             first = grp.iloc[0]
             last = grp.iloc[-1]
@@ -2339,8 +2438,8 @@ def merge_tiny_curb_segments(
 
 
 def add_merge_group_labels(
-        gdf: pd.DataFrame | gpd.GeoDataFrame,
-        length_threshold: float = 3.0,
+    gdf: pd.DataFrame | gpd.GeoDataFrame,
+    length_threshold: float = 3.0,
 ) -> pd.DataFrame | gpd.GeoDataFrame:
     """
     Add a merge-group label to the original segment-level rows.
@@ -2363,10 +2462,7 @@ def add_merge_group_labels(
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-    df = gdf.sort_values(
-        ["blockface_id", "segment_seq"],
-        kind="mergesort"
-    ).copy()
+    df = gdf.sort_values(["blockface_id", "segment_seq"], kind="mergesort").copy()
 
     merge_group_id_parts = []
 
@@ -2383,10 +2479,9 @@ def add_merge_group_labels(
     df["merge_group_id"] = pd.concat(merge_group_id_parts).sort_index()
 
     # Dense sequence within blockface in sorted order.
-    df["merge_group_seq"] = (
-        df.groupby("blockface_id", sort=False, observed=True)["merge_group_id"]
-        .transform(lambda s: pd.factorize(s, sort=False)[0])
-    )
+    df["merge_group_seq"] = df.groupby("blockface_id", sort=False, observed=True)[
+        "merge_group_id"
+    ].transform(lambda s: pd.factorize(s, sort=False)[0])
 
     return df
 

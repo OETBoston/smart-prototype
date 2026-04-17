@@ -16,14 +16,15 @@ pipeline reliability.
 # Packages
 # ==============================================================================
 import os
+import uuid
+from datetime import datetime
 from pathlib import Path
+
+import curb_segmentation as cs
 import geopandas as gpd
 import pandas as pd
 import yaml
-import uuid
-from datetime import datetime
 from smart_curb_db import SmartCurbDB
-import curb_segmentation as cs
 
 
 # Functions
@@ -33,7 +34,7 @@ def load_config(config_file_path: str | os.PathLike) -> dict | None:
     Loads a YAML configuration file.
     """
     try:
-        with open(config_file_path, "r", encoding='utf-8') as stream:
+        with open(config_file_path, "r", encoding="utf-8") as stream:
             return yaml.safe_load(stream)
     except FileNotFoundError:
         print(f"Config file not found: {config_file_path}")
@@ -44,13 +45,13 @@ def load_config(config_file_path: str | os.PathLike) -> dict | None:
 
 
 def load_blockface_gdf_from_pg(
-        dbname: str,
-        schema: str,
-        table_name: str,
-        geom_col: str,
-        filter_string: str | None,
-        target_crs: str,
-        reproject: bool = True
+    dbname: str,
+    schema: str,
+    table_name: str,
+    geom_col: str,
+    filter_string: str | None,
+    target_crs: str,
+    reproject: bool = True,
 ) -> gpd.GeoDataFrame:
     """
     Load a GeoDataFrame from a PostgreSQL database and verify CRS.
@@ -74,11 +75,7 @@ def load_blockface_gdf_from_pg(
     # Read the file
     with SmartCurbDB(dbname=dbname, schema=schema) as db:
         if filter_string:
-            gdf = db.get_data(
-                table_name,
-                geom_col=geom_col,
-                filter=filter_string
-            )
+            gdf = db.get_data(table_name, geom_col=geom_col, filter=filter_string)
         else:
             gdf = db.get_data(
                 table_name,
@@ -90,7 +87,9 @@ def load_blockface_gdf_from_pg(
 
     # Check CRS
     if gdf.crs is None:
-        raise ValueError(f"The GeoDataFrame from '{table_name}' table does not have a CRS defined.")
+        raise ValueError(
+            f"The GeoDataFrame from '{table_name}' table does not have a CRS defined."
+        )
 
     # Reproject, optional
     if reproject:
@@ -101,10 +100,10 @@ def load_blockface_gdf_from_pg(
 
 
 def load_asset_gdfs_from_pg(
-        dbname: str,
-        schema: str,
-        asset_dict: dict,
-        target_crs: str,
+    dbname: str,
+    schema: str,
+    asset_dict: dict,
+    target_crs: str,
 ):
     """
     Loads asset GeoDataFrames from a PostgreSQL database based on asset type specifications.
@@ -148,18 +147,22 @@ def load_asset_gdfs_from_pg(
                 assets = db.get_data(
                     table_name=table_name,
                     columns=select_cols,
-                    filter=f"feature_type = '{asset_type}'" if asset == "nonsign_assets" else None
+                    filter=f"feature_type = '{asset_type}'"
+                    if asset == "nonsign_assets"
+                    else None,
                 )
                 assets = assets.rename(
                     columns={
                         native_id_col: asset_spec["new_id_col"],
-                        native_location_id_col: "location_id"
+                        native_location_id_col: "location_id",
                     }
                 )
 
                 # Select active sign assets: "sign_removed_date" column is null for them
                 if asset == "sign_assets":
-                    assets = assets[assets["sign_removed_date"].isna()].drop(columns=["sign_removed_date"])
+                    assets = assets[assets["sign_removed_date"].isna()].drop(
+                        columns=["sign_removed_date"]
+                    )
 
                 # Get asset location geometry
                 job_id = asset_spec["job_id"]
@@ -167,13 +170,10 @@ def load_asset_gdfs_from_pg(
                     table_name="asset_locations",
                     geom_col="location",
                     columns=["asset_location_id", "location"],
-                    filter=f"job_id = '{job_id}'"
+                    filter=f"job_id = '{job_id}'",
                 )
                 asset_locations = asset_locations.rename(
-                    columns={
-                        "asset_location_id": "location_id",
-                        "location": "geometry"
-                    }
+                    columns={"asset_location_id": "location_id", "location": "geometry"}
                 )
 
                 # Check if curb dataset is already in GeoDataFrame
@@ -183,28 +183,29 @@ def load_asset_gdfs_from_pg(
                 assets = assets.merge(asset_locations, on="location_id")
                 assets = cs.check_and_set_crs(
                     gdf=gpd.GeoDataFrame(assets, geometry="geometry"),
-                    proj_crs=target_crs
+                    proj_crs=target_crs,
                 )
 
                 # Keep unique locations only. Consider location IDs as asset IDs.
-                assets = (assets.drop_duplicates(subset=["location_id"])
-                          .drop(columns=[asset_spec["new_id_col"]])
-                          .rename(columns={"location_id": asset_spec["new_id_col"]})
-                          )
+                assets = (
+                    assets.drop_duplicates(subset=["location_id"])
+                    .drop(columns=[asset_spec["new_id_col"]])
+                    .rename(columns={"location_id": asset_spec["new_id_col"]})
+                )
                 asset_gdfs[asset_type] = assets
 
     return asset_gdfs
 
 
 def write_curb_segments_to_db(
-        gdf: gpd.GeoDataFrame,
-        dbname: str,
-        schema: str,
-        job_id: uuid.UUID,
-        job_name: str,
-        job_description: str,
-        ts: str,
-        debug_mode: bool = True,
+    gdf: gpd.GeoDataFrame,
+    dbname: str,
+    schema: str,
+    job_id: uuid.UUID,
+    job_name: str,
+    job_description: str,
+    ts: str,
+    debug_mode: bool = True,
 ) -> None:
     """
     Writes curb segment data to a database and creates a curb segment job record for the data.
@@ -243,13 +244,13 @@ def write_curb_segments_to_db(
 
 
 def write_curb_segments_to_file(
-        output_gdf: gpd.GeoDataFrame,
-        job_id: uuid.UUID,
-        timestamp: str,
-        output_path: str,
-        output_file_name: str,
-        file_type: str = "GeoJSON",
-        output_crs: str = "epsg:4326",
+    output_gdf: gpd.GeoDataFrame,
+    job_id: uuid.UUID,
+    timestamp: str,
+    output_path: str,
+    output_file_name: str,
+    file_type: str = "GeoJSON",
+    output_crs: str = "epsg:4326",
 ) -> None:
     """
     Write the curb GeoDataFrame to a file in the specified format.
@@ -277,7 +278,9 @@ def write_curb_segments_to_file(
         else:
             output_gdf = output_gdf.set_crs(output_crs)
     except ValueError as e:
-        raise ValueError(f"Output CRS {output_crs} was incorrect or unsupported: {e}") from e
+        raise ValueError(
+            f"Output CRS {output_crs} was incorrect or unsupported: {e}"
+        ) from e
 
     # Create the output path if it does not exist
     Path(output_path).mkdir(parents=True, exist_ok=True)
@@ -287,7 +290,7 @@ def write_curb_segments_to_file(
     if file_type.lower() == "geojson":
         output_gdf.to_file(
             Path(os.path.join(output_path, f"{output_file_name}.geojson")),
-            driver="GeoJSON"
+            driver="GeoJSON",
         )
     elif file_type.lower() == "parquet":
         output_gdf.to_parquet(
