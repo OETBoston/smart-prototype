@@ -1,51 +1,53 @@
 # utilities/data/queries_and_contracts.py
-from typing import Optional, List, Dict, Any, Union, ClassVar
 from datetime import datetime
-from pydantic import BaseModel, Field, RootModel, ConfigDict
-from google.cloud.bigquery import SchemaField
-from .geometry_support import Geometry
-from .core_queries_and_contracts import *
+from typing import Any, ClassVar, Dict, List, Optional, Union
+
+from pydantic import ConfigDict, RootModel
+
 from .auto_filters import with_auto_filter
+from .core_queries_and_contracts import *
+from .geometry_support import Geometry
 
 TEST_TABLE_NAME = "test_table_for_db_accessor"
+
 
 @with_auto_filter
 class SimpleEntityModel(ValidatedBaseEntity):
     """Pydantic model representing a single record from the test table."""
-    
+
     # Static metadata for the BigQuery table
     _TABLE_NAME: ClassVar[str] = TEST_TABLE_NAME
-    
+
     # BigQuery Schema definition (using ClassVar for clarity)
-    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = { 
+    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = {
         "time_type": "STRING",
-        "i": "STRING", 
+        "i": "STRING",
         "id": "STRING",
         "type": "STRING",
-        "time": "TIMESTAMP", 
+        "time": "TIMESTAMP",
         "location": "GEOGRAPHY",
-
     }
-    
-    # Instance Fields (data types for Python/Pydantic validation)
-    i: str | None  = None
-    time_type: str | None  = None
-    id: str | None = None
-    type: str | None  = None
-    time: datetime  | None = None
-    location: Geometry  | None = None
 
+    # Instance Fields (data types for Python/Pydantic validation)
+    i: str | None = None
+    time_type: str | None = None
+    id: str | None = None
+    type: str | None = None
+    time: datetime | None = None
+    location: Geometry | None = None
 
 
 SimpleEntityFilter = SimpleEntityModel.Filter
 
-class RawData(RootModel): # Inherit from RootModel
+
+class RawData(RootModel):  # Inherit from RootModel
     # Use 'root' instead of '__root__'
-    root: Dict[str, Any] 
+    root: Dict[str, Any]
 
     def __getitem__(self, key):
         # Access the validated data through .root
         return self.root[key]
+
 
 # --- Union Type Alias for the Get Method Signature ---
 EntityModel = SimpleEntityModel
@@ -53,20 +55,17 @@ EntityFilter = SimpleEntityModel.Filter
 GetReturnType = Union[List[EntityModel], EntityModel, List[RawData], RawData]
 
 
-
-
-
 @with_auto_filter
 class StreetSegmentEntityModel(ValidatedBaseEntity):
     """
     Pydantic model representing schema and table name for street segments
     """
-    
+
     # Static metadata for the BigQuery table
     _TABLE_NAME: ClassVar[str] = "stg_street_segments"
-    
+
     # BigQuery Schema definition (Field Name: BigQuery Data Type)
-    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = { 
+    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = {
         "objectid": "INTEGER",
         "segment_id": "INTEGER",
         "l_f_add": "STRING",
@@ -103,7 +102,7 @@ class StreetSegmentEntityModel(ValidatedBaseEntity):
         "shape_length_src": "FLOAT",
         "shape_wkt": "STRING",
         # GEOGRAPHY types are commonly handled as strings (WKT/GeoJSON) in Pydantic
-        "geom": "GEOGRAPHY", 
+        "geom": "GEOGRAPHY",
         "batch_timestamp": "TIMESTAMP",
         "ingested_at": "TIMESTAMP",
         "batch": "STRING",
@@ -162,11 +161,12 @@ class StreetSegmentEntityModel(ValidatedBaseEntity):
     source_name: Optional[str]
     source_file: Optional[str]
     schema_version: Optional[str]
-    
+
     # Geography Field (Mapped to String)
     geom: Optional[Geometry]
 
-StreetSegmentFilterModel=StreetSegmentEntityModel.Filter
+
+StreetSegmentFilterModel = StreetSegmentEntityModel.Filter
 
 
 @with_auto_filter
@@ -174,12 +174,12 @@ class RawSignAssetEntityModel(ValidatedBaseEntity):
     """
     Pydantic model representing schema and table name for Raw Sign Asset data.
     """
-    
+
     # --- Static metadata for the BigQuery table (following the sample structure) ---
     _TABLE_NAME: ClassVar[str] = "stg_cartegraph"  # Example table name
-    
+
     # BigQuery Schema definition (Field Name: BigQuery Data Type)
-    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = { 
+    _ENTITY_SCHEMA: ClassVar[Dict[str, str]] = {
         "oid": "INTEGER",
         "cartegraph_id": "STRING",
         "locator_address_number_field": "STRING",
@@ -222,7 +222,6 @@ class RawSignAssetEntityModel(ValidatedBaseEntity):
         "source_file": "STRING",
         "schema_version": "STRING",
     }
-
 
     # 1. Integer Fields (BigQuery: INTEGER)
     oid: Optional[int]
@@ -274,15 +273,16 @@ class RawSignAssetEntityModel(ValidatedBaseEntity):
     source_file: Optional[str]
     schema_version: Optional[str]
 
+
 RawSignAssetFilterModel = RawSignAssetEntityModel.Filter
 
 
 class RawSignAssetEntityModelWithAttachments(ValidatedBaseEntity):
     """
-    Model for a single Sign Asset record, derived from a JOIN 
+    Model for a single Sign Asset record, derived from a JOIN
     between stg_cartegraph and stg_cartegraph_attachments.
 
-    NOTE: This model uses the _SQL_QUERY class variable for reading 
+    NOTE: This model uses the _SQL_QUERY class variable for reading
     and is NOT intended for single-table INSERT/DELETE operations.
     """
 
@@ -295,7 +295,7 @@ class RawSignAssetEntityModelWithAttachments(ValidatedBaseEntity):
     attachment_cg_last_modified_field: Optional[datetime]
 
     _TABLE_NAME: ClassVar[str] = "JOINED_ASSET_ATTACHMENTS"
-    
+
     _SQL_QUERY: ClassVar[str] = """
         SELECT
             t1.asset_status_field,
@@ -320,23 +320,14 @@ class RawSignAssetEntityModelWithAttachments(ValidatedBaseEntity):
     """
 
     # Strict configuration
-    model_config = ConfigDict(extra='forbid')
-
-
-
-
-
-
-
-
-
-
+    model_config = ConfigDict(extra="forbid")
 
 
 class RoadInventoryBBox(ValidatedBaseEntity):
     """
     Pydantic model for the nested BigQuery RECORD field `bbox`.
     """
+
     xmin: Optional[float] = None
     ymin: Optional[float] = None
     xmax: Optional[float] = None
@@ -437,7 +428,6 @@ class RoadInventoryEntityModel(ValidatedBaseEntity):
         "schema_version": "STRING",
     }
 
-
     # Integer fields
     objectid: Optional[int] = None
     rd_seg_id: Optional[int] = None
@@ -534,9 +524,7 @@ class RoadInventoryEntityModel(ValidatedBaseEntity):
     bbox: Optional[RoadInventoryBBox] = None
 
 
-
 RoadInventoryFilterModel = RoadInventoryEntityModel.Filter
-
 
 
 @with_auto_filter
@@ -577,22 +565,22 @@ class CurbLineEntityModel(ValidatedBaseEntity):
     def entity_schema(self) -> Dict[str, str]:
         return self._ENTITY_SCHEMA
 
-    curb_id: Optional[int]= None
-    roadway_id: Optional[int]= None
-    street_name: Optional[str]= None
-    route_id: Optional[str]= None
-    route_direction: Optional[str]= None
-    ff_class: Optional[int]= None
-    side: Optional[str]= None
-    buffer_left: Optional[int]= None
-    buffer_right: Optional[int]= None
-    start_lon: Optional[float]= None
-    start_lat: Optional[float]= None
-    end_lon: Optional[float]= None
-    end_lat: Optional[float]= None
-    curb_length_ft: Optional[float]= None
-    geometry: Optional[Geometry]= None
-    processed_timestamp: Optional[datetime]= None
+    curb_id: Optional[int] = None
+    roadway_id: Optional[int] = None
+    street_name: Optional[str] = None
+    route_id: Optional[str] = None
+    route_direction: Optional[str] = None
+    ff_class: Optional[int] = None
+    side: Optional[str] = None
+    buffer_left: Optional[int] = None
+    buffer_right: Optional[int] = None
+    start_lon: Optional[float] = None
+    start_lat: Optional[float] = None
+    end_lon: Optional[float] = None
+    end_lat: Optional[float] = None
+    curb_length_ft: Optional[float] = None
+    geometry: Optional[Geometry] = None
+    processed_timestamp: Optional[datetime] = None
     schema_version: Optional[str] = None
 
 

@@ -1,7 +1,9 @@
 # utilities/data_utilities/storage_utilities.py
 
+from typing import IO, Any, Dict, Optional
+
 import fsspec
-from typing import Optional, Dict, Any, Union, IO
+
 
 class Storage:
     """
@@ -46,8 +48,7 @@ class Storage:
         Returns True if the object exists.
         """
         fs, path = fsspec.core.url_to_fs(
-            uri,
-            **{"storage_options": self.storage_options}
+            uri, **{"storage_options": self.storage_options}
         )
         return fs.exists(path)
 
@@ -80,4 +81,3 @@ class Storage:
         """
         with self.open(uri, "wb") as f:
             f.write(data)
-

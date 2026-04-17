@@ -25,7 +25,9 @@ def create_consistent_storage_suffix_from_bytes(data: bytes, ext: str) -> str:
     return f"{h}.{ext}"
 
 
-def create_consistent_storage_suffix(*, path: str = None, data: bytes = None, ext: str = None) -> str:
+def create_consistent_storage_suffix(
+    *, path: str = None, data: bytes = None, ext: str = None
+) -> str:
     """
     Unified wrapper for create_consistent_storage_suffix
 
@@ -44,7 +46,6 @@ def create_consistent_storage_suffix(*, path: str = None, data: bytes = None, ex
         return create_consistent_storage_suffix_from_bytes(data, ext)
 
     raise ValueError("Provide either path OR data.")
-
 
 
 def create_google_storage_id_from_path(prefix: str, suffix, current_path: str) -> str:
