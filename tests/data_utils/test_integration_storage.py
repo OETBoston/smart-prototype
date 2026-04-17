@@ -6,8 +6,8 @@ import uuid
 from datetime import datetime
 
 import pytest
-from data_utils.storage_helpers import create_consistent_storage_suffix
-from data_utils.storage_utilities import Storage
+from curb_utils.data_utils.storage_helpers import create_consistent_storage_suffix
+from curb_utils.data_utils.storage_utilities import Storage
 
 pytestmark = pytest.mark.integration
 

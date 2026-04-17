@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from data_utils.geometry_support import Geometry
+from curb_utils.data_utils.geometry_support import Geometry
 from pydantic import BaseModel
 from shapely import wkt as wkt_module
 from shapely.geometry import LineString, Point, shape

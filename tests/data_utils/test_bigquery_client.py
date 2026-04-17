@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from data_utils.accessor import BigQueryClient, BigQueryProfile
+from curb_utils.data_utils.accessor import BigQueryClient, BigQueryProfile
 
 ACCESSOR_MODULE = "data_utils.accessor"
 

@@ -1,6 +1,6 @@
 from typing import Any, ClassVar, Optional
 
-from data_utils.accessor import DataAccessor, QuerySpec
+from curb_utils.data_utils.accessor import DataAccessor, QuerySpec
 from pydantic import BaseModel, Field
 
 

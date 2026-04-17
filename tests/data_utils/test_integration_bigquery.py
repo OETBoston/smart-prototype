@@ -4,8 +4,11 @@ from datetime import datetime, timezone
 
 import dotenv
 import pytest
-from data_utils.accessor import BigQueryClient, QuerySpec
-from data_utils.queries_and_contracts import TEST_TABLE_NAME, SimpleEntityModel
+from curb_utils.data_utils.accessor import BigQueryClient, QuerySpec
+from curb_utils.data_utils.queries_and_contracts import (
+    TEST_TABLE_NAME,
+    SimpleEntityModel,
+)
 
 dotenv.load_dotenv(".env", override=True)
 

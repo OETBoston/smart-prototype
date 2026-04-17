@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A project to organize Boston's Curb data"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["data-utils", "curb-utils", "policies-ai"]
+dependencies = ["curb-utils", "policies-ai"]
 
 [dependency-groups]
 dev = [
@@ -22,7 +22,6 @@ addopts = "-m 'not integration'"
 
 
 [tool.uv.sources]
-data-utils = {workspace = true}
 curb-utils = { workspace = true}
 policies-ai = {workspace = true}
 
