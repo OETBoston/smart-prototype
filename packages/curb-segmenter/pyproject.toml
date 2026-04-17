@@ -1,0 +1,53 @@
+[project]
+name = "smart-curb-segmentation"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dummylog>=0.0.4",
+    "folium>=0.20.0",
+    "geopandas>=1.1.1",
+    "mapclassify>=2.10.0",
+    "matplotlib>=3.10.7",
+    "notebook>=7.4.7",
+    "pandas>=2.3.3",
+    "rtree>=1.4.1",
+    "shapely>=2.1.2",
+    "smart-prototype",
+    "smart-curb-db",
+]
+
+[tool.uv.sources]
+smart-prototype = { git = "ssh://git@github.com/OETBoston/smart-prototype.git" }
+smart-curb-db = { path = "../smart-curb-db" }
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.3.0",
+    "ruff>=0.13.3",
+]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # flake-8-annotations
+    "ANN",
+    # flake8-bugbear
+    "B",
+    # isort
+    "I",
+]
+ignore = [
+    # # Type annotations required for self
+    "ANN001",
+]
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
