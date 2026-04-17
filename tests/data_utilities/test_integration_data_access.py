@@ -4,11 +4,11 @@ from datetime import datetime, timezone
 
 import dotenv
 import pytest
-from data_utilities.accessor import (
+from data_utils.accessor import (
     BigQueryClient,
     DataAccessor,
 )
-from data_utilities.queries_and_contracts import (
+from data_utils.queries_and_contracts import (
     TEST_TABLE_NAME,
     BaseEntity,
     CurbLineEntityModel,

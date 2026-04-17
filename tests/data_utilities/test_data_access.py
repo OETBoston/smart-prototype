@@ -1,11 +1,11 @@
 from typing import Any, ClassVar, Optional
 
-from data_utilities.accessor import DataAccessor, QuerySpec
+from data_utils.accessor import DataAccessor, QuerySpec
 from pydantic import BaseModel, Field
 
 
-# Assuming data_utilities.queries_and_contracts is where BaseEntity lives
-# from data_utilities.queries_and_contracts import BaseEntity
+# Assuming data_utils.queries_and_contracts is where BaseEntity lives
+# from data_utils.queries_and_contracts import BaseEntity
 # Since BaseEntity definition is missing, defining a simple mock here for completeness
 class BaseEntity(BaseModel):
     @classmethod

@@ -1,9 +1,9 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from data_utilities.accessor import BigQueryClient, BigQueryProfile
+from data_utils.accessor import BigQueryClient, BigQueryProfile
 
-ACCESSOR_MODULE = "data_utilities.accessor"
+ACCESSOR_MODULE = "data_utils.accessor"
 
 
 class TestBigQueryClientInit(unittest.TestCase):

@@ -2,8 +2,8 @@ from datetime import datetime
 from uuid import uuid4
 
 import pytest
-from data_utilities.accessor import DataAccessor
-from data_utilities.queries_and_contracts import (
+from data_utils.accessor import DataAccessor
+from data_utils.queries_and_contracts import (
     SimpleEntityFilter,
     SimpleEntityModel,
 )

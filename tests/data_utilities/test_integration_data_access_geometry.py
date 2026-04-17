@@ -4,14 +4,14 @@ from typing import (
 
 import geopandas as gpd
 import pytest
-from data_utilities.accessor import (
+from data_utils.accessor import (
     DataAccessor,
     data_frame_to_entities,
     data_frame_to_geo_data_frame,
     entities_to_data_frame,
     geo_data_frame_to_data_frame,
 )
-from data_utilities.queries_and_contracts import (
+from data_utils.queries_and_contracts import (
     CurbLineEntityModel,
     CurbLineFilterModel,
     RoadInventoryEntityModel,
