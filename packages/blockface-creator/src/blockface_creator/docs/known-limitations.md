@@ -11,7 +11,7 @@ This can result in curb segments appearing disjointed even when they are continu
 from the end of one segment to the start of the next. 
 * If the width difference exceeds the merge threshold, the curb segments remain disjointed.
 <p align="left">
-  <img width="602" height="323" alt="image" src="../images/known-limitations/case-1.png" /><br>
+  <img width="602" height="323" alt="image" src="images/known-limitations/case-1.png" /><br>
   <em>Figure 1: Example showing disjointed adjacent curb segments caused by inconsistent roadway widths.</em>
 </p>
 
@@ -23,7 +23,7 @@ segments.
 * This typically occurs when the overlapping roadway has been excluded (e.g., due to functional class filtering).
 * When overpasses or underpasses are excluded consistently, curb segments behave as expected.
 <p align="left">
-  <img width="602" height="323" alt="image" src="../images/known-limitations/case-2.png" /><br>
+  <img width="602" height="323" alt="image" src="images/known-limitations/case-2.png" /><br>
   <em>Figure 2: Example showing curb removal near an underpass.</em>
 </p>
 
@@ -37,6 +37,6 @@ These artifacts are often caused by:
 * Differing roadway widths, and 
 * Angular geometry interactions during buffer and overlay operations.
 <p align="left">
-  <img width="602" height="323" alt="image" src="../images/known-limitations/case-3.png" /><br>
+  <img width="602" height="323" alt="image" src="images/known-limitations/case-3.png" /><br>
   <em>Figure 3: Example showing small sliver artifacts at non-orthogonal intersections.</em>
 </p>
