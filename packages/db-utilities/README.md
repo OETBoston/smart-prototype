@@ -62,7 +62,7 @@ DB_PASSWORD=your_password
 Use `SmartCurbDB` as a context manager to ensure proper connection handling:
 
 ```python
-from db_utilities import SmartCurbDB
+from db_utils import SmartCurbDB
 
 with SmartCurbDB(dbname="my_database", schema="public") as db:
     # Your database operations here
