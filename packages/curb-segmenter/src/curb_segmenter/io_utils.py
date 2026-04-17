@@ -24,7 +24,7 @@ import curb_segmentation as cs
 import geopandas as gpd
 import pandas as pd
 import yaml
-from smart_curb_db import SmartCurbDB
+from curb_utils.db_utils import SmartCurbDB
 
 
 # Functions
