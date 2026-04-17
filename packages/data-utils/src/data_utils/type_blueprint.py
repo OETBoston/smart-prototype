@@ -1,4 +1,4 @@
-# utilities/data_utilities/type_blueprint.py
+# utilities/data_utils/type_blueprint.py
 
 from typing import Any, Callable, Optional
 

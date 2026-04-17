@@ -1,4 +1,4 @@
-# utilities/data_utilities/auto_filters.py
+# utilities/data_utils/auto_filters.py
 
 from __future__ import annotations
 

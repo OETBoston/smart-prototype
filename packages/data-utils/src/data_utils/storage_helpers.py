@@ -1,4 +1,4 @@
-# utilities/data_utilities/storage_helpers.py
+# utilities/data_utils/storage_helpers.py
 import hashlib
 import os
 

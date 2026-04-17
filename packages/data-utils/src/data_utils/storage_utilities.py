@@ -1,4 +1,4 @@
-# utilities/data_utilities/storage_utilities.py
+# utilities/data_utils/storage_utilities.py
 
 from typing import IO, Any, Dict, Optional
 

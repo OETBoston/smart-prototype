@@ -1,4 +1,4 @@
-# utilities/data_utilities/accessor.py
+# utilities/data_utils/accessor.py
 import os
 from datetime import date, datetime
 from typing import (
