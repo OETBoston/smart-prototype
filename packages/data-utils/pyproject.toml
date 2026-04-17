@@ -1,5 +1,5 @@
 [project]
-name = "data-utilities"
+name = "data-utils"
 version = "0.1.0"
 description = "Utilities to work with cloud data"
 readme = "README.md"

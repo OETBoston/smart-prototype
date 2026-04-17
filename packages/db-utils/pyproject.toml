@@ -1,5 +1,5 @@
 [project]
-name = "db-utilities"
+name = "db-utils"
 version = "0.1.0"
 description = "Tools for reading and writing from the smart-curb database"
 readme = "README.md"

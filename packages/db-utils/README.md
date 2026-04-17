@@ -1,4 +1,4 @@
-# db-utilities
+# db-utils
 
 A Python connector class for PostGIS database access. The `SmartCurbDB` class provides a convenient interface to read from and write to PostgreSQL tables with built-in support for geospatial data via geopandas.
 
