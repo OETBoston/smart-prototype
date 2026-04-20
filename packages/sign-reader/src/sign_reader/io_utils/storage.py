@@ -1,0 +1,57 @@
+"""Storage utilities for reading and saving Sign Reader data."""
+
+from pathlib import Path
+
+import streamlit as st
+from utilities.data_utilities.storage_utilities import Storage
+
+
+@st.cache_data
+def read_image_urls(source: str) -> list[str]:
+    """Read a list of image URLs from a text file or a GCP table.
+
+    Each line in the file or each row in the table should contain one URL.
+    Empty lines or rows are ignored.
+
+    Args:
+        source (str): Path to the text file or GCP table ID containing image URLs.
+
+    Returns:
+        list[str]: List of image URLs.
+
+    Raises:
+        FileNotFoundError: If the file does not exist (when source is a file path).
+        ValueError: If no valid URLs are found.
+    """
+
+    path = Path(source)
+    if not path.exists():
+        raise FileNotFoundError(f"URL file not found: {source}")
+
+    with path.open("r", encoding="utf-8") as f:
+        urls = [line.strip() for line in f if line.strip()]
+
+    if not urls:
+        raise ValueError(f"No URLs found in source: {source}")
+
+    return urls
+
+
+def save_parsed_output(parsed_image, output_dir: Path, image_name: str) -> None:
+    """Save structured parsed output to a JSON file."""
+    file_path = output_dir / f"{image_name}.json"
+
+    counter = 1
+    while file_path.exists():
+        file_path = output_dir / f"{image_name}_v{counter}.json"
+        counter += 1
+
+    with file_path.open("w", encoding="utf-8") as f:
+        f.write(parsed_image.model_dump_json(indent=2))
+    # print(f"✅ Saved parsed output to {file_path}")
+
+
+def get_storage(token_path) -> Storage:
+    """returns a gcp storage obj"""
+    storage = Storage(storage_options={"token": token_path})
+    return storage
