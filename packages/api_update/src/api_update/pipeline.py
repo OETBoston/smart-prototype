@@ -1,14 +1,18 @@
+import sys
 import argparse
 import logging
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-from packages.api_update.src.api_update.exporter import export_to_csv
+# Add repo root to sys.path so we can import from 'packages'
+repo_root = Path(__file__).resolve().parents[4]   # …/smart-prototype
+sys.path.append(str(repo_root))
 
 # Internal imports
 from packages.api_update.src.api_update.extractor import read_db_tables
 from packages.api_update.src.api_update.transformer import transform_policy_updates
+from packages.api_update.src.api_update.exporter import export_to_csv, export_to_db
 
 # Load environment variables
 load_dotenv()
@@ -21,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 # Constants/Config
 OUTPUT_DIR = Path("data")
-
 
 def run_api_update(job_id: str | None = None) -> None:
     """
@@ -36,8 +39,8 @@ def run_api_update(job_id: str | None = None) -> None:
         dbname="cds",
         schema="staging",
         tables={
-            "df_curb_segments": None,
-            "df_curb_segment_policies": None
+            "curb_segments": None,
+            "curb_segment_policies": None
             if job_id is None
             else f"job_id = '{job_id}'",
         },
@@ -47,12 +50,29 @@ def run_api_update(job_id: str | None = None) -> None:
         logger.error("Error reading staging data. Exiting.")
         raise SystemExit(0)
 
+    api_data_dict = read_db_tables(
+        dbname="cds",
+        schema="public_cds",
+        tables={
+            "curb_zones": None,
+            "curb_policies": None,
+            "curb_zone_policies": None,
+            "curb_policy_rules": None,
+            "curb_policy_time_spans": None
+        },
+    )
+
+    if not api_data_dict:
+        logger.error("Error reading API data. Exiting.")
+        raise SystemExit(0)
+
     # 2. Process Data
-    processed = transform_policy_updates(staging_data_dict)
+    processed = transform_policy_updates(staging_data_dict, api_data_dict)
 
     # 3. Export Data
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     export_to_csv(processed, out_dir=OUTPUT_DIR)
+    export_to_db(processed)
     logger.info("Update process completed successfully.")
 
 
