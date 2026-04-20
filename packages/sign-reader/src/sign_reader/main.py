@@ -12,19 +12,25 @@ import getpass
 import uuid
 from pathlib import Path
 
-from client import init_client, read_instruction
-from db_connector import (
+from sign_reader.client import init_client, read_instruction
+from sign_reader.db_connector import (
     append_sign_policies,
     append_sign_reader_jobs,
     read_images,
 )
-from env_loader import get_gemini_config, get_google_cloud_token_path_and_prefix
-from io_utils.arguments import parse_args
-from io_utils.image_utils import get_image, upload_image
-from io_utils.storage import get_storage, read_image_urls, save_parsed_output
-from logging_tools import get_logger
-from priority_engine import get_policy_priority
-from reader import read_image
+from sign_reader.env_loader import (
+    get_gemini_config,
+    get_google_cloud_token_path_and_prefix,
+)
+from sign_reader.io_utils.arguments import parse_args
+from sign_reader.io_utils.image_utils import get_image, upload_image
+from sign_reader.io_utils.storage import (
+    get_storage,
+    save_parsed_output,
+)
+from sign_reader.logging_tools import get_logger
+from sign_reader.priority_engine import get_policy_priority
+from sign_reader.reader import read_image
 
 BATCH_SIZE = 50
 
@@ -62,9 +68,10 @@ def main() -> None:
 
     # 2. Data Acquisition & Job Registration
     if args.file:
-        logger.info(f"Reading image list from file: {args.file}")
-        uri_list = read_image_urls(args.file)
-        images_list = [(uri, "") for uri in uri_list]
+        # logger.info(f"Reading image list from file: {args.file}")
+        # uri_list = read_image_urls(args.file)
+        # images_list = [(uri, "") for uri in uri_list]
+        raise RuntimeError("File read method not currently available.")
     elif args.db:
         logger.info("Fetching images from database...")
         job_id = append_sign_reader_jobs(getpass.getuser())
