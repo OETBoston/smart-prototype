@@ -23,20 +23,20 @@ dbname: "cds"
 schema: "staging_next"
 
 # PostgreSQL export settings for curb segments
-cs_job_name: "Merged tiny segments and list merged locations."
-cs_job_description: "Merged tiny segments and added upstream_loc_list and downstream_loc_list to store the list of locations that are merged into the curb segment."
+cs_job_name: "Charlestown Test 1"
+cs_job_description: "Charlestown signs, blockfaces, hydrants, and bus stops for all of Boston."
 
 # Blockface table specification
 bf_table_name: "curb_blockfaces"
 bf_geom_col: "geography"
-bf_job_id: "28285759-9601-4768-a9d2-5cf8a7bed2e0"
+bf_job_id: "9531be73-90da-4661-b1ce-15e5ab83e53d"
 
 # Sign and nonsign asset table specification
 assets:
   sign_assets:
     parking_sign:
       new_id_col: "ps_id"
-      job_id: "06e098ea-9a51-45f4-b782-2efa8fd07a07"
+      job_id: "a840e9d9-be25-4c32-9817-7131ebeee8d0"
   nonsign_assets:
     bus_stop:
       new_id_col: "bs_id"
@@ -58,6 +58,10 @@ assets:
       new_id_col: "fh_id"
       job_id: "e9e630af-2e20-4221-873a-890bb3477646"
       buffer_distance_ft: 10
+  parking_meters:
+      meter_policies:
+        new_id_col: "mp_id"
+        job_id: "1645dfa6-da93-46cb-bb1e-185fbb869a24"
 
 # Process parameters
 curb_id_col: "blockface_id"
@@ -71,7 +75,7 @@ tiny_seg_threshold_ft: 3
 # =====================
 # Directories
 proj_dir: "./"
-final_output_dir: "../final-outputs"
+final_output_dir: "../outputs/segments/"
 
 # Output settings
 output_file_name: "curb_segments"

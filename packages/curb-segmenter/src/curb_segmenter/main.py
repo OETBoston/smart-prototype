@@ -33,7 +33,9 @@ def main():
     logger.info("Running Curb Segmentation Pipeline...")
 
     # Read config
-    config = io_utils.load_config("config.yaml")
+    config = io_utils.load_config(
+        "packages/curb-segmenter/src/curb_segmenter/config.yaml"
+    )
     segment_id_cols = []
 
     # Read curb lines
@@ -92,9 +94,20 @@ def main():
         logger_obj=logger,
         verbose=True,
     )
+    # Run segmentation by parking meters
+    curb_segments_by_pm = cs.run_segmentation_by_parking_meters(
+        configuration=config,
+        asset_dict=asset_dict,
+        clean_curbs=curb_segments_by_ps,
+        segment_id_cols=segment_id_cols,
+        logger_obj=logger,
+        verbose=True,
+    )
 
     # Format and create a GeoDataFrame consistent with the `curb_segments` table schema
-    curb_segments, job_id, ts = cs.create_curb_segments_table(curb_segments_by_ps)
+    curb_segments, job_id, ts = cs.create_curb_segments_table(
+        curb_segments_by_pm, output_crs=config["output_crs"]
+    )
 
     # Merge tiny segments
     curb_segments = cs.merge_tiny_curb_segments(
