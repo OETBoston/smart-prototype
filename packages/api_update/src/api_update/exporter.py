@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 import pandas as pd
+from smart_curb_db import SmartCurbDB
 
 logger = logging.getLogger(__name__)
 
@@ -35,3 +36,14 @@ def export_to_csv(
             logger.info(f"Successfully exported: {file_dest}")
         except Exception as e:
             logger.error(f"Failed to export {filename}: {e}")
+
+
+def export_to_db(data_dict: dict[str, pd.DataFrame]) -> None:
+    """
+    Exports processed DataFrames to the database.
+    """
+    for table_name, table in data_dict.items():
+        logger.info(f"Exporting {table_name} to database...")
+        with SmartCurbDB(dbname="cds", schema="public_cds_next") as db:
+            db.append_data(table_name, table)
+        logger.info(f"Successfully exported: {table_name}.")
