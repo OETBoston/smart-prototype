@@ -21,13 +21,19 @@ def _create_client(api_key: str) -> genai.Client:
 def init_client(api_key: str, use_cache: bool = False) -> genai.Client:
     """Initialize Gemini client, optionally caching if Streamlit context."""
     if use_cache:
-        import streamlit as st  # lazy import so main.py never loads Streamlit
+        # Streamlit app currently disabled
+        # import streamlit as st  # lazy import so main.py never loads Streamlit
 
-        @st.cache_resource
-        def _cached_client(api_key: str) -> genai.Client:
-            return _create_client(api_key)
+        # @st.cache_resource
+        # def _cached_client(api_key: str) -> genai.Client:
+        #     return _create_client(api_key)
 
-        return _cached_client(api_key)
+        # return _cached_client(api_key)
+
+        ### WARNING - cached mode currently not available ###
+        raise RuntimeError("Cached client mode not currently available")
+
+        return _create_client(api_key)
     else:
         return _create_client(api_key)
 

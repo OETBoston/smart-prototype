@@ -7,11 +7,11 @@ from typing import Any
 from urllib.parse import urlparse
 
 import requests
-from google.cloud import storage
-from utilities.data_utilities.storage_helpers import (
+from curb_utils.data_utils.storage_helpers import (
     create_consistent_storage_suffix,
 )
-from utilities.data_utilities.storage_utilities import Storage
+from curb_utils.data_utils.storage_utilities import Storage
+from google.cloud import storage
 
 
 def get_image_from_url(image_url: str) -> bytes:
