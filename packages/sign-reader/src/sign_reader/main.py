@@ -50,8 +50,12 @@ def main() -> None:
     gemini_model, gemini_api_key, gemini_thinking_level = get_gemini_config()
     token, prefix = get_google_cloud_token_path_and_prefix()
     storage = get_storage(token)
-    system_instruction = read_instruction("instructions/default_instruction.txt")
-    user_prompt = read_instruction("instructions/default_user_prompt.txt")
+    system_instruction = read_instruction(
+        "./packages/sign-reader/src/sign_reader/instructions/default_instruction.txt"
+    )
+    user_prompt = read_instruction(
+        "./packages/sign-reader/src/sign_reader/instructions/default_user_prompt.txt"
+    )
 
     images_list = []
     job_id = None
