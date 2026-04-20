@@ -4,6 +4,8 @@ from datetime import datetime
 import pandas as pd
 from curb_utils.db_utils import SmartCurbDB
 
+DB_SCHEMA = "staging_next"
+
 
 def append_sign_reader_jobs(user: str, is_batch: bool = True) -> uuid.UUID:
     """Registers a new job in the database with contextual naming."""
@@ -22,7 +24,7 @@ def append_sign_reader_jobs(user: str, is_batch: bool = True) -> uuid.UUID:
         ],
     }
 
-    with SmartCurbDB(dbname="cds", schema="staging") as db:
+    with SmartCurbDB(dbname="cds", schema=DB_SCHEMA) as db:
         db.append_data("sign_reader_jobs", pd.DataFrame(job_data))
 
     return job_id
@@ -48,7 +50,7 @@ def read_images(
     if asset_job_id:
         filter = f"job_id = '{asset_job_id}'"
 
-    with SmartCurbDB(dbname="cds", schema="staging") as db:
+    with SmartCurbDB(dbname="cds", schema=DB_SCHEMA) as db:
         df_images = db.get_data("images", columns=["uri", "sign_id"], filter=filter)
 
         if not_processed:
@@ -66,5 +68,5 @@ def append_sign_policies(records: list[dict], job_id: uuid.UUID) -> None:
     """Appends sign policy records to the database."""
     records_policies = pd.DataFrame(records)
     records_policies["job_id"] = job_id
-    with SmartCurbDB(dbname="cds", schema="staging") as db:
+    with SmartCurbDB(dbname="cds", schema=DB_SCHEMA) as db:
         db.append_data("sign_policies", records_policies)
