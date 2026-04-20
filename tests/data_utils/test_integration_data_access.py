@@ -1,44 +1,34 @@
-import pytest
 import os
 import uuid
 from datetime import datetime, timezone
 
-import pandas as pd
-from typing import Optional, Protocol, List, Dict, Any, Type, Union, Tuple, Literal, Callable, Sequence
-
-from data_utilities.accessor import (
-    DataAccessor, BigQueryClient, QuerySpec, 
-    data_frame_to_geo_data_frame, entities_to_data_frame,
-    geo_data_frame_to_data_frame, data_frame_to_entities)
-from data_utilities.queries_and_contracts import (
+import dotenv
+import pytest
+from curb_utils.data_utils.accessor import (
+    BigQueryClient,
+    DataAccessor,
+)
+from curb_utils.data_utils.queries_and_contracts import (
+    TEST_TABLE_NAME,
     BaseEntity,
-    SimpleEntityModel, 
-    SimpleEntityFilter, 
-    TEST_TABLE_NAME, 
-    StreetSegmentEntityModel,
-    StreetSegmentFilterModel,
+    CurbLineEntityModel,
+    CurbLineFilterModel,
     RawSignAssetEntityModel,
     RawSignAssetEntityModelWithAttachments,
     RawSignAssetFilterModel,
     RoadInventoryEntityModel,
     RoadInventoryFilterModel,
-    CurbLineEntityModel,
-    CurbLineFilterModel,
+    SimpleEntityModel,
+    StreetSegmentEntityModel,
+    StreetSegmentFilterModel,
 )
 
-import dotenv
 dotenv.load_dotenv(".env", override=True)
 
 # Pull test vars from .env
 TEST_PROJECT_ID = os.environ.get("TEST_GCP_PROJECT_ID")
 TEST_DATASET_ID = os.environ.get("TEST_BQ_DATASET_ID")
 TEST_TABLE_FQN = f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}.{TEST_TABLE_NAME}"
-
-
-
-
-
-
 
 
 @pytest.fixture(scope="class")
@@ -49,14 +39,17 @@ def data_accessor():
 
 @pytest.mark.integration
 class TestDataAccessorOperations:
-
     def test_01_insert_via_put(self, data_accessor):
         unique = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
 
         rows = [
-            SimpleEntityModel(id=f"{unique}-1", type="Sign", time=now, location="POINT(1 1)"),
-            SimpleEntityModel(id=f"{unique}-2", type="Pole", time=now, location="POINT(2 2)"),
+            SimpleEntityModel(
+                id=f"{unique}-1", type="Sign", time=now, location="POINT(1 1)"
+            ),
+            SimpleEntityModel(
+                id=f"{unique}-2", type="Pole", time=now, location="POINT(2 2)"
+            ),
         ]
 
         inserted = data_accessor.put(rows)
@@ -76,15 +69,20 @@ class TestDataAccessorOperations:
         target_id = f"{unique}-B"
 
         rows = [
-            SimpleEntityModel(id=f"{unique}-A", type="Sign", time=now, location="POINT(1 1)"),
-            SimpleEntityModel(id=target_id, type="Pole", time=now, location="POINT(2 2)"),
-            SimpleEntityModel(id=f"{unique}-C", type="Light", time=now, location="POINT(3 3)"),
+            SimpleEntityModel(
+                id=f"{unique}-A", type="Sign", time=now, location="POINT(1 1)"
+            ),
+            SimpleEntityModel(
+                id=target_id, type="Pole", time=now, location="POINT(2 2)"
+            ),
+            SimpleEntityModel(
+                id=f"{unique}-C", type="Light", time=now, location="POINT(3 3)"
+            ),
         ]
         data_accessor.put(rows)
 
         filt = SimpleEntityModel.Filter(id=target_id, type="Pole")
-        results = data_accessor.get(SimpleEntityModel, filt,
-            limit=10)
+        results = data_accessor.get(SimpleEntityModel, filt, limit=10)
         assert len(results) == 1
         assert results[0].id == target_id
 
@@ -98,20 +96,19 @@ class TestDataAccessorOperations:
                 id=f"{unique}-A",
                 type="Old",
                 time=datetime(2025, 1, 1, 9, 0, tzinfo=timezone.utc),
-                location="POINT(1 1)"
+                location="POINT(1 1)",
             ),
             SimpleEntityModel(
                 id=f"{unique}-B",
                 type="New",
                 time=datetime(2025, 1, 1, 11, 0, tzinfo=timezone.utc),
-                location="POINT(2 2)"
+                location="POINT(2 2)",
             ),
         ]
         data_accessor.put(rows)
 
         filt = SimpleEntityModel.Filter(time_after=split, id_prefix=unique)
-        results = data_accessor.get(SimpleEntityModel, filt,
-            limit=10)
+        results = data_accessor.get(SimpleEntityModel, filt, limit=10)
         assert len(results) == 1
         assert results[0].id == f"{unique}-B"
 
@@ -124,20 +121,19 @@ class TestDataAccessorOperations:
                 id=f"{unique}-C",
                 type="Old",
                 time=datetime(2025, 2, 1, 9, 0, tzinfo=timezone.utc),
-                location="POINT(1 1)"
+                location="POINT(1 1)",
             ),
             SimpleEntityModel(
                 id=f"{unique}-D",
                 type="New",
                 time=datetime(2025, 2, 1, 11, 0, tzinfo=timezone.utc),
-                location="POINT(2 2)"
+                location="POINT(2 2)",
             ),
         ]
         data_accessor.put(rows)
 
         filt = SimpleEntityModel.Filter(time_before=split, id_prefix=unique)
-        results = data_accessor.get(SimpleEntityModel, filt,
-            limit=10)
+        results = data_accessor.get(SimpleEntityModel, filt, limit=10)
         assert len(results) == 1
         assert results[0].id == f"{unique}-C"
 
@@ -147,8 +143,12 @@ class TestDataAccessorOperations:
         target_id = f"{unique}-TARGET"
 
         rows = [
-            SimpleEntityModel(id=target_id, type="Target", time=now, location="POINT(1 1)"),
-            SimpleEntityModel(id=f"{unique}-Extra", type="Extra", time=now, location="POINT(2 2)"),
+            SimpleEntityModel(
+                id=target_id, type="Target", time=now, location="POINT(1 1)"
+            ),
+            SimpleEntityModel(
+                id=f"{unique}-Extra", type="Extra", time=now, location="POINT(2 2)"
+            ),
         ]
         data_accessor.put(rows)
 
@@ -161,10 +161,8 @@ class TestDataAccessorOperations:
         assert isinstance(result[0], SimpleEntityModel)
 
 
-
 @pytest.mark.integration
 class TestConfigDrivenInit:
-
     @pytest.fixture(scope="class")
     def config_data_accessor(self):
         """This path will be loaded by DataAccessor via AppSettings."""
@@ -174,7 +172,11 @@ class TestConfigDrivenInit:
         unique = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
 
-        rows = [SimpleEntityModel(id=f"{unique}-10", type="Test", time=now, location="POINT(1 1)")]
+        rows = [
+            SimpleEntityModel(
+                id=f"{unique}-10", type="Test", time=now, location="POINT(1 1)"
+            )
+        ]
         inserted = config_data_accessor.put(rows)
 
         assert inserted == 1
@@ -182,9 +184,7 @@ class TestConfigDrivenInit:
 
     def test_street_segment(self, config_data_accessor):
         results = config_data_accessor.get(
-            StreetSegmentEntityModel,
-            StreetSegmentFilterModel(),
-            limit=10
+            StreetSegmentEntityModel, StreetSegmentFilterModel(), limit=10
         )
         assert isinstance(results, list)
         assert len(results) > 0
@@ -195,7 +195,7 @@ class TestConfigDrivenInit:
         results = config_data_accessor.get(
             RawSignAssetEntityModel,
             RawSignAssetFilterModel(cartegraph_id_prefix=expected_prefix),
-            limit=10
+            limit=10,
         )
         assert len(results) > 0
         for row in results:
@@ -203,14 +203,10 @@ class TestConfigDrivenInit:
 
     def test_raw_sign_with_attachments(self, config_data_accessor):
         results = config_data_accessor.get(
-            RawSignAssetEntityModelWithAttachments,
-            BaseEntity(),
-            limit=10
+            RawSignAssetEntityModelWithAttachments, BaseEntity(), limit=10
         )
         assert len(results) > 0
         assert isinstance(results[0], RawSignAssetEntityModelWithAttachments)
-
-
 
     def test_road_inventory_by_route_id(self, config_data_accessor):
         """
@@ -222,7 +218,7 @@ class TestConfigDrivenInit:
         results = config_data_accessor.get(
             RoadInventoryEntityModel,
             RoadInventoryFilterModel(route_id=route_id),
-            limit=10
+            limit=10,
         )
 
         assert isinstance(results, list)
@@ -234,13 +230,8 @@ class TestConfigDrivenInit:
             assert row.route_id == route_id
 
 
-
-
-
-
 @pytest.mark.integration
 class TestCurbLineIntegration:
-
     @pytest.fixture(scope="class")
     def config_data_accessor(self):
         """Load DataAccessor using application config."""
@@ -251,9 +242,7 @@ class TestCurbLineIntegration:
         Basic retrieval of curb line data. Ensures model hydration works.
         """
         results = config_data_accessor.get(
-            CurbLineEntityModel,
-            CurbLineFilterModel(),
-            limit=5
+            CurbLineEntityModel, CurbLineFilterModel(), limit=5
         )
 
         assert isinstance(results, list)
@@ -267,18 +256,18 @@ class TestCurbLineIntegration:
         # Step 1: get a sample record
         sample_rows = config_data_accessor.get(
             CurbLineEntityModel,
-            CurbLineFilterModel(),   # no filters → fetch first rows
-            limit=1
+            CurbLineFilterModel(),  # no filters → fetch first rows
+            limit=1,
         )
 
-        assert len(sample_rows) > 0, "Test data must contain at least one curb line row."
+        assert len(sample_rows) > 0, (
+            "Test data must contain at least one curb line row."
+        )
         known_id = sample_rows[0].curb_id
 
         # Step 2: run exact-filter test using a real value
         results = config_data_accessor.get(
-            CurbLineEntityModel,
-            CurbLineFilterModel(curb_id=known_id),
-            limit=10
+            CurbLineEntityModel, CurbLineFilterModel(curb_id=known_id), limit=10
         )
 
         assert isinstance(results, list)
@@ -293,7 +282,7 @@ class TestCurbLineIntegration:
         results = config_data_accessor.get(
             CurbLineEntityModel,
             CurbLineFilterModel(street_name_prefix=prefix),
-            limit=10
+            limit=10,
         )
 
         assert isinstance(results, list)
@@ -321,7 +310,7 @@ class TestCurbLineIntegration:
         sample_rows = config_data_accessor.get(
             CurbLineEntityModel,
             CurbLineFilterModel(),  # No filters → fetch first available
-            limit=1
+            limit=1,
         )
 
         assert len(sample_rows) > 0, "Test requires at least one curb line row."
@@ -334,17 +323,14 @@ class TestCurbLineIntegration:
         results = config_data_accessor.get(
             CurbLineEntityModel,
             CurbLineFilterModel(
-                curb_id=known_id,
-                minimal=True,
-                street_name_included=True
+                curb_id=known_id, minimal=True, street_name_included=True
             ),
-            limit=10
+            limit=10,
         )
 
         # Basic checks
         assert len(results) >= 1
         assert all(r.curb_id == known_id for r in results)
-
 
         row = results[0]
 
@@ -366,12 +352,17 @@ class TestCurbLineIntegration:
         # 5. backend correctly executed minimal projection
         #    i.e., no unexpected fields show up with non-null values
         unexpected_fields = {
-            "route_id", "route_direction", "ff_class",
-            "buffer_left", "buffer_right", "curb_length_ft",
-            "processed_timestamp", "schema_version"
+            "route_id",
+            "route_direction",
+            "ff_class",
+            "buffer_left",
+            "buffer_right",
+            "curb_length_ft",
+            "processed_timestamp",
+            "schema_version",
         }
 
         for f in unexpected_fields:
-            assert getattr(row, f) is None, f"Field {f} should not be projected in minimal mode."
-
-
+            assert getattr(row, f) is None, (
+                f"Field {f} should not be projected in minimal mode."
+            )

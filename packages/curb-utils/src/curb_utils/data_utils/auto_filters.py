@@ -1,18 +1,17 @@
-# utilities/data_utilities/auto_filters.py
+# utilities/data_utils/auto_filters.py
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from types import UnionType
-from typing import Any, Dict, Type, get_args, get_origin, Union, List
+from typing import Any, Dict, Type, Union, get_args, get_origin
 
 from pydantic import BaseModel, model_validator
 from pydantic.config import ConfigDict
-import logging
 
 logger = logging.getLogger("auto_filter")
 logger.addHandler(logging.NullHandler())
-
 
 
 def _unwrap_optional(tp):
@@ -23,7 +22,7 @@ def _unwrap_optional(tp):
         args = [a for a in get_args(tp) if a is not type(None)]
         if len(args) == 1:
             return args[0], True
-    
+
     # PEP 604 union: str | None  → origin is types.UnionType
     if origin is UnionType:
         args = [a for a in get_args(tp) if a is not type(None)]
@@ -31,6 +30,7 @@ def _unwrap_optional(tp):
             return args[0], True
 
     return tp, False
+
 
 def create_filter_model(entity_cls: Type[BaseModel]) -> Type[BaseModel]:
     annotations: Dict[str, Any] = {}
@@ -79,7 +79,9 @@ def create_filter_model(entity_cls: Type[BaseModel]) -> Type[BaseModel]:
 
         # --- 4. datetime ---
         if base_type == datetime:
-            logger.debug(f"  -> DATETIME FIELD DETECTED for {name}, adding datetime ops!")
+            logger.debug(
+                f"  -> DATETIME FIELD DETECTED for {name}, adding datetime ops!"
+            )
             annotations[f"{name}_after"] = datetime | None
             defaults[f"{name}_after"] = None
             logger.debug(f"     Added datetime op: {name}_after")
@@ -107,7 +109,8 @@ def create_filter_model(entity_cls: Type[BaseModel]) -> Type[BaseModel]:
     def _validate_minimal(self):
         if getattr(self, "minimal", False):
             included_fields = [
-                name for name in entity_cls.model_fields
+                name
+                for name in entity_cls.model_fields
                 if getattr(self, f"{name}_included", None)
             ]
             if not included_fields:
@@ -118,13 +121,7 @@ def create_filter_model(entity_cls: Type[BaseModel]) -> Type[BaseModel]:
 
     namespace["_validate_minimal"] = _validate_minimal
 
-
     return type(filter_name, (BaseModel,), namespace)
-
-
-
-
-
 
 
 def with_auto_filter(entity_cls: Type[BaseModel]) -> Type[BaseModel]:

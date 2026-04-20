@@ -1,10 +1,10 @@
-import pytest
 import json
-from shapely.geometry import Point, LineString, shape
-from shapely import wkt as wkt_module
 
-from data_utilities.geometry_support import Geometry
+import pytest
+from curb_utils.data_utils.geometry_support import Geometry
 from pydantic import BaseModel
+from shapely import wkt as wkt_module
+from shapely.geometry import LineString, Point, shape
 
 
 class TestModel(BaseModel):
@@ -23,6 +23,7 @@ def wkt_equal(a: str, b: str) -> bool:
 # -------------------------------------------------------
 # SHAPELY OBJECTS
 # -------------------------------------------------------
+
 
 def test_shapely_geometry_to_wkt_exact_match():
     geom = LineString([(0, 0), (1, 1)])
@@ -45,6 +46,7 @@ def test_assignment_validation_shapely_exact_match():
 # WKT STRINGS
 # -------------------------------------------------------
 
+
 def test_valid_wkt_passes_through_exactly():
     wkt_str = "POINT (1 2)"
     m = TestModel(geom=wkt_str)
@@ -61,6 +63,7 @@ def test_assignment_validation_wkt_exact_preservation():
 # -------------------------------------------------------
 # GEOJSON DICT
 # -------------------------------------------------------
+
 
 def test_geojson_dict_to_wkt_exact_match():
     geojson = {"type": "Point", "coordinates": [1, 2]}
@@ -81,6 +84,7 @@ def test_coordinate_list_to_wkt_exact_match():
 # -------------------------------------------------------
 # GEOJSON STRING
 # -------------------------------------------------------
+
 
 def test_geojson_string_to_wkt_exact_match():
     geojson = '{"type": "Point", "coordinates": [10, 20]}'
@@ -139,6 +143,7 @@ def test_unrecognized_list_raises():
 # -------------------------------------------------------
 # NONE HANDLING
 # -------------------------------------------------------
+
 
 def test_none_is_preserved():
     m = TestModel(geom=None)

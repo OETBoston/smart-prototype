@@ -1,8 +1,9 @@
-# utilities/data_utilities/type_blueprint.py
+# utilities/data_utils/type_blueprint.py
 
-from typing import Callable, Any, Optional
+from typing import Any, Callable, Optional
+
 import pydantic_core
-from pydantic import GetCoreSchemaHandler
+
 
 class PydanticTypeBlueprint(str):
     """
@@ -10,12 +11,13 @@ class PydanticTypeBlueprint(str):
 
     Subclass this to define domain-specific normalized types.
     """
+
     __recognizers__: list[Callable[[Any], Optional[str]]] = []
     __default_error__: str = "Unrecognized input"
 
     @classmethod
     def register(cls, func):
-        print("adding recognizer: ",func)
+        print("adding recognizer: ", func)
         cls.__recognizers__.append(func)
         return func
 

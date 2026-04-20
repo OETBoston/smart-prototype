@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 import geopandas as gpd
 import pandas as pd
 import pytest
-from db_utilities import InvalidInputError, SmartCurbDB
+from curb_utils.db_utils import InvalidInputError, SmartCurbDB
 from dotenv import load_dotenv
 from geopandas.testing import assert_geodataframe_equal
 from pandas.testing import assert_frame_equal
