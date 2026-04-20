@@ -3,9 +3,9 @@ import pathlib
 from typing import Dict, Generator
 
 import pytest
-from core.reader import read_image
 from google import genai
-from models import Image
+from sign_reader.models import Image
+from sign_reader.reader import read_image
 
 TEST_DATA_DIR = pathlib.Path(__file__).parent / "test_data"
 
@@ -55,16 +55,20 @@ def run_gemini(client, config, image_path, image_bytes) -> Dict[str, str]:
 
 @pytest.fixture(scope="session")
 def gemini_config() -> Dict[str, str]:
-    from config import get_gemini_config
-    from core.client import read_instruction
+    from sign_reader.client import read_instruction
+    from sign_reader.env_loader import get_gemini_config
 
     model, api_key, thinking_level = get_gemini_config()
 
     if not api_key:
         pytest.skip("Gemini API key missing.")
 
-    instruction = read_instruction("instructions/default_instruction.txt")
-    user_prompt = read_instruction("instructions/default_user_prompt.txt")
+    instruction = read_instruction(
+        "./packages/sign-reader/src/sign_reader/instructions/default_instruction.txt"
+    )
+    user_prompt = read_instruction(
+        "./packages/sign-reader/src/sign_reader/instructions/default_user_prompt.txt"
+    )
     return {
         "model": model,
         "api_key": api_key,
@@ -78,7 +82,7 @@ def gemini_config() -> Dict[str, str]:
 def gemini_client(
     gemini_config: Dict[str, str],
 ) -> Generator[genai.Client, None, None]:
-    from core.client import init_client
+    from sign_reader.client import init_client
 
     with init_client(gemini_config["api_key"], use_cache=False) as client:
         yield client

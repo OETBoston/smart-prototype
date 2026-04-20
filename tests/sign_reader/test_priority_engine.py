@@ -2,8 +2,8 @@ import json
 import os
 
 import pytest
-from core.priority_engine import get_policy_priority
-from models import Policy
+from sign_reader.models import Policy
+from sign_reader.priority_engine import get_policy_priority
 
 # Load the JSON test cases
 TEST_FILE_PATH = os.path.join(

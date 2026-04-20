@@ -1,8 +1,9 @@
 """Gemini content generation and structured image reading logic."""
 
 from google import genai
-from models import Image
 from pydantic import ValidationError
+
+from sign_reader.models import Image
 
 
 def read_image(

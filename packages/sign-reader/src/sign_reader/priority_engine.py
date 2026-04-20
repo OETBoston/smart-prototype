@@ -1,4 +1,4 @@
-from models import Activity, Policy, Rule
+from sign_reader.models import Activity, Policy, Rule
 
 
 def get_neg_offset(rules: list[Rule]) -> int:
