@@ -19,9 +19,10 @@ set before running the script.
 # Packages
 import warnings
 
-import curb_segmentation as cs
-import io_utils
 from dotenv import load_dotenv
+
+from curb_segmenter import curb_segmentation as cs
+from curb_segmenter import io_utils
 
 warnings.filterwarnings("ignore")
 

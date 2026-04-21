@@ -5,8 +5,9 @@ Run the curb generation algorithm using roadway centerline dataset.
 # Packages
 import warnings
 
-import curb_generation as cg
 from dotenv import load_dotenv
+
+from blockface_creator import curb_generation as cg
 
 # Session settings
 load_dotenv()
