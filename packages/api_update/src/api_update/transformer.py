@@ -4,11 +4,20 @@ transformer.py
 Contains modular functions for curb data acquisition, processing, and export.
 """
 
+import os
 import uuid
 import json
 import pandas as pd
+import logging
 
+from policies_ai.clients import init_gemini_client
+from policies_ai.policy_descriptions.descriptions import generate_description, add_json_to_prompt, default_prompt
 from packages.api_update.src.utils_geo import consolidate_curb_segments
+
+
+logging.getLogger("google_genai").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
 
 
 def extract_unique_policies(df_updates: pd.DataFrame) \
@@ -70,20 +79,31 @@ def build_policy_tables(
     policies, rules, spans = [], [], []
     json_to_id_map = {}
 
-    for policy in unique_policies:
-        p_id = uuid.uuid4()
-        p_json = json.dumps(policy, sort_keys=True)
-        json_to_id_map[p_json] = p_id
+    logger.info(f"Building Policy tables for {len(unique_policies)} policies...")
 
-        policies.append({
-            "curb_policy_id": p_id,
-            "published_date": run_time,
-            "priority": policy.get("priority"),
-        })
+    with init_gemini_client(os.getenv("GEMINI_API_KEY")) as client:
+        for i, policy in enumerate(unique_policies):
+            
+            logger.info(f"Processing policy {i + 1}/{len(unique_policies)}")
 
-        r, s = _create_policy_sub_elements(p_id, policy)
-        rules.extend(r)
-        spans.extend(s)
+            p_id = uuid.uuid4()
+            p_json = json.dumps(policy, sort_keys=True)
+            json_to_id_map[p_json] = p_id
+
+            logger.info("Generating policy description...")
+            prompt = add_json_to_prompt(default_prompt, p_json)
+            description = generate_description(client, prompt, model_opts=None)
+
+            policies.append({
+                "curb_policy_id": p_id,
+                "description": description,
+                "published_date": run_time,
+                "priority": policy.get("priority"),
+            })
+
+            r, s = _create_policy_sub_elements(p_id, policy)
+            rules.extend(r)
+            spans.extend(s)
 
     return pd.DataFrame(policies), pd.DataFrame(rules), pd.DataFrame(spans), json_to_id_map
 
