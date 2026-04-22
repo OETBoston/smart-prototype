@@ -45,7 +45,7 @@ def main() -> None:
 
     # Load external data
     config = load_config(config_file)
-    system_instruction = read_instruction(instructions_file)
+    system_instructions = read_instruction(instructions_file)
     user_prompt = read_instruction(user_prompt_file)
 
     # Gemini Settings
@@ -120,7 +120,7 @@ def main() -> None:
                 parsed_image = read_image(
                     client,
                     gemini_model,
-                    system_instruction,
+                    system_instructions,
                     user_prompt,
                     gemini_temperature,
                     image_uri,
