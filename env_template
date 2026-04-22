@@ -1,16 +1,5 @@
 # settings/sample_env
 
-
-DB_ACCESS_ACTIVE_CLIENT=""${DB_ACCESS_CLIENT}""
-DB_ACCESS_ACTIVE_ENVIRONMENT="${DB_ACCESS_STARTING_ENV}"
-DB_ACCESS_ENVIRONMENT_PREFIXES='{"staging_prefix": "${DB_ACCESS_STAGING_PROJECT_ID}.Staging",
- "prod_prefix":"${DB_ACCESS_PROD_PROJECT_ID}.Prod"}'
-
-
-GEMINI_THINKING_LEVEL=low
-GEMINI_MODEL=gemini-3-flash-preview
-GCS_PREFIX=gs://smart-cds-datasources/sign_reader_image_tool/
-GCS_TOKEN_PATH=~/.config/gcloud/application_default_credentials.json
 GEMINI_API_KEY=<your api key>
 
 DB_HOST=localhost
