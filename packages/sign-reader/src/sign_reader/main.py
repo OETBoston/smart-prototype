@@ -11,7 +11,7 @@ Author:
 import uuid
 from pathlib import Path
 
-from curb_utils.ai_client import init_gemini_client
+from curb_utils.ai_client import GeminiOptions, init_gemini_client
 from curb_utils.db_utils import append_job
 from curb_utils.io_tools import load_from_txt, load_from_yaml
 from dotenv import load_dotenv
@@ -48,7 +48,7 @@ def main() -> None:
     user_prompt = load_from_txt(user_prompt_file)
 
     # Gemini Settings
-    gemini_settings = config["gemini_settings1"]
+    gemini_settings = GeminiOptions(**config["gemini_settings"])
 
     # Database Settings
     db_name = config["db_name"]
