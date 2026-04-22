@@ -39,12 +39,12 @@ def main() -> None:
     # Define external files
     local_path = Path(__file__).resolve().parent
     config_file = local_path / "config.yaml"
-    instructions_file = local_path / "instructions/default_instruction.txt"
+    instruction_file = local_path / "instructions/default_instruction.txt"
     user_prompt_file = local_path / "instructions/default_user_prompt.txt"
 
     # Load external data
     config = load_from_yaml(config_file)
-    system_instructions = load_from_txt(instructions_file)
+    system_instruction = load_from_txt(instruction_file)
     user_prompt = load_from_txt(user_prompt_file)
 
     # Gemini Settings
@@ -106,22 +106,12 @@ def main() -> None:
             try:
                 parsed_image = read_image(
                     client,
-                    system_instruction=system_instructions,
+                    system_instruction=system_instruction,
                     user_prompt=user_prompt,
                     model_opts=gemini_settings,
                     image_bytes=image_bytes,
                     image_uri=image_uri,
                 )
-                # parsed_image = read_image(
-                #    client,
-                #    gemini_model,
-                #    system_instructions,
-                #    user_prompt,
-                #    gemini_temperature,
-                #    image_uri,
-                #    image_bytes,
-                #    gemini_thinking_level,
-                # )
             except Exception as e:
                 logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
                 continue
