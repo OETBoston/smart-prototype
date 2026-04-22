@@ -20,14 +20,13 @@ def read_image(
 
     Args:
         client (genai.Client): Initialized Gemini API client.
-        gemini_model (str): Gemini model name.
         system_instruction (str): Instruction string to guide model response.
         user_prompt (str): User prompt string to guide model response.
-        temperature (float): Model temperature. Higher values increase creativity.
-        image_uri (str): Image URI to use.
         image_bytes (bytes): Raw image data in bytes format.
-        thinking_level (str): Thinking level to use.
-        max_retries (int): Maximum number of retries for validation failures.
+        image_uri (str): Image URI to use.
+        model:opts (GeminiOptions | None, optional): Settings for the Gemini run.
+        max_retries (int, optional): Maximum number of retries for validation failures
+                                     (default=3)
 
     Returns:
         Image: Parsed structured response mapped to Image schema.
@@ -92,9 +91,13 @@ def read_image(
                 or response.candidates[0].content.parts is None
                 or response.candidates[0].content.parts[0].text is None
             ):
-                raise RuntimeError(
-                    "Unexpected response - unable to load bad response text"
+                # Unlikely resut - if the response can't be parsed
+
+                print(
+                    f"❌ Unable to parse response details to retry analysis "
+                    f"of image {image_uri}. Returning None."
                 )
+                return None
 
             bad_response_text = response.candidates[0].content.parts[0].text
 
