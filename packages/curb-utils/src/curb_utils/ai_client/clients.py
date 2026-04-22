@@ -1,6 +1,11 @@
 import os
+from typing import Type
 
 from google import genai
+from google.genai.types import GenerateContentResponse
+from pydantic import BaseModel
+
+from curb_utils.ai_client.config import GeminiOptions
 
 
 def init_gemini_client(api_key: str | None = None) -> genai.Client:
@@ -34,3 +39,33 @@ def init_gemini_client(api_key: str | None = None) -> genai.Client:
             ) from exc
     client = genai.Client(api_key=api_key)
     return client
+
+
+def call_gemini_client(
+    client: genai.Client,
+    system_instruction: str,
+    contents: genai.types.ContentListUnionDict,
+    response_schema: Type[BaseModel] | None = None,
+    response_mime_type: str = "text/plain",
+    model_opts: GeminiOptions | None = None,
+) -> GenerateContentResponse:
+    # Use the defaults if model_opts are not provided
+    if model_opts is None:
+        model_opts = GeminiOptions()
+
+    config_gemini_typed = genai.types.GenerateContentConfig(
+        system_instruction=system_instruction,
+        response_mime_type=response_mime_type,
+        temperature=model_opts.temperature,
+        response_schema=response_schema,
+        thinking_config=genai.types.ThinkingConfig(
+            include_thoughts=model_opts.include_thoughts,
+            thinking_level=model_opts.thinking_level,
+        ),
+    )
+
+    return client.models.generate_content(
+        model=model_opts.model,
+        contents=contents,
+        config=config_gemini_typed,
+    )

@@ -1,6 +1,6 @@
 """Gemini content generation and structured image reading logic."""
 
-from curb_utils.ai_client import GeminiOptions
+from curb_utils.ai_client import GeminiOptions, call_gemini_client
 from google import genai
 from pydantic import ValidationError
 
@@ -33,35 +33,45 @@ def read_image(
         Image: Parsed structured response mapped to Image schema.
     """
 
-    contents = [
-        genai.types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-        genai.types.Part.from_text(text=user_prompt),
+    contents: genai.types.ContentListUnionDict = [
+        genai.types.Content(
+            parts=[
+                genai.types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+                genai.types.Part.from_text(text=user_prompt),
+            ]
+        )
     ]
 
     attempts = 0
 
     while attempts <= max_retries:
         # 1. Generate content with the current 'contents' history
-        response = client.models.generate_content(
-            model=model_opts.model,
+        response = call_gemini_client(
+            client=client,
+            system_instruction=system_instruction,
             contents=contents,
-            config=genai.types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                response_mime_type="application/json",
-                response_schema=Image,
-                temperature=temperature,
-                thinking_config=thinking_cfg,
-            ),
+            response_schema=Image,
+            response_mime_type="application/json",
+            model_opts=model_opts,
         )
 
         # 2. Top-level validation
+        if response is None:
+            raise RuntimeError("No response from AI model")
+
         if response.parsed is not None:
             if attempts > 0:
                 print(
                     f"✅ Fixed JSON output for Image {image_uri} "
                     f"after {attempts} attempt(s)."
                 )
-            return response.parsed
+
+            result = response.parsed
+            if not isinstance(result, Image):
+                raise TypeError("Incorrect data type provided by the AI model.")
+
+            return result
+
         else:
             attempts += 1
             if attempts > max_retries:
@@ -76,6 +86,16 @@ def read_image(
             )
 
             # 3. Extract the raw text Gemini sent to echo it back in the conversation
+            if (
+                response.candidates is None
+                or response.candidates[0].content is None
+                or response.candidates[0].content.parts is None
+                or response.candidates[0].content.parts[0].text is None
+            ):
+                raise RuntimeError(
+                    "Unexpected response - unable to load bad response text"
+                )
+
             bad_response_text = response.candidates[0].content.parts[0].text
 
             # 4. Collect fine-grained errors
