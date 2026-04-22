@@ -1,13 +1,14 @@
 import json
-import pathlib
+from pathlib import Path
 from typing import Dict, Generator
 
 import pytest
 from google import genai
+from sign_reader.env_loader import get_api_key
 from sign_reader.models import Image
 from sign_reader.reader import read_image
 
-TEST_DATA_DIR = pathlib.Path(__file__).parent / "test_data"
+TEST_DATA_DIR = Path(__file__).parent / "test_data"
 
 
 class SignImagePolicy:
@@ -46,7 +47,7 @@ def run_gemini(client, config, image_path, image_bytes) -> Dict[str, str]:
     result_json = json.loads(Image.model_validate(parsed_image).model_dump_json())
 
     # write results for further inspection
-    out_path = pathlib.Path(TEST_DATA_DIR / image_path).with_suffix(".RESULT.json")
+    out_path = Path(TEST_DATA_DIR / image_path).with_suffix(".RESULT.json")
     with open(out_path, "w+") as f:
         json.dump(result_json, f, indent=2)
 
@@ -55,25 +56,28 @@ def run_gemini(client, config, image_path, image_bytes) -> Dict[str, str]:
 
 @pytest.fixture(scope="session")
 def gemini_config() -> Dict[str, str]:
+    from curb_utils.io_tools import load_config
     from sign_reader.client import read_instruction
-    from sign_reader.env_loader import get_gemini_config
 
-    model, api_key, thinking_level = get_gemini_config()
+    # Define external files
+    local_path = Path("./packages/sign-reader/src/sign_reader")
+    config_file = local_path / "config.yaml"
+    instructions_file = local_path / "instructions/default_instruction.txt"
+    user_prompt_file = local_path / "instructions/default_user_prompt.txt"
 
-    if not api_key:
-        pytest.skip("Gemini API key missing.")
+    # Load external data
+    config = load_config(config_file)
+    system_instructions = read_instruction(instructions_file)
+    user_prompt = read_instruction(user_prompt_file)
 
-    instruction = read_instruction(
-        "./packages/sign-reader/src/sign_reader/instructions/default_instruction.txt"
-    )
-    user_prompt = read_instruction(
-        "./packages/sign-reader/src/sign_reader/instructions/default_user_prompt.txt"
-    )
+    # Gemini Settings
+    gemini_api_key = get_api_key()
+
     return {
-        "model": model,
-        "api_key": api_key,
-        "thinking_level": thinking_level,
-        "instruction": instruction,
+        "model": config["gemini_model"],
+        "api_key": gemini_api_key,
+        "thinking_level": config["gemini_thinking_level"],
+        "instruction": system_instructions,
         "user_prompt": user_prompt,
     }
 

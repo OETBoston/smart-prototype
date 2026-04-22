@@ -19,9 +19,11 @@ set before running the script.
 # Packages
 import warnings
 
-import curb_segmentation as cs
-import io_utils
+from curb_utils.io_tools import load_config
 from dotenv import load_dotenv
+
+import curb_segmenter.curb_segmentation as cs
+from curb_segmenter import io_utils
 
 warnings.filterwarnings("ignore")
 
@@ -33,9 +35,7 @@ def main():
     logger.info("Running Curb Segmentation Pipeline...")
 
     # Read config
-    config = io_utils.load_config(
-        "packages/curb-segmenter/src/curb_segmenter/config.yaml"
-    )
+    config = load_config("packages/curb-segmenter/src/curb_segmenter/config.yaml")
     segment_id_cols = []
 
     # Read curb lines

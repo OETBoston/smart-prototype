@@ -20,28 +20,14 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-import curb_segmentation as cs
 import geopandas as gpd
 import pandas as pd
-import yaml
 from curb_utils.db_utils import SmartCurbDB
 
+import curb_segmenter.curb_segmentation as cs
 
 # Functions
 # ==============================================================================
-def load_config(config_file_path: str | os.PathLike) -> dict | None:
-    """
-    Loads a YAML configuration file.
-    """
-    try:
-        with open(config_file_path, "r", encoding="utf-8") as stream:
-            return yaml.safe_load(stream)
-    except FileNotFoundError:
-        print(f"Config file not found: {config_file_path}")
-        return None
-    except (yaml.YAMLError, OSError) as exception:
-        print(f"Error loading config: {exception}")
-        return None
 
 
 def load_blockface_gdf_from_pg(

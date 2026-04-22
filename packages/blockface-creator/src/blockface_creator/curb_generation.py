@@ -14,7 +14,6 @@ import dummylog
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import yaml
 from curb_utils.db_utils import SmartCurbDB
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
@@ -41,18 +40,6 @@ def get_today(sep: str = "", include_time: bool = False) -> str:
         return f"{date_part}-{time_part}"
 
     return date_part
-
-
-def load_config(config_file_path: str | os.PathLike) -> dict | None:
-    """
-    Loads a YAML configuration file.
-    """
-    with open(config_file_path, "r", encoding="utf-8") as stream:
-        try:
-            return yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            print(f"Error loading YAML: {exc}")
-            return None
 
 
 def connect_multilines_to_linestring(

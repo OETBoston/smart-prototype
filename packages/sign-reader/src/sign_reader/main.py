@@ -8,24 +8,21 @@ Author:
     Ray Huang
 """
 
-import getpass
 import uuid
 from pathlib import Path
+
+from curb_utils.db_utils import append_job
+from curb_utils.io_tools import load_config
+from dotenv import load_dotenv
 
 from sign_reader.client import init_client, read_instruction
 from sign_reader.db_connector import (
     append_sign_policies,
-    append_sign_reader_jobs,
     read_images,
 )
-from sign_reader.env_loader import (
-    get_gemini_config,
-    get_google_cloud_token_path_and_prefix,
-)
-from sign_reader.io_utils.arguments import parse_args
-from sign_reader.io_utils.image_utils import get_image, upload_image
+from sign_reader.env_loader import get_api_key
+from sign_reader.io_utils.image_utils import get_image
 from sign_reader.io_utils.storage import (
-    get_storage,
     save_parsed_output,
 )
 from sign_reader.logging_tools import get_logger
@@ -33,53 +30,78 @@ from sign_reader.priority_engine import get_policy_priority
 from sign_reader.reader import read_image
 
 BATCH_SIZE = 50
+load_dotenv()
 
 
 def main() -> None:
     logger = get_logger()
     logger.info("Running Sign Reader Task...")
-    args = parse_args()
 
-    temperature = args.temperature
-    if not 0.0 <= temperature <= 2.0:
-        logger.error(
-            f"Invalid temperature: {temperature} "
-            f"(Temperature must be within the range [0.0, 2.0])"
-        )
-        return
+    # Define external files
+    local_path = Path(__file__).resolve().parent
+    config_file = local_path / "config.yaml"
+    instructions_file = local_path / "instructions/default_instruction.txt"
+    user_prompt_file = local_path / "instructions/default_user_prompt.txt"
 
-    output_dir = Path("parsed_outputs")
-    output_dir.mkdir(parents=True, exist_ok=True)  # create dir if not exists
+    # Load external data
+    config = load_config(config_file)
+    system_instructions = read_instruction(instructions_file)
+    user_prompt = read_instruction(user_prompt_file)
 
-    # 1. Initialize Resources
-    logger.info("Initializing Gemini client and storage...")
-    gemini_model, gemini_api_key, gemini_thinking_level = get_gemini_config()
-    token, prefix = get_google_cloud_token_path_and_prefix()
-    storage = get_storage(token)
-    system_instruction = read_instruction(
-        "./packages/sign-reader/src/sign_reader/instructions/default_instruction.txt"
-    )
-    user_prompt = read_instruction(
-        "./packages/sign-reader/src/sign_reader/instructions/default_user_prompt.txt"
-    )
+    # Gemini Settings
+    gemini_temperature = config["gemini_temperature"]
+    gemini_model = config["gemini_model"]
+    gemini_thinking_level = config["gemini_thinking_level"]
+    gemini_api_key = get_api_key()
 
-    images_list = []
-    job_id = None
+    # Database Settings
+    db_name = config["db_name"]
+    db_schema = config["db_schema"]
 
-    # 2. Data Acquisition & Job Registration
-    if args.file:
-        # logger.info(f"Reading image list from file: {args.file}")
-        # uri_list = read_image_urls(args.file)
-        # images_list = [(uri, "") for uri in uri_list]
-        raise RuntimeError("File read method not currently available.")
-    elif args.db:
-        logger.info("Fetching images from database...")
-        job_id = append_sign_reader_jobs(getpass.getuser())
-        images_list = read_images(
-            asset_job_id=uuid.UUID(args.job_id) if args.job_id else None
+    # Sign Settings
+    sign_job_id = config["sign_assets"]["job_id"]
+    sign_re_process = config["sign_assets"]["re_process"]
+
+    # Other settings
+    debug_mode = config["debug_mode"]
+    max_images = config["max_images"]
+    job_name = config.get("sr_job_name")
+    job_desc = config.get("sr_job_description")
+
+    # TODO: Consider a Pydantic model to validate config settings
+    if not 0.0 <= gemini_temperature <= 2.0:
+        raise ValueError(
+            f"Invalid temperature: {gemini_temperature} "
+            "(Temperature must be within the range [0.0, 2.0])"
         )
 
-    # 3. Processing Loop
+    # If in debug mode, save the parsed outputs to disk
+    output_dir = Path("outputs/sign_reader")
+    if debug_mode:
+        output_dir.mkdir(parents=True, exist_ok=True)  # create dir if not exists
+        job_id = uuid.uuid4()  # placeholder job for debug mode
+    else:
+        logger.info("Registering job...")
+        job_id = append_job(
+            db_name=db_name,
+            db_schema=db_schema,
+            db_table="sign_reader_jobs",
+            job_name=job_name,
+            job_desc=job_desc,
+        )
+
+    logger.info("Fetching images from database...")
+    images_list = read_images(
+        asset_job_id=uuid.UUID(sign_job_id) if sign_job_id else None,
+        re_process=sign_re_process,
+    )
+
+    # Debug - image limit
+    if max_images and max_images > 0 and max_images < len(images_list):
+        START_AT = 0
+        images_list = images_list[START_AT : max_images + START_AT]
+
+    # Processing Loop
     logger.info(f"Queueing {len(images_list)} images for processing.")
     records_policies = []
 
@@ -88,74 +110,73 @@ def main() -> None:
             logger.info(f"Processing Sign ID: {sign_id} | URI: {image_uri}")
             try:
                 image_bytes = get_image(image_uri)
+            except Exception as e:
+                logger.warning(f"Failed to load {image_uri}: {e}", exc_info=True)
+                continue
 
-                if args.file:
-                    upload_image(image_uri, image_bytes, prefix, storage)
-
+            try:
                 parsed_image = read_image(
                     client,
                     gemini_model,
-                    system_instruction,
+                    system_instructions,
                     user_prompt,
-                    temperature,
+                    gemini_temperature,
                     image_uri,
                     image_bytes,
                     gemini_thinking_level,
                 )
-
-                if parsed_image is None or not parsed_image.signs:
-                    logger.warning("Detection empty: No signs extracted")
-                    continue
-
-                # Save raw AI output to local disk
-                stem = Path(image_uri).stem
-                if sign_id:
-                    image_name = f"{str(sign_id)[:8]}_{stem}"
-                else:
-                    image_name = stem
-                save_parsed_output(parsed_image, output_dir, image_name)
-
-                if args.db:
-                    for s in parsed_image.signs:
-                        arrow_value = (
-                            s.arrow if s.arrow and s.arrow.lower() != "none" else None
-                        )
-
-                        s.policy.priority = get_policy_priority(s.policy)
-
-                        records_policies.append(
-                            {
-                                "sign_policy_id": uuid.uuid4(),
-                                "sign_id": sign_id,
-                                "policy_json": s.policy.model_dump_json(
-                                    indent=4,
-                                    exclude={
-                                        "rules": {"__all__": {"confidence"}},
-                                        "time_spans": {"__all__": {"confidence"}},
-                                    },
-                                ),
-                                "policy_arrow": arrow_value,
-                                "ai_confidence_score": int(
-                                    getattr(s, "confidence", 0) * 100
-                                ),
-                            }
-                        )
-                    if len(records_policies) >= BATCH_SIZE:
-                        logger.info(
-                            f"Threshold reached ({len(records_policies)})."
-                            f" Uploading batch..."
-                        )
-                        append_sign_policies(records_policies, job_id)
-                        records_policies.clear()  # Empty the list for the next batch
-                        logger.info("Batch upload successful.")
-
-                logger.debug(f"Successfully parsed {len(parsed_image.signs)} signs.")
-
             except Exception as e:
-                logger.error(f"Failed to process {image_uri}: {e}", exc_info=True)
+                logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
+                continue
+
+            if parsed_image is None or not parsed_image.signs:
+                # TODO: Return a policy indicating an issue with this sign/image
+                logger.warning("Detection empty: No signs extracted")
+                continue
+
+            # Save raw AI output to local disk - debug mode only
+            if debug_mode:
+                save_parsed_output(parsed_image, output_dir, image_uri, str(sign_id))
+            else:  # Only write to the database if not indebug mode
+                for s in parsed_image.signs:
+                    arrow_value = (
+                        s.arrow if s.arrow and s.arrow.lower() != "none" else None
+                    )
+
+                    s.policy.priority = get_policy_priority(s.policy)
+
+                    # TODO: Remove AI Confidence Score, or do a bit of cleanup here if
+                    # we are keeping it
+                    records_policies.append(
+                        {
+                            "sign_policy_id": uuid.uuid4(),
+                            "sign_id": sign_id,
+                            "policy_json": s.policy.model_dump_json(
+                                indent=4,
+                                exclude={
+                                    "rules": {"__all__": {"confidence"}},
+                                    "time_spans": {"__all__": {"confidence"}},
+                                },
+                            ),
+                            "policy_arrow": arrow_value,
+                            "ai_confidence_score": int(
+                                getattr(s, "confidence", 0) * 100
+                            ),
+                        }
+                    )
+                if len(records_policies) >= BATCH_SIZE:
+                    logger.info(
+                        f"Threshold reached ({len(records_policies)})."
+                        f" Uploading batch..."
+                    )
+                    append_sign_policies(records_policies, job_id)
+                    records_policies.clear()  # Empty the list for the next batch
+                    logger.info("Batch upload successful.")
+
+            logger.debug(f"Successfully parsed {len(parsed_image.signs)} signs.")
 
     # 4. Final Batch Upload
-    if args.db and records_policies:
+    if records_policies:
         logger.info(f"Uploading final remaining {len(records_policies)} records...")
         append_sign_policies(records_policies, job_id)
         logger.info("Database upload complete.")

@@ -27,5 +27,5 @@ output_crs: "epsg:4326"
 # Postgres DB export settings
 dbname: "cds"
 schema: "staging_next"
-job_name: "monorepo blockface run"
-job_description: "Re-run blockfaces from the combined monorepo"
+job_name: "monorepo blockface rerun"
+job_description: "Re-run blockfaces from the combined monorepo again"

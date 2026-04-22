@@ -23,8 +23,8 @@ dbname: "cds"
 schema: "staging_next"
 
 # PostgreSQL export settings for curb segments
-cs_job_name: "Charlestown Test 1"
-cs_job_description: "Charlestown signs, blockfaces, hydrants, and bus stops for all of Boston."
+cs_job_name: "Charlestown Test 1 (subset)"
+cs_job_description: "Charlestown subset signs, blockfaces, hydrants, and bus stops for all of Boston."
 
 # Blockface table specification
 bf_table_name: "curb_blockfaces"
@@ -61,7 +61,7 @@ assets:
   parking_meters:
       meter_policies:
         new_id_col: "mp_id"
-        job_id: "1645dfa6-da93-46cb-bb1e-185fbb869a24"
+        job_id: "65fe0581-a94c-4d00-afb0-a12460ee898d"
 
 # Process parameters
 curb_id_col: "blockface_id"
