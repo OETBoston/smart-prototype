@@ -43,6 +43,6 @@ def read_images(
 def append_sign_policies(records: list[dict], job_id: uuid.UUID) -> None:
     """Appends sign policy records to the database."""
     records_policies = pd.DataFrame(records)
-    records_policies["job_id"] = job_id
+    records_policies["job_id"] = str(job_id)
     with SmartCurbDB(dbname="cds", schema=DB_SCHEMA) as db:
         db.append_data("sign_policies", records_policies)

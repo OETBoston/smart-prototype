@@ -1,10 +1,10 @@
 import json
-import os
 from pathlib import Path
 from typing import Dict, Generator
 
 import pytest
 from google import genai
+from sign_reader.env_loader import get_api_key
 from sign_reader.models import Image
 from sign_reader.reader import read_image
 
@@ -71,9 +71,7 @@ def gemini_config() -> Dict[str, str]:
     user_prompt = read_instruction(user_prompt_file)
 
     # Gemini Settings
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    if gemini_api_key is None:
-        raise RuntimeError("GEMINI_API_KEY missing from environment")
+    gemini_api_key = get_api_key()
 
     return {
         "model": config["gemini_model"],

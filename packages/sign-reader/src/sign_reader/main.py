@@ -8,7 +8,6 @@ Author:
     Ray Huang
 """
 
-import os
 import uuid
 from pathlib import Path
 
@@ -21,6 +20,7 @@ from sign_reader.db_connector import (
     append_sign_policies,
     read_images,
 )
+from sign_reader.env_loader import get_api_key
 from sign_reader.io_utils.image_utils import get_image
 from sign_reader.io_utils.storage import (
     save_parsed_output,
@@ -52,9 +52,7 @@ def main() -> None:
     gemini_temperature = config["gemini_temperature"]
     gemini_model = config["gemini_model"]
     gemini_thinking_level = config["gemini_thinking_level"]
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    if gemini_api_key is None:
-        raise RuntimeError("GEMINI_API_KEY missing from environment")
+    gemini_api_key = get_api_key()
 
     # Database Settings
     db_name = config["db_name"]

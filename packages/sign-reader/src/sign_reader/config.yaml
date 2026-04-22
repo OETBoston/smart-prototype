@@ -2,7 +2,7 @@
 
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
-debug_mode: True
+debug_mode: False
 max_images: null # For debugging - run only the first n images. Omit or set to null to run all images
 
 # Gemini model settings
