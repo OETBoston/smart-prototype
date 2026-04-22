@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Dict, Generator
 
 import pytest
+from curb_utils.ai_client import GeminiOptions
 from google import genai
-from sign_reader.env_loader import get_api_key
 from sign_reader.models import Image
 from sign_reader.reader import read_image
 
@@ -35,13 +35,11 @@ class SignImagePolicy:
 def run_gemini(client, config, image_path, image_bytes) -> Dict[str, str]:
     parsed_image = read_image(
         client=client,
-        gemini_model=config["model"],
         system_instruction=config["instruction"],
         user_prompt=config["user_prompt"],
-        temperature=0.0,
-        image_url=image_path,
         image_bytes=image_bytes,
-        thinking_level=config["thinking_level"],
+        image_uri=image_path,
+        model_opts=GeminiOptions(**config["gemini_settings"]),
     )
 
     result_json = json.loads(Image.model_validate(parsed_image).model_dump_json())
@@ -69,13 +67,8 @@ def gemini_config() -> Dict[str, str]:
     system_instructions = load_from_txt(instructions_file)
     user_prompt = load_from_txt(user_prompt_file)
 
-    # Gemini Settings
-    gemini_api_key = get_api_key()
-
     return {
-        "model": config["gemini_model"],
-        "api_key": gemini_api_key,
-        "thinking_level": config["gemini_thinking_level"],
+        "gemini_settings": config["gemini_settings"],
         "instruction": system_instructions,
         "user_prompt": user_prompt,
     }
@@ -85,9 +78,9 @@ def gemini_config() -> Dict[str, str]:
 def gemini_client(
     gemini_config: Dict[str, str],
 ) -> Generator[genai.Client, None, None]:
-    from sign_reader.client import init_client
+    from curb_utils.ai_client import init_gemini_client
 
-    with init_client(gemini_config["api_key"], use_cache=False) as client:
+    with init_gemini_client() as client:
         yield client
 
 
