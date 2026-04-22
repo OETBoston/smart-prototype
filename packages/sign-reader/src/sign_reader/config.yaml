@@ -22,5 +22,5 @@ sign_assets:
 
 # PostgreSQL export settings for curb segments
 # Both are OPTIONAL - but a description is recommended.
-# sr_job_name: "Charlestown Test (subset)"
-sr_job_description: "Test run"
+sr_job_name: "Charlestown test subset"
+sr_job_description: "Run of small Charlestown test dataset"
