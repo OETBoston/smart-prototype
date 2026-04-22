@@ -1,3 +1,3 @@
-from curb_utils.io_tools.config import load_config
+from curb_utils.io_tools.utils import load_from_txt, load_from_yaml
 
-__all__ = ["load_config"]
+__all__ = ["load_from_yaml", "load_from_txt"]
