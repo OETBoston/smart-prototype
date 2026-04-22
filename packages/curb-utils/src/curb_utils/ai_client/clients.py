@@ -3,7 +3,7 @@ import os
 from google import genai
 
 
-def init_gemini_client(api_key: str | None) -> genai.Client:
+def init_gemini_client(api_key: str | None = None) -> genai.Client:
     """
     Initialize a Gemini Client. If no API key is provided,
     will attempt to load from the environment variable "GEMINI_API_KEY".
