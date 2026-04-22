@@ -1,0 +1,266 @@
+[
+  {
+    "description": "Empty rules -> 99",
+    "policy": {
+      "rules": [],
+      "time_spans": []
+    },
+    "expected_priority": 99
+  },
+  {
+    "description": "Blanket no stopping -> 1",
+    "policy": {
+      "rules": [
+        {
+          "activity": "no stopping",
+          "purposes": []
+        }
+      ],
+      "time_spans": []
+    },
+    "expected_priority": 1
+  },
+  {
+    "description": "Blanket no loading -> 2",
+    "policy": {
+      "rules": [
+        {
+          "activity": "no loading",
+          "purposes": []
+        }
+      ],
+      "time_spans": []
+    },
+    "expected_priority": 2
+  },
+  {
+    "description": "Blanket no parking -> 3",
+    "policy": {
+      "rules": [
+        {
+          "activity": "no parking",
+          "purposes": []
+        }
+      ],
+      "time_spans": []
+    },
+    "expected_priority": 3
+  },
+  {
+    "description": "Temporary allowance -> 10",
+    "policy": {
+      "rules": [
+        {
+          "activity": "parking",
+          "purposes": []
+        }
+      ],
+      "time_spans": [
+        {
+          "time_of_day_start": "08:00",
+          "time_of_day_end": "18:00",
+          "days_of_week": [
+            "mon"
+          ],
+          "start_date": 1704067200000,
+          "end_date": 1706745600000
+        }
+      ]
+    },
+    "expected_priority": 10
+  },
+  {
+    "description": "Temporary prohibition no stopping -> 21",
+    "policy": {
+      "rules": [
+        {
+          "activity": "no stopping",
+          "purposes": []
+        }
+      ],
+      "time_spans": [
+        {
+          "time_of_day_start": "08:00",
+          "time_of_day_end": "18:00",
+          "days_of_week": [
+            "mon"
+          ],
+          "start_date": 1704067200000,
+          "end_date": 1706745600000
+        }
+      ]
+    },
+    "expected_priority": 21
+  },
+  {
+    "description": "Time specific snow emergency no parking -> 33",
+    "policy": {
+      "rules": [
+        {
+          "activity": "no parking",
+          "purposes": []
+        }
+      ],
+      "time_spans": [
+        {
+          "time_of_day_start": "08:00",
+          "time_of_day_end": "18:00",
+          "days_of_week": [
+            "mon"
+          ],
+          "designated_period": [
+            "snow emergency"
+          ]
+        }
+      ]
+    },
+    "expected_priority": 33
+  },
+  {
+    "description": "Time specific constraints no loading -> 37",
+    "policy": {
+      "rules": [
+        {
+          "activity": "no loading",
+          "purposes": []
+        }
+      ],
+      "time_spans": [
+        {
+          "time_of_day_start": "08:00",
+          "time_of_day_end": "18:00",
+          "days_of_week": [
+            "mon"
+          ]
+        }
+      ]
+    },
+    "expected_priority": 37
+  },
+  {
+    "description": "User and time specific allowance -> 40",
+    "policy": {
+      "rules": [
+        {
+          "activity": "parking",
+          "user_classes": [
+            "resident_permit"
+          ],
+          "purposes": []
+        }
+      ],
+      "time_spans": [
+        {
+          "time_of_day_start": "08:00",
+          "time_of_day_end": "18:00",
+          "days_of_week": [
+            "mon"
+          ]
+        }
+      ]
+    },
+    "expected_priority": 40
+  },
+  {
+    "description": "User and time specific prohibition no parking -> 53",
+    "policy": {
+      "rules": [
+        {
+          "activity": "no parking",
+          "user_classes": [
+            "commercial_vehicle"
+          ],
+          "purposes": []
+        }
+      ],
+      "time_spans": [
+        {
+          "time_of_day_start": "08:00",
+          "time_of_day_end": "18:00",
+          "days_of_week": [
+            "mon"
+          ]
+        }
+      ]
+    },
+    "expected_priority": 53
+  },
+  {
+    "description": "User specific allowance -> 60",
+    "policy": {
+      "rules": [
+        {
+          "activity": "parking",
+          "user_classes": [
+            "electric"
+          ],
+          "purposes": []
+        }
+      ],
+      "time_spans": []
+    },
+    "expected_priority": 60
+  },
+  {
+    "description": "User specific prohibition no stopping -> 71",
+    "policy": {
+      "rules": [
+        {
+          "activity": "no stopping",
+          "purposes": [
+            "pickup_dropoff"
+          ]
+        }
+      ],
+      "time_spans": []
+    },
+    "expected_priority": 71
+  },
+  {
+    "description": "Time specific general allowance -> 80",
+    "policy": {
+      "rules": [
+        {
+          "activity": "parking",
+          "purposes": []
+        }
+      ],
+      "time_spans": [
+        {
+          "time_of_day_start": "08:00",
+          "time_of_day_end": "18:00",
+          "days_of_week": [
+            "mon"
+          ]
+        }
+      ]
+    },
+    "expected_priority": 80
+  },
+  {
+    "description": "Blanket unrestricted parking -> 99",
+    "policy": {
+      "rules": [
+        {
+          "activity": "parking",
+          "purposes": []
+        }
+      ],
+      "time_spans": []
+    },
+    "expected_priority": 99
+  },
+  {
+    "description": "Other blanket allowance -> 90",
+    "policy": {
+      "rules": [
+        {
+          "activity": "loading",
+          "purposes": []
+        }
+      ],
+      "time_spans": []
+    },
+    "expected_priority": 90
+  }
+]

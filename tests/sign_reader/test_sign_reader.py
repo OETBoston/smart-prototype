@@ -1,0 +1,244 @@
+import json
+import pathlib
+from typing import Dict, Generator
+
+import pytest
+from google import genai
+from sign_reader.models import Image
+from sign_reader.reader import read_image
+
+TEST_DATA_DIR = pathlib.Path(__file__).parent / "test_data"
+
+
+class SignImagePolicy:
+    """Data structure for loading images and associated JSON.
+    Test JSON files should have the same stem as the image files
+    """
+
+    def __init__(self, image_file) -> None:
+        self.image_path = TEST_DATA_DIR / image_file
+        self.json_path = self.image_path.with_suffix(".json")
+        self.image_bytes = self.load_image()
+        self.policy_json = self.load_json()
+
+    def load_image(self) -> bytes:
+        image_bytes = self.image_path.read_bytes()
+        return image_bytes
+
+    def load_json(self) -> dict:
+        with open(self.json_path, "r") as f:
+            json_data = json.load(f)
+        return json_data
+
+
+def run_gemini(client, config, image_path, image_bytes) -> Dict[str, str]:
+    parsed_image = read_image(
+        client=client,
+        gemini_model=config["model"],
+        system_instruction=config["instruction"],
+        user_prompt=config["user_prompt"],
+        temperature=0.0,
+        image_url=image_path,
+        image_bytes=image_bytes,
+        thinking_level=config["thinking_level"],
+    )
+
+    result_json = json.loads(Image.model_validate(parsed_image).model_dump_json())
+
+    # write results for further inspection
+    out_path = pathlib.Path(TEST_DATA_DIR / image_path).with_suffix(".RESULT.json")
+    with open(out_path, "w+") as f:
+        json.dump(result_json, f, indent=2)
+
+    return result_json
+
+
+@pytest.fixture(scope="session")
+def gemini_config() -> Dict[str, str]:
+    from sign_reader.client import read_instruction
+    from sign_reader.env_loader import get_gemini_config
+
+    model, api_key, thinking_level = get_gemini_config()
+
+    if not api_key:
+        pytest.skip("Gemini API key missing.")
+
+    instruction = read_instruction(
+        "./packages/sign-reader/src/sign_reader/instructions/default_instruction.txt"
+    )
+    user_prompt = read_instruction(
+        "./packages/sign-reader/src/sign_reader/instructions/default_user_prompt.txt"
+    )
+    return {
+        "model": model,
+        "api_key": api_key,
+        "thinking_level": thinking_level,
+        "instruction": instruction,
+        "user_prompt": user_prompt,
+    }
+
+
+@pytest.fixture(scope="session")
+def gemini_client(
+    gemini_config: Dict[str, str],
+) -> Generator[genai.Client, None, None]:
+    from sign_reader.client import init_client
+
+    with init_client(gemini_config["api_key"], use_cache=False) as client:
+        yield client
+
+
+def test_01_limit_2h_times_none(gemini_client, gemini_config) -> None:
+    image_file = "01-limit2hr-1600.0000-none.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_02_limit_30m_anytime_left(gemini_client, gemini_config) -> None:
+    image_file = "02-limit30min-anytime-left.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_03_stclean_times_days_none(gemini_client, gemini_config) -> None:
+    image_file = "03-stclean.0200-0600.tues.thur-none.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_04_no_stopping_anytime_left(gemini_client, gemini_config) -> None:
+    image_file = "04-no_stopping-anytime-left.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_05_no_stopping_anytime_right(gemini_client, gemini_config) -> None:
+    image_file = "05-no_stopping-anytime-right.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_06_cv_times_days_right(gemini_client, gemini_config) -> None:
+    image_file = "06-cv-limit30min-0700.1900-except.sun-right.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_07_pudo_10min_anytime_left(gemini_client, gemini_config) -> None:
+    image_file = "07-pudo-10min-anytime-left.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_08_limit2h_except_resident_left(gemini_client, gemini_config) -> None:
+    image_file = "08-limit2hr-except.resident-0800.1600-left.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_09_accessible_except_sunday_left(gemini_client, gemini_config) -> None:
+    image_file = "09-accessible-except.sun-left.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_10_stclean_weeks_months_none(gemini_client, gemini_config) -> None:
+    image_file = "10-stlclean-0600.0800-2nd.4th.weds-apr.nov.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_11_valet_15m_times_right(gemini_client, gemini_config) -> None:
+    image_file = "11-valet-limit15m-1700.2400-right.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy
+
+
+def test_12_combo_cv_2h_diff_days_right(gemini_client, gemini_config) -> None:
+    image_file = "12-combo-cv-limit30m-except.sat.sun.-limit2h-sat.jpg"
+    test_struct = SignImagePolicy(image_file=image_file)
+    test_policy = test_struct.policy_json
+    result_policy = run_gemini(
+        gemini_client,
+        gemini_config,
+        image_file,
+        test_struct.image_bytes,
+    )
+    assert test_policy == result_policy

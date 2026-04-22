@@ -1,0 +1,1 @@
+Analyze this parking sign image and return the structured JSON output describing all signs, their policies, rules, and time spans.
