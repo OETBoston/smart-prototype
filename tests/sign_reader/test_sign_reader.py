@@ -56,8 +56,7 @@ def run_gemini(client, config, image_path, image_bytes) -> Dict[str, str]:
 
 @pytest.fixture(scope="session")
 def gemini_config() -> Dict[str, str]:
-    from curb_utils.io_tools import load_config
-    from sign_reader.client import read_instruction
+    from curb_utils.io_tools import load_from_txt, load_from_yaml
 
     # Define external files
     local_path = Path("./packages/sign-reader/src/sign_reader")
@@ -66,9 +65,9 @@ def gemini_config() -> Dict[str, str]:
     user_prompt_file = local_path / "instructions/default_user_prompt.txt"
 
     # Load external data
-    config = load_config(config_file)
-    system_instructions = read_instruction(instructions_file)
-    user_prompt = read_instruction(user_prompt_file)
+    config = load_from_yaml(config_file)
+    system_instructions = load_from_txt(instructions_file)
+    user_prompt = load_from_txt(user_prompt_file)
 
     # Gemini Settings
     gemini_api_key = get_api_key()

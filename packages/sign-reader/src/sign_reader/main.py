@@ -12,10 +12,10 @@ import uuid
 from pathlib import Path
 
 from curb_utils.db_utils import append_job
-from curb_utils.io_tools import load_config
+from curb_utils.io_tools import load_from_txt, load_from_yaml
 from dotenv import load_dotenv
 
-from sign_reader.client import init_client, read_instruction
+from sign_reader.client import init_client
 from sign_reader.db_connector import (
     append_sign_policies,
     read_images,
@@ -44,9 +44,9 @@ def main() -> None:
     user_prompt_file = local_path / "instructions/default_user_prompt.txt"
 
     # Load external data
-    config = load_config(config_file)
-    system_instructions = read_instruction(instructions_file)
-    user_prompt = read_instruction(user_prompt_file)
+    config = load_from_yaml(config_file)
+    system_instructions = load_from_txt(instructions_file)
+    user_prompt = load_from_txt(user_prompt_file)
 
     # Gemini Settings
     gemini_temperature = config["gemini_temperature"]

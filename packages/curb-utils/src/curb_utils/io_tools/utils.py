@@ -1,9 +1,10 @@
 import os
+from pathlib import Path
 
 import yaml
 
 
-def load_config(config_file_path: str | os.PathLike) -> dict:
+def load_from_yaml(config_file_path: str | os.PathLike) -> dict:
     """Loads the provided yaml file, raising a useful error if not found.
 
     Args:
@@ -19,3 +20,15 @@ def load_config(config_file_path: str | os.PathLike) -> dict:
         raise FileNotFoundError(f"Config file not found: {config_file_path}") from e
     except Exception as e:
         raise RuntimeError(f"Error loading config file {config_file_path}") from e
+
+
+def load_from_txt(path: Path | str) -> str:
+    """Load a text file. Useful for reading in prompts and instructions
+    Raises FileNotFound if path does not exist."""
+
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Cannot find path to text file {path}")
+    with open(path, "r") as f:
+        text = f.read().strip()
+    return text
