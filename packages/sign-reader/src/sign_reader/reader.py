@@ -1,5 +1,6 @@
 """Gemini content generation and structured image reading logic."""
 
+from curb_utils.ai_client import GeminiOptions
 from google import genai
 from pydantic import ValidationError
 
@@ -8,13 +9,11 @@ from sign_reader.models import Image
 
 def read_image(
     client: genai.Client,
-    gemini_model: str,
     system_instruction: str,
     user_prompt: str,
-    temperature: float,
-    image_url: str,
     image_bytes: bytes,
-    thinking_level: str = "minimal",
+    image_uri: str,
+    model_opts: GeminiOptions | None = None,
     max_retries: int = 3,
 ) -> Image | None:
     """Send image data to Gemini model for structured JSON output.
@@ -25,7 +24,7 @@ def read_image(
         system_instruction (str): Instruction string to guide model response.
         user_prompt (str): User prompt string to guide model response.
         temperature (float): Model temperature. Higher values increase creativity.
-        image_url (str): Image URL to use.
+        image_uri (str): Image URI to use.
         image_bytes (bytes): Raw image data in bytes format.
         thinking_level (str): Thinking level to use.
         max_retries (int): Maximum number of retries for validation failures.
@@ -41,20 +40,10 @@ def read_image(
 
     attempts = 0
 
-    if gemini_model.startswith("gemini-3"):
-        thinking_cfg = genai.types.ThinkingConfig(
-            include_thoughts=False,
-            thinking_level=thinking_level,
-        )
-    else:
-        thinking_cfg = genai.types.ThinkingConfig(
-            include_thoughts=False,
-        )
-
     while attempts <= max_retries:
         # 1. Generate content with the current 'contents' history
         response = client.models.generate_content(
-            model=gemini_model,
+            model=model_opts.model,
             contents=contents,
             config=genai.types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -69,7 +58,7 @@ def read_image(
         if response.parsed is not None:
             if attempts > 0:
                 print(
-                    f"✅ Fixed JSON output for Image {image_url} "
+                    f"✅ Fixed JSON output for Image {image_uri} "
                     f"after {attempts} attempt(s)."
                 )
             return response.parsed
@@ -78,11 +67,11 @@ def read_image(
             if attempts > max_retries:
                 print(
                     f"❌ Max retries reached for validating JSON output "
-                    f"for image {image_url} after {max_retries}. Returning None."
+                    f"for image {image_uri} after {max_retries}. Returning None."
                 )
                 return None
             print(
-                f"⚠️ Failed to validate JSON output for Image {image_url}. "
+                f"⚠️ Failed to validate JSON output for Image {image_uri}. "
                 f"Attempt {attempts}/{max_retries}."
             )
 

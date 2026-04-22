@@ -11,16 +11,15 @@ Author:
 import uuid
 from pathlib import Path
 
+from curb_utils.ai_client import init_gemini_client
 from curb_utils.db_utils import append_job
 from curb_utils.io_tools import load_from_txt, load_from_yaml
 from dotenv import load_dotenv
 
-from sign_reader.client import init_client
 from sign_reader.db_connector import (
     append_sign_policies,
     read_images,
 )
-from sign_reader.env_loader import get_api_key
 from sign_reader.io_utils.image_utils import get_image
 from sign_reader.io_utils.storage import (
     save_parsed_output,
@@ -49,10 +48,7 @@ def main() -> None:
     user_prompt = load_from_txt(user_prompt_file)
 
     # Gemini Settings
-    gemini_temperature = config["gemini_temperature"]
-    gemini_model = config["gemini_model"]
-    gemini_thinking_level = config["gemini_thinking_level"]
-    gemini_api_key = get_api_key()
+    gemini_settings = config["gemini_settings1"]
 
     # Database Settings
     db_name = config["db_name"]
@@ -67,13 +63,6 @@ def main() -> None:
     max_images = config["max_images"]
     job_name = config.get("sr_job_name")
     job_desc = config.get("sr_job_description")
-
-    # TODO: Consider a Pydantic model to validate config settings
-    if not 0.0 <= gemini_temperature <= 2.0:
-        raise ValueError(
-            f"Invalid temperature: {gemini_temperature} "
-            "(Temperature must be within the range [0.0, 2.0])"
-        )
 
     # If in debug mode, save the parsed outputs to disk
     output_dir = Path("outputs/sign_reader")
@@ -105,7 +94,7 @@ def main() -> None:
     logger.info(f"Queueing {len(images_list)} images for processing.")
     records_policies = []
 
-    with init_client(gemini_api_key, use_cache=False) as client:
+    with init_gemini_client() as client:
         for image_uri, sign_id in images_list:
             logger.info(f"Processing Sign ID: {sign_id} | URI: {image_uri}")
             try:
@@ -117,14 +106,22 @@ def main() -> None:
             try:
                 parsed_image = read_image(
                     client,
-                    gemini_model,
-                    system_instructions,
-                    user_prompt,
-                    gemini_temperature,
-                    image_uri,
-                    image_bytes,
-                    gemini_thinking_level,
+                    system_instruction=system_instructions,
+                    user_prompt=user_prompt,
+                    model_opts=gemini_settings,
+                    image_bytes=image_bytes,
+                    image_uri=image_uri,
                 )
+                # parsed_image = read_image(
+                #    client,
+                #    gemini_model,
+                #    system_instructions,
+                #    user_prompt,
+                #    gemini_temperature,
+                #    image_uri,
+                #    image_bytes,
+                #    gemini_thinking_level,
+                # )
             except Exception as e:
                 logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
                 continue
