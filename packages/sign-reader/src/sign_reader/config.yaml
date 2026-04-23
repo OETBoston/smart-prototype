@@ -3,7 +3,7 @@
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
 debug_mode: False
-max_images: 2 # For debugging - run only the first n images. Omit or set to null to run all images
+max_images: null # For debugging - run only the first n images. Omit or set to null to run all images
 
 # Number of simultaneous Gemini calls to allow
 gemini_concurrent_limit: 10
@@ -26,5 +26,5 @@ sign_assets:
 
 # PostgreSQL export settings for curb segments
 # Both are OPTIONAL - but a description is recommended.
-sr_job_name: "TEST-DELETE"
+sr_job_name: "Charlestown subset async test"
 sr_job_description: "Run of small Charlestown test dataset"
