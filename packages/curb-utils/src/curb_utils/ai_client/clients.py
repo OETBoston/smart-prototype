@@ -1,4 +1,6 @@
 import os
+import random
+import time
 from typing import Type
 
 from google import genai
@@ -69,6 +71,16 @@ def call_gemini_client(
     # Use the defaults if model_opts are not provided
     if model_opts is None:
         model_opts = GeminiOptions()
+
+    if model_opts.mock_ai:
+        # When running a mock AI client, simply pause
+        # for a moment and then return an empty content response
+        print("Mocking AI")
+        MIN_PAUSE = 1
+        MAX_PAUSE = 5
+        pause = random.randint(MIN_PAUSE, MAX_PAUSE)
+        time.sleep(pause)  # For async, need to chance to asyncio.sleep(pause)
+        return GenerateContentResponse()
 
     config_gemini_typed = genai.types.GenerateContentConfig(
         system_instruction=system_instruction,

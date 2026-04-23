@@ -7,6 +7,7 @@ _GEMINI_DEFAULTS = {
     "temperature": 0,
     "thinking_level": "low",
     "include_thoughts": False,
+    "mock_ai": False,
 }
 
 
@@ -25,6 +26,7 @@ class GeminiOptions(ModelOptions):
         default=_GEMINI_DEFAULTS["thinking_level"]
     )
     include_thoughts: bool | None = Field(default=_GEMINI_DEFAULTS["include_thoughts"])
+    mock_ai: bool = Field(default=_GEMINI_DEFAULTS["mock_ai"])
 
     @model_validator(mode="after")
     def validate_thinking_level(self) -> "GeminiOptions":
