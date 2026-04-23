@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from sign_reader.models import Image
 
 
-def read_image(
+async def read_image(
     client: genai.Client,
     system_instruction: str,
     user_prompt: str,
@@ -45,7 +45,7 @@ def read_image(
 
     while attempts <= max_retries:
         # 1. Generate content with the current 'contents' history
-        response = call_gemini_client(
+        response = await call_gemini_client(
             client=client,
             system_instruction=system_instruction,
             contents=contents,

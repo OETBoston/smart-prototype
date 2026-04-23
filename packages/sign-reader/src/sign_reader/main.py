@@ -68,10 +68,11 @@ async def main() -> None:
     job_desc = config.get("sr_job_description")
 
     # async settings
-    # sem_limit: int = config.get("gemini_concurrent_limit", 1)
+    sem_limit: int = config.get("gemini_concurrent_limit", 1)
 
     # Set up the semaphore - defaulting to max 1 if not set
-    # sem = asyncio.Semaphore(sem_limit)
+    sem = asyncio.Semaphore(sem_limit)
+    lock = asyncio.Lock()
 
     # If in debug mode, save the parsed outputs to disk
     output_dir = Path("outputs/sign_reader")
@@ -104,25 +105,29 @@ async def main() -> None:
     records_policies = []
 
     with init_gemini_client() as client:
-        ### Put in asyncio.TaskGroup() as tg: -->
-        ### then create tasks using tg.create_task(<<function to run>>)
-        for image_uri, sign_id in images_list:
-            logger.info(f"Processing Sign ID: {sign_id} | URI: {image_uri}")
+        async with asyncio.TaskGroup() as tg:
+            ### then create tasks using tg.create_task(<<function to run>>)
+            for image_uri, sign_id in images_list:
+                logger.info(f"Processing Sign ID: {sign_id} | URI: {image_uri}")
 
-            await process_image(
-                client=client,
-                system_instruction=system_instruction,
-                user_prompt=user_prompt,
-                image_uri=image_uri,
-                sign_id=sign_id,
-                job_id=job_id,
-                debug_mode=debug_mode,
-                output_dir=output_dir,
-                logger=logger,
-                records_policies=records_policies,
-                model_opts=gemini_settings,
-                max_retries=max_images,
-            )
+                tg.create_task(
+                    process_image(
+                        client=client,
+                        sem=sem,
+                        lock=lock,
+                        system_instruction=system_instruction,
+                        user_prompt=user_prompt,
+                        image_uri=image_uri,
+                        sign_id=sign_id,
+                        job_id=job_id,
+                        debug_mode=debug_mode,
+                        output_dir=output_dir,
+                        logger=logger,
+                        records_policies=records_policies,
+                        model_opts=gemini_settings,
+                        max_retries=max_images,
+                    )
+                )
 
     # 4. Final Batch Upload
     if records_policies:
@@ -133,6 +138,8 @@ async def main() -> None:
 
 async def process_image(
     client: genai.Client,
+    sem: asyncio.Semaphore,
+    lock: asyncio.Lock,
     system_instruction: str,
     user_prompt: str,
     image_uri: str,
@@ -151,18 +158,20 @@ async def process_image(
         logger.warning(f"Failed to load {image_uri}: {e}", exc_info=True)
         return
 
-    try:
-        parsed_image = read_image(
-            client,
-            system_instruction=system_instruction,
-            user_prompt=user_prompt,
-            model_opts=model_opts,
-            image_bytes=image_bytes,
-            image_uri=image_uri,
-        )
-    except Exception as e:
-        logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
-        return
+    # Running the LLM in async, processing the results
+    async with sem:
+        try:
+            parsed_image = await read_image(
+                client,
+                system_instruction=system_instruction,
+                user_prompt=user_prompt,
+                model_opts=model_opts,
+                image_bytes=image_bytes,
+                image_uri=image_uri,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
+            return
 
     if parsed_image is None or not parsed_image.signs:
         # TODO: Return a policy indicating an issue with this sign/image
@@ -173,35 +182,39 @@ async def process_image(
     if debug_mode:
         save_parsed_output(parsed_image, output_dir, image_uri, str(sign_id))
     else:  # Only write to the database if not indebug mode
-        for s in parsed_image.signs:
-            arrow_value = s.arrow if s.arrow and s.arrow.lower() != "none" else None
+        ####### LOCK #######
+        # This section needs to be locked to prevent race conditions
+        async with lock:
+            for s in parsed_image.signs:
+                arrow_value = s.arrow if s.arrow and s.arrow.lower() != "none" else None
 
-            s.policy.priority = get_policy_priority(s.policy)
+                s.policy.priority = get_policy_priority(s.policy)
 
-            # TODO: Remove AI Confidence Score, or do a bit of cleanup here if
-            # we are keeping it
-            records_policies.append(
-                {
-                    "sign_policy_id": uuid.uuid4(),
-                    "sign_id": sign_id,
-                    "policy_json": s.policy.model_dump_json(
-                        indent=4,
-                        exclude={
-                            "rules": {"__all__": {"confidence"}},
-                            "time_spans": {"__all__": {"confidence"}},
-                        },
-                    ),
-                    "policy_arrow": arrow_value,
-                    "ai_confidence_score": int(getattr(s, "confidence", 0) * 100),
-                }
-            )
-        if len(records_policies) >= BATCH_SIZE:
-            logger.info(
-                f"Threshold reached ({len(records_policies)}). Uploading batch..."
-            )
-            append_sign_policies(records_policies, job_id)
-            records_policies.clear()  # Empty the list for the next batch
-            logger.info("Batch upload successful.")
+                # TODO: Remove AI Confidence Score, or do a bit of cleanup here if
+                # we are keeping it
+
+                records_policies.append(
+                    {
+                        "sign_policy_id": uuid.uuid4(),
+                        "sign_id": sign_id,
+                        "policy_json": s.policy.model_dump_json(
+                            indent=4,
+                            exclude={
+                                "rules": {"__all__": {"confidence"}},
+                                "time_spans": {"__all__": {"confidence"}},
+                            },
+                        ),
+                        "policy_arrow": arrow_value,
+                        "ai_confidence_score": int(getattr(s, "confidence", 0) * 100),
+                    }
+                )
+            if len(records_policies) >= BATCH_SIZE:
+                logger.info(
+                    f"Threshold reached ({len(records_policies)}). Uploading batch..."
+                )
+                append_sign_policies(records_policies, job_id)
+                records_policies.clear()  # Empty the list for the next batch
+                logger.info("Batch upload successful.")
 
     logger.debug(f"Successfully parsed {len(parsed_image.signs)} signs.")
 

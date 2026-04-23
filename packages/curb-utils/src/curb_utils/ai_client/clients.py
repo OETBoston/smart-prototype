@@ -1,6 +1,6 @@
+import asyncio
 import os
 import random
-import time
 from typing import Type
 
 from google import genai
@@ -43,7 +43,7 @@ def init_gemini_client(api_key: str | None = None) -> genai.Client:
     return client
 
 
-def call_gemini_client(
+async def call_gemini_client(
     client: genai.Client,
     system_instruction: str,
     contents: genai.types.ContentListUnionDict,
@@ -79,7 +79,8 @@ def call_gemini_client(
         MIN_PAUSE = 1
         MAX_PAUSE = 5
         pause = random.randint(MIN_PAUSE, MAX_PAUSE)
-        time.sleep(pause)  # For async, need to chance to asyncio.sleep(pause)
+        # time.sleep(pause)  # For async, need to chance to asyncio.sleep(pause)
+        await asyncio.sleep(pause)  # For async, need to chance to asyncio.sleep(pause)
         return GenerateContentResponse()
 
     config_gemini_typed = genai.types.GenerateContentConfig(
@@ -93,7 +94,7 @@ def call_gemini_client(
         ),
     )
 
-    return client.models.generate_content(
+    return await client.aio.models.generate_content(
         model=model_opts.model,
         contents=contents,
         config=config_gemini_typed,
