@@ -29,7 +29,14 @@ def get_policy_priority(policy: Policy) -> int:
     def is_span_time_specific(ts) -> bool:
         all_days = {"sun", "mon", "tue", "wed", "thu", "fri", "sat"}
         has_full_week = set(ts.days_of_week) == all_days
-        has_full_day = ts.time_of_day_start == "00:00" and ts.time_of_day_end == "00:00"
+
+        valid_starts = {"00:00", "00:01"}
+        valid_ends = {"00:00", "23:59"}
+        has_full_day = (
+            ts.time_of_day_start in valid_starts and 
+            ts.time_of_day_end in valid_ends
+        )
+        
         has_full_months = ts.months is None or set(ts.months) == set(range(1, 13))
         no_designated_period = not ts.designated_period
 
@@ -38,7 +45,10 @@ def get_policy_priority(policy: Policy) -> int:
         )
         return not is_blanket_span
 
-    is_time_specific = any(is_span_time_specific(ts) for ts in spans)
+    if not spans:
+        is_time_specific = False
+    else:
+        is_time_specific = any(is_span_time_specific(ts) for ts in spans)
 
     has_start_stop_date = any(
         getattr(ts, "start_date", None) is not None
