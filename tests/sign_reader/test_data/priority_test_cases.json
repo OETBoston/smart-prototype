@@ -262,5 +262,38 @@
       "time_spans": []
     },
     "expected_priority": 90
+  },
+  {
+    "description": "Blanket parking allowance with full-day time span -> 99",
+    "policy": {
+      "rules": [
+        {
+          "activity": "parking",
+          "purposes": [],
+          "user_classes": null,
+          "user_classes_except": null
+        }
+      ],
+      "time_spans": [
+        {
+          "days_of_week": [
+            "sun",
+            "mon",
+            "tue",
+            "wed",
+            "thu",
+            "fri",
+            "sat"
+          ],
+          "time_of_day_start": "00:00",
+          "time_of_day_end": "00:00",
+          "months": null,
+          "weeks_of_month": null,
+          "days_of_month": null,
+          "designated_period": null
+        }
+      ]
+    },
+    "expected_priority": 99
   }
 ]
