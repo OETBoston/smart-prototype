@@ -64,8 +64,13 @@ def _create_policy_sub_elements(
             **{k: ts.get(k) for k in ["start_date",
                                       "end_date",
                                       "days_of_week",
+                                      "days_of_month",
+                                      "weeks_of_month",
+                                      "months",
                                       "time_of_day_start",
-                                      "time_of_day_end"]}
+                                      "time_of_day_end",
+                                      "designated_period",
+                                      "designated_period_except"]}
         }
         for ts in policy_data.get("time_spans", [])
     ]
