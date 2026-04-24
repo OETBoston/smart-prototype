@@ -28,12 +28,30 @@ from sign_reader.io_utils.storage import (
     save_parsed_output,
 )
 from sign_reader.logging_tools import get_logger
+from sign_reader.models import Activity, Image, Policy, Rule, Sign
 from sign_reader.pre_reader import pre_test_image
 from sign_reader.priority_engine import get_policy_priority
 from sign_reader.reader import read_image
 
 BATCH_SIZE = 50
 load_dotenv()
+
+
+def unusable_image() -> Image:
+    # Define the unusable policy
+    return Image(
+        signs=[
+            Sign(
+                policy=Policy(
+                    priority=98,
+                    time_spans=[],
+                    rules=[
+                        Rule(activity=Activity(value="unusable image"), purposes=None)
+                    ],
+                )
+            )
+        ]
+    )
 
 
 async def main() -> None:
@@ -187,20 +205,22 @@ async def process_image(
         if not pre_check[0]:
             logger.warning(f"Image {image_uri} failed pre-check.")
             logger.warning(pre_check[1])
-            return  # TODO: Return a relevant CDS policy
 
-        try:
-            parsed_image = await read_image(
-                client,
-                system_instruction=system_instruction,
-                user_prompt=user_prompt,
-                model_opts=model_opts,
-                image_bytes=image_bytes,
-                image_uri=image_uri,
-            )
-        except Exception as e:
-            logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
-            return
+            parsed_image = unusable_image()
+
+        else:
+            try:
+                parsed_image = await read_image(
+                    client,
+                    system_instruction=system_instruction,
+                    user_prompt=user_prompt,
+                    model_opts=model_opts,
+                    image_bytes=image_bytes,
+                    image_uri=image_uri,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
+                return
 
     if parsed_image is None or not parsed_image.signs:
         # TODO: Return a policy indicating an issue with this sign/image

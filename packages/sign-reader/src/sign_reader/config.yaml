@@ -6,7 +6,7 @@ debug_mode: False
 max_images: null # For debugging - run only the first n images. Omit or set to null to run all images
 
 # Number of simultaneous Gemini calls to allow
-gemini_concurrent_limit: 10
+gemini_concurrent_limit: 50
 
 # Gemini model settings
 
