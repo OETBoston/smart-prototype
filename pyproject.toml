@@ -26,6 +26,7 @@ curb-utils = { workspace = true}
 policies-ai = {workspace = true}
 blockface-creator = {workspace = true}
 curb-segmenter = {workspace = true}
+api-update = {workspace = true}
 
 [tool.uv.workspace]
 members = ["packages/*"]
