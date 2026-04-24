@@ -4,7 +4,7 @@ import asyncio
 import time
 from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any, TypeGuard
 
 from curb_utils.ai_client import GeminiOptions, call_gemini_client, init_gemini_client
 from curb_utils.io_tools import load_from_txt
@@ -18,23 +18,28 @@ class YesNo(str, Enum):
     no = "no"
 
 
-class Quantity(str, Enum):
-    one = "one"
-    two = "two"
-    three = "three"
-    four_plus = "four or more"
+class HasValue(BaseModel):
+    value: Any
 
 
-class YesNoResponse(BaseModel):
+class YesNoResponse(HasValue):
     value: YesNo
 
 
-class QuantityResponse(BaseModel):
-    value: Quantity
-
-
-class PositiveIntResponse(BaseModel):
+class PositiveIntResponse(HasValue):
     value: Annotated[int, Field(ge=1)]
+
+
+def is_valid_response(obj: object, schema: type[HasValue]) -> TypeGuard[HasValue]:
+    return isinstance(obj, schema)
+
+
+class PromptInfo(BaseModel):
+    prompt: str
+    response_schema: type[HasValue] | None = None
+    acceptable_response: Any = None
+    error_text: str
+    run_check: bool = True
 
 
 async def pre_test_image(
@@ -42,67 +47,98 @@ async def pre_test_image(
     system_instruction: str,
     image_bytes: bytes,
     model_opts: GeminiOptions | None = None,
-) -> None:
+    check_multiple: bool = False,
+) -> tuple[bool, str]:
     prompts = (
-        (
-            "Answer with yes or no: Does this image contain one or more signs?",
-            YesNoResponse,
+        PromptInfo(
+            prompt="Answer with yes or no: Does this image contain "
+            + "one or more signs?",
+            response_schema=YesNoResponse,
+            acceptable_response=YesNo.yes,
+            error_text="Image does not contain signs",
         ),
-        (
-            "Answer with yes or no: Is the image high enough quality to accurately "
-            + "read ALL information on the sign or signs? Answer no if the image is "
-            + "difficult to read becuase it is low-resolution, blurry, or because "
-            + "signs are obscured.",
-            YesNoResponse,
-            # None,
+        PromptInfo(
+            prompt="Answer with yes or no: Is the image high enough quality to "
+            + "accurately read ALL information on the sign or signs?  Answer no if the "
+            + "image can not be read becuase it is low-resolution, blurry, or "
+            + "because signs are obscured.",
+            acceptable_response=YesNo.yes,
+            response_schema=YesNoResponse,
+            error_text="Image is not of high enough quality",
         ),
-        ("How many complete signs are present in the image?", PositiveIntResponse),
-        # ("How many complete signs are present in the image?", QuantityResponse),
-        (
-            "Does at least one sign contain information about parking, "
+        PromptInfo(
+            prompt="How many complete signs are present in the image? Do not count "
+            + "signs that are not street signs or that are only partially in the "
+            + "image.",
+            response_schema=PositiveIntResponse,
+            acceptable_response=1,
+            error_text="Image contains more than one sign",
+            run_check=check_multiple,
+        ),
+        PromptInfo(
+            prompt="Does at least one sign contain information about parking, "
             + "loading, stopping, or standing regulations?",
-            YesNoResponse,
+            response_schema=YesNoResponse,
+            acceptable_response=YesNo.yes,
+            error_text="Sign does not contain parking regulation information",
         ),
-        (
-            "Is the only sign a 'Park Boston' sign with a meter zone number?",
-            YesNoResponse,
+        PromptInfo(
+            prompt="Is the only sign a 'Park Boston' sign with a meter zone number?",
+            response_schema=YesNoResponse,
+            acceptable_response=YesNo.no,
+            error_text="Image is only a Park Boston meter sign",
         ),
     )
 
-    for user_prompt, response_schema in prompts:
+    for prompt_obj in prompts:
         contents: genai.types.ContentListUnionDict = [
             genai.types.Content(
                 parts=[
                     genai.types.Part.from_bytes(
                         data=image_bytes, mime_type="image/jpeg"
                     ),
-                    genai.types.Part.from_text(text=user_prompt),
+                    genai.types.Part.from_text(text=prompt_obj.prompt),
                 ]
             )
         ]
 
         print("-----------------------------------")
-        print(user_prompt)
+        print(prompt_obj.prompt)
         start = time.perf_counter()
 
-        mime = "application/json" if response_schema else "text/plain"
+        mime = "application/json" if prompt_obj.response_schema else "text/plain"
 
         response = await call_gemini_client(
             client=client,
             system_instruction=system_instruction,
             contents=contents,
-            response_schema=response_schema,
+            response_schema=prompt_obj.response_schema,
             response_mime_type=mime,
             model_opts=model_opts,
         )
 
-        if response_schema:
-            print(response.parsed.value)
+        if prompt_obj.response_schema:
+            if is_valid_response(response.parsed, prompt_obj.response_schema):
+                result = response.parsed.value
+            else:
+                result = None
         else:
-            print(response.text)
+            result = response.text
 
-        print(f"Used {response.usage_metadata.total_token_count} tokens.")
+        print(result)
+        if response.usage_metadata is not None:
+            print(f"Used {response.usage_metadata.total_token_count} tokens.")
         print(f"Done in {time.perf_counter() - start:.2f} seconds.")
+
+        if not result:
+            return (False, "LLM did not produce a valid response")
+        if result != prompt_obj.acceptable_response:
+            print(f"Image rejected: {prompt_obj.error_text}")
+            return (False, prompt_obj.error_text)
+
+    # Indicate success if we're still here
+    print("Image accepted.")
+    return (True, "")
 
 
 if __name__ == "__main__":
@@ -132,7 +168,7 @@ if __name__ == "__main__":
         mock_ai=False,
     )  # For debugging, mock the AI call instead of running it
 
-    test_image = test_image_path / images[4]
+    test_image = test_image_path / images[0]
 
     image_bytes = test_image.read_bytes()
 
