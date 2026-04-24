@@ -25,7 +25,33 @@ def get_policy_priority(policy: Policy) -> int:
         bool(r.user_classes) or bool(r.user_classes_except) or bool(r.purposes)
         for r in rules
     )
-    is_time_specific = bool(spans)
+
+    def is_span_time_specific(ts) -> bool:
+        all_days = {"sun", "mon", "tue", "wed", "thu", "fri", "sat"}
+        has_full_week = set(ts.days_of_week) == all_days
+
+        # per cds, starts time are inclusive, end times exclusive.
+        # midnight *should* always be 00:00. this is defensive against
+        # ai generated policies failing to adhere strictly.
+        midnight_starts = {"00:00", "00:01"}
+        midnight_ends = {"00:00", "23:59"}
+        has_full_day = (
+            ts.time_of_day_start in midnight_starts
+            and ts.time_of_day_end in midnight_ends
+        )
+
+        has_full_months = ts.months is None or set(ts.months) == set(range(1, 13))
+        no_designated_period = not ts.designated_period
+
+        is_blanket_span = (
+            has_full_week and has_full_day and has_full_months and no_designated_period
+        )
+        return not is_blanket_span
+
+    if not spans:
+        is_time_specific = False
+    else:
+        is_time_specific = any(is_span_time_specific(ts) for ts in spans)
 
     has_start_stop_date = any(
         getattr(ts, "start_date", None) is not None
