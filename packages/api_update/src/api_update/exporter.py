@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-from smart_curb_db import SmartCurbDB
+from curb_utils.db_utils import SmartCurbDB
 
 logger = logging.getLogger(__name__)
 
