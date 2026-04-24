@@ -92,7 +92,7 @@ def main(
 
 
 if __name__ == "__main__":
-    job_id = "fd510244-98fe-44a6-9134-1a2a19396573"
+    job_id = "9b06f534-9b28-4769-bbed-bf8475433b58"
     staging_db_schema = "staging_next"
     api_db_schema = "public_cds_next"
     main(
