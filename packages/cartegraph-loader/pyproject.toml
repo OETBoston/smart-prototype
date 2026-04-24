@@ -1,0 +1,28 @@
+[project]
+name = "cartegraph-loader"
+version = "0.1.0"
+description = "Preprocesses Cartegraph signs"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "curb-utils",
+    "dotenv>=0.9.9",
+    "geopandas>=1.1.3",
+    "pandas>=3.0.2",
+    "shapely>=2.1.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cartegraph_loader"]
+
+[tool.uv.sources]
+curb-utils = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "ipython>=9.12.0",
+]
