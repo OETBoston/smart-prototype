@@ -1,0 +1,46 @@
+# ==============================================================================
+# Configuration File for Cartegraph Loader
+# ==============================================================================
+# This YAML file defines all parameters and settings required to run the
+# Cartegraph loader workflow. It provides centralized control over data input paths,
+# preprocessing options, required parameters, inference thresholds, and output
+# specifications.
+#
+#
+# Modify these parameters as needed for different datasets and environments.
+# All paths should be absolute or relative to the project root.
+# ==============================================================================
+
+job_name: "test-job"
+job_description: "this is for testing"
+data_source_name: "Cartegraph"
+
+dbname: "cds"
+schema: "staging_next"
+
+grouping_distance_ft: 5
+signs_path: "data/boston-cartegraph.csv"
+neighborhoods_path: "data/boston_neighborhood_boundaries/Boston_Neighborhood_Boundaries.shp"
+
+neighborhoods:
+  - Charlestown
+
+parking_mutcd_codes:
+  - "P-"
+  - "MS-"
+  - "PB-"
+  - "S-"
+  - "AC-"
+  - "T-"
+  - "TS-"
+  - "TC-"
+  - "R7-107a"
+  - "R7-4"
+  - "R7-21"
+  - "MPBZ"
+
+status_filters:
+  - "Missing"
+  - "Proposed"
+
+output_crs: "EPSG:4326"
