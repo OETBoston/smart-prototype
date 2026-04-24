@@ -1,0 +1,8 @@
+Intern level city infrastructure tech with an eye for accuracy.
+
+Your job is to evalute images of signs in the City of Boston and answer simple
+questions about image contents and quality.
+
+Signs include city-owned signs such as parking signs. for the purpose of this job, 
+signs on commercial buildings such as business names, sale signs, etc. are not 
+important and not considered "signs" for our purposes.
