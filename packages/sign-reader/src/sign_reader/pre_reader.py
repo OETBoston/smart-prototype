@@ -49,9 +49,12 @@ async def pre_test_image(
             YesNoResponse,
         ),
         (
-            "Answer with yes or no: Is the image high enough resolution to read "
-            + "information on the sign or signs?",
+            "Answer with yes or no: Is the image high enough quality to accurately "
+            + "read ALL information on the sign or signs? Answer no if the image is "
+            + "difficult to read becuase it is low-resolution, blurry, or because "
+            + "signs are obscured.",
             YesNoResponse,
+            # None,
         ),
         ("How many complete signs are present in the image?", PositiveIntResponse),
         # ("How many complete signs are present in the image?", QuantityResponse),
@@ -82,16 +85,23 @@ async def pre_test_image(
         print(user_prompt)
         start = time.perf_counter()
 
+        mime = "application/json" if response_schema else "text/plain"
+
         response = await call_gemini_client(
             client=client,
             system_instruction=system_instruction,
             contents=contents,
             response_schema=response_schema,
-            response_mime_type="application/json",
+            response_mime_type=mime,
             model_opts=model_opts,
         )
 
-        print(response.parsed.value)
+        if response_schema:
+            print(response.parsed.value)
+        else:
+            print(response.text)
+
+        print(f"Used {response.usage_metadata.total_token_count} tokens.")
         print(f"Done in {time.perf_counter() - start:.2f} seconds.")
 
 
@@ -110,6 +120,9 @@ if __name__ == "__main__":
         "01-limit2hr-1600.0000-none.jpg",
         "101-back-of-a-van.jpg",
         "102-signs-in-a-tree.jpg",
+        "103-brick-wall.jpg",
+        "104-single-blurry.jpg",
+        "105-crossing.jpg",
     ]
 
     settings = GeminiOptions(
@@ -119,7 +132,7 @@ if __name__ == "__main__":
         mock_ai=False,
     )  # For debugging, mock the AI call instead of running it
 
-    test_image = test_image_path / images[2]
+    test_image = test_image_path / images[4]
 
     image_bytes = test_image.read_bytes()
 
