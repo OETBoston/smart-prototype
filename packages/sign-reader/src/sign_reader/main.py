@@ -28,6 +28,7 @@ from sign_reader.io_utils.storage import (
     save_parsed_output,
 )
 from sign_reader.logging_tools import get_logger
+from sign_reader.pre_reader import pre_test_image
 from sign_reader.priority_engine import get_policy_priority
 from sign_reader.reader import read_image
 
@@ -43,15 +44,18 @@ async def main() -> None:
     local_path = Path(__file__).resolve().parent
     config_file = local_path / "config.yaml"
     instruction_file = local_path / "instructions/default_instruction.txt"
+    pre_instruction_file = local_path / "instructions/preprocess_instruction.txt"
     user_prompt_file = local_path / "instructions/default_user_prompt.txt"
 
     # Load external data
     config = load_from_yaml(config_file)
     system_instruction = load_from_txt(instruction_file)
+    pre_system_instruction = load_from_txt(pre_instruction_file)
     user_prompt = load_from_txt(user_prompt_file)
 
     # Gemini Settings
-    gemini_settings = GeminiOptions(**config["gemini_settings"])
+    model_opts = GeminiOptions(**config["gemini_settings"])
+    pre_model_opts = GeminiOptions(**config["gemini_preprocess_settings"])
 
     # Database Settings
     db_name = config["db_name"]
@@ -118,6 +122,7 @@ async def main() -> None:
                         client=client,
                         sem=sem,
                         lock=lock,
+                        pre_system_instruction=pre_system_instruction,
                         system_instruction=system_instruction,
                         user_prompt=user_prompt,
                         image_uri=image_uri,
@@ -127,7 +132,8 @@ async def main() -> None:
                         output_dir=output_dir,
                         logger=logger,
                         records_policies=records_policies,
-                        model_opts=gemini_settings,
+                        pre_model_opts=pre_model_opts,
+                        model_opts=model_opts,
                         max_retries=max_images,
                     )
                 )
@@ -143,6 +149,7 @@ async def process_image(
     client: genai.Client,
     sem: asyncio.Semaphore,
     lock: asyncio.Lock,
+    pre_system_instruction: str,
     system_instruction: str,
     user_prompt: str,
     image_uri: str,
@@ -152,6 +159,7 @@ async def process_image(
     output_dir: Path,
     logger: Logger,
     records_policies: list,
+    pre_model_opts: GeminiOptions | None = None,
     model_opts: GeminiOptions | None = None,
     max_retries: int = 3,
 ) -> None:
@@ -163,6 +171,24 @@ async def process_image(
 
     # Running the LLM in async, processing the results
     async with sem:
+        # Pre-process the image
+        try:
+            pre_check = await pre_test_image(
+                client=client,
+                system_instruction=pre_system_instruction,
+                image_bytes=image_bytes,
+                model_opts=pre_model_opts,
+                check_multiple=False,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to pre-process {image_uri}: {e}", exc_info=True)
+            return None
+
+        if not pre_check[0]:
+            logger.warning(f"Image {image_uri} failed pre-check.")
+            logger.warning(pre_check[1])
+            return  # TODO: Return a relevant CDS policy
+
         try:
             parsed_image = await read_image(
                 client,
