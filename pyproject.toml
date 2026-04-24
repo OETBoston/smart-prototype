@@ -28,6 +28,7 @@ policies-ai = {workspace = true}
 blockface-creator = {workspace = true}
 curb-segmenter = {workspace = true}
 sign-reader = {workspace = true}
+api-update = {workspace = true}
 
 [tool.uv.workspace]
 members = ["packages/*"]
