@@ -90,7 +90,7 @@ async def pre_test_image(
         ),
     )
 
-    for prompt_obj in prompts:
+    for prompt_obj in [p for p in prompts if p.run_check]:
         contents: genai.types.ContentListUnionDict = [
             genai.types.Content(
                 parts=[

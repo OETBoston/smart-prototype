@@ -34,5 +34,5 @@ sign_assets:
 
 # PostgreSQL export settings for curb segments
 # Both are OPTIONAL - but a description is recommended.
-sr_job_name: "Charlestown subset async test"
-sr_job_description: "Run of small Charlestown test dataset"
+sr_job_name: "Charlsetown with Pre-processor"
+sr_job_description: "Run of small Charlestown test dataset with the pre-processor"
