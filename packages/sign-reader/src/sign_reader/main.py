@@ -114,7 +114,7 @@ async def main() -> None:
             prompt=user_prompt,
         )
 
-    logger.info("Fetching images from database...")
+    logger.info("Fetching list from database...")
     images_list = read_images(
         asset_job_id=uuid.UUID(sign_job_id) if sign_job_id else None,
         re_process=sign_re_process,
@@ -133,8 +133,6 @@ async def main() -> None:
         async with asyncio.TaskGroup() as tg:
             ### then create tasks using tg.create_task(<<function to run>>)
             for image_uri, sign_id in images_list:
-                logger.info(f"Processing Sign ID: {sign_id} | URI: {image_uri}")
-
                 tg.create_task(
                     process_image(
                         client=client,
@@ -181,14 +179,15 @@ async def process_image(
     model_opts: GeminiOptions | None = None,
     max_retries: int = 3,
 ) -> None:
-    try:
-        image_bytes = get_image(image_uri)
-    except Exception as e:
-        logger.warning(f"Failed to load {image_uri}: {e}", exc_info=True)
-        return
-
-    # Running the LLM in async, processing the results
+    # Running the image download and LLM in async, processing the results
     async with sem:
+        logger.info(f"Processing Sign ID: {sign_id} | URI: {image_uri}")
+        try:
+            image_bytes = get_image(image_uri)
+        except Exception:
+            logger.warning(f"Failed to load {image_uri}:")
+            return
+
         # Pre-process the image
         try:
             pre_check = await pre_test_image(
@@ -198,8 +197,8 @@ async def process_image(
                 model_opts=pre_model_opts,
                 check_multiple=False,
             )
-        except Exception as e:
-            logger.warning(f"Failed to pre-process {image_uri}: {e}", exc_info=True)
+        except Exception:
+            logger.warning(f"Failed to pre-process {image_uri}:")
             return None
 
         if not pre_check[0]:

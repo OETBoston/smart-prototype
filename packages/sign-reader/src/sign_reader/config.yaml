@@ -30,9 +30,9 @@ db_schema: "staging_next"
 # Sign source data settings
 sign_assets:
   job_id: null # Include a sign job ID to filter, or null/omit to run for all signs
-  re_process: True # True to re-process signs that already have policies. Defaults to False.
+  re_process: False # True to re-process signs that already have policies. Defaults to False.
 
 # PostgreSQL export settings for curb segments
 # Both are OPTIONAL - but a description is recommended.
-sr_job_name: "Charlsetown with Pre-processor"
-sr_job_description: "Run of small Charlestown test dataset with the pre-processor"
+sr_job_name: "Charlsetown full with Pre-processor Pt 2"
+sr_job_description: "Run of complete Charlestown dataset with the pre-processor (remaining)"
