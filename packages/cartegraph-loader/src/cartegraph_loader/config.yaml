@@ -37,7 +37,6 @@ parking_mutcd_codes:
   - "R7-107a"
   - "R7-4"
   - "R7-21"
-  - "MPBZ"
 
 status_filters:
   - "Missing"

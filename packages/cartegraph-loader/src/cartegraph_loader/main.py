@@ -26,7 +26,7 @@ def preprocess_signs(
 
     # filter for known parking signs
     sign_filter = "|".join(
-        f"{code.lower()}*" for code in config["parking_sign_codes"]
+        f"{code.lower()}*" for code in config["parking_mutcd_codes"]
     )
 
     parking_df = no_nulls[
@@ -58,7 +58,7 @@ def preprocess_signs(
         )
 
     # group nearby signs together by truncating lat/long to the nearest grouping distance
-    grouping_distance = config["grouping_distance"]
+    grouping_distance = config["grouping_distance_ft"]
     signs_gdf["truncated_geometry"] = signs_gdf["geometry"].to_crs("epsg:2249").apply(
         lambda p: Point(
             math.floor(p.x / grouping_distance) * grouping_distance,
@@ -68,6 +68,7 @@ def preprocess_signs(
 
     date_cols = ["entry_date_field", "cg_last_modified_field"]
     signs_gdf[date_cols] = signs_gdf[date_cols].apply(pd.to_datetime)
+    signs_gdf.set_geometry("truncated_geometry", inplace=True)
 
     output_cols = [
         "oid",
@@ -77,9 +78,7 @@ def preprocess_signs(
         "attachment_public_url",
         "cg_last_modified_field",
         "truncated_geometry",
-        "geometry",
-        "attachment_oid",
-        "source_name"
+        "attachment_oid"
     ]
     return signs_gdf[output_cols]
 
@@ -88,10 +87,56 @@ def format_sign_tbls(
         signs_gdf,
         config
     ):
-    signs_gdf["source_name"] = config["data_source_name"]
-    signs_gdf['job_name'] = config["job_name"]
-    signs_gdf['job_description'] = config["job_description"]
-    signs_gdf['job_timestamp'] = datetime.datetime.now()
+    # Format for asset_jobs table
+    job_id = uuid.uuid4()
+    asset_jobs = pd.DataFrame(
+        {
+            "job_id": [job_id],
+            "job_name": [config["job_name"]],
+            "job_description": [config["job_description"]],
+            "job_timestamp": [datetime.datetime.now()]
+        }
+    )
+
+    # Format for data_sources table
+    data_source_id = uuid.uuid4()
+    data_sources = pd.DataFrame(
+        {
+            "data_source_id": [data_source_id],
+            "source_name": [config["data_source_name"]]
+        }
+    )
+
+    # Format for asset_locations table
+    asset_locations = signs_gdf.groupby(
+        ['truncated_geometry'],
+        as_index=False
+    )['oid'].apply(lambda x: "oid: " + ', '.join(str(v) for v in x if pd.notna(v)))
+    asset_locations["asset_location_id"] = [
+        uuid.uuid4() for _ in range(len(asset_locations))
+    ]
+    asset_locations["data_source_id"] = data_source_id
+    asset_locations["job_id"] = job_id
+    asset_locations = asset_locations.rename(
+        columns={
+            "oid": "source_location_id",
+            "truncated_geometry": "location"
+        }
+    )[
+        "asset_location_id",
+        "data_source_id",
+        "job_id",
+        "source_location_id",
+        "location"
+    ]
+
+    # Format for signs table
+
+    # Format for images table
+    return asset_jobs, data_sources, asset_locations
+    
+    # data_sources['source_id'] = [uuid.UUID(uuid.uuid4().hex) for _ in range(len(data_sources))]
+
 
 
 def upload_sign_tbls():
