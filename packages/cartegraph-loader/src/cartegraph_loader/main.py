@@ -109,7 +109,7 @@ def preprocess_signs(
             how="inner"
         )
         logger.info(
-            "Filtered by neighborhoods: %d valid signs in %d neighborhoods",
+            "Filtered by neighborhoods: %d valid signs in %s neighborhoods",
             len(signs_gdf),
             config["neighborhoods"]
         )
@@ -237,7 +237,7 @@ def format_sign_tbls(
     logger.info("Sucessfully formatted signs table")
 
     # Format for images table
-    images = signs_gdf[signs_gdf["attachment_public_url"].notnull()]
+    images = base_signs[base_signs["attachment_public_url"].notnull()]
     images["image_id"] = [str(uuid.uuid4().hex) for _ in range(len(images))]
     images["image_date"] = datetime.datetime.now()
     images = images.rename(
@@ -265,7 +265,7 @@ def format_sign_tbls(
         "signs": signs,
         "images": images
     }
-    logger.info("Successfully formatted all tables for upload")
+    logger.info("Successfully formatted tables for upload")
     return to_upload_dict
 
 
@@ -273,7 +273,7 @@ def upload_sign_tbls(
         upload_dict: dict,
         dbname: str,
         schema: str,
-        logger: logging.Logger, 
+        logger: logging.Logger,
         debug_mode: bool = False
 ) -> None:
     """Upload tables to database.
@@ -301,6 +301,7 @@ def upload_sign_tbls(
 def main():
     """Main function to run the ETL process for loading parking sign data
         into the database."""
+    base_path = "packages/cartegraph-loader/src/cartegraph_loader"
     logger = setup_logging()
     logger.info("="*80)
     logger.info("Starting Cartegraph Signs ETL Pipeline")
@@ -309,20 +310,22 @@ def main():
         # Read in config & files
         logger.info("Loading configuration and input files...")
         config = load_config(
-            "packages/cartegraph-loader/src/cartegraph_loader/config.yaml"
+            f"{base_path}/config.yaml"
         )
-        signs_df = pd.read_csv(config["signs_path"])
+        signs_df = pd.read_csv(f"{base_path}/{config['signs_path']}")
         logger.info(
-            "Loaded %d signs from %s", len(signs_df), config['signs_path']
+            "Loaded %d signs from %s",
+            len(signs_df),
+            f"{base_path}/{config['signs_path']}"
         )
 
         neighborhoods_gdf = gpd.read_file(
-            config["neighborhoods_path"],
+            f"{base_path}/{config['neighborhoods_path']}",
             crs="EPSG:4326"
         )[["name", "geometry"]]
         logger.info(
             "Loaded neighborhoods from %s",
-            config['neighborhoods_path']
+            f"{base_path}/{config['neighborhoods_path']}"
         )
 
         # Clean for relevant signs
