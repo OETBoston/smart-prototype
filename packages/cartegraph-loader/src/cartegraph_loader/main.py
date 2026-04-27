@@ -14,7 +14,9 @@ set before running the script.
 ==============================================================================
 """
 import datetime
+import logging
 import math
+import os
 import uuid
 from dotenv import load_dotenv
 import geopandas as gpd
@@ -25,13 +27,36 @@ from curb_utils.io_tools import load_config
 from curb_utils.db_utils import SmartCurbDB
 
 
+def setup_logging() -> logging.Logger:
+    """Configure logging to write to both console and file."""
+    os.makedirs("logs", exist_ok=True)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # File handler
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_handler = logging.FileHandler(f"logs/cartegraph_loader_{timestamp}.log")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    return logger
+
+
 def preprocess_signs(
         signs_df: pd.DataFrame,
         neighborhoods_gdf: gpd.GeoDataFrame,
-        config: dict
+        config: dict,
+        logger: logging.Logger
     ) -> gpd.GeoDataFrame:
     """Preprocess signs data by filtering for parking signs,
         removing duplicates, and grouping nearby signs together."""
+    logger.info("Starting preprocessing with %d total signs", len(signs_df))
     # filter out signs with missing lat/long
     no_nulls = signs_df[
         (signs_df["longitude"].notnull()) & \
@@ -50,18 +75,27 @@ def preprocess_signs(
     parking_df = no_nulls[
         no_nulls["mutcd_code_field"].str.lower().str.match(sign_filter)
     ]
+    logger.info("Filtered to %d parking signs", len(parking_df))
 
     # filter for duplicates by keeping the most recently modified record
     no_dupes = parking_df.sort_values(
         ["cg_last_modified_field", "attachment_cg_last_modified_field"],
         ascending=False
     ).drop_duplicates(subset="oid", keep="first")
+    logger.info("Removed duplicates: %d unique signs", len(no_dupes))
 
     # filter out based on status
-    valid_signs = no_dupes[~no_dupes["asset_status_field"].isin(config["status_filters"])]
+    valid_signs = no_dupes[
+        ~no_dupes["asset_status_field"].isin(config["status_filters"])
+    ]
+    logger.info("Filtered by status: %d valid signs", len(valid_signs))
 
     # make gdf
-    signs_gdf = gpd.GeoDataFrame(valid_signs, geometry="geometry", crs="EPSG:4326")
+    signs_gdf = gpd.GeoDataFrame(
+        valid_signs,
+        geometry="geometry",
+        crs="EPSG:4326"
+    )
 
     # filter for specific neighboorhood if specified
     if config["neighborhoods"]:
@@ -74,14 +108,20 @@ def preprocess_signs(
             predicate="within",
             how="inner"
         )
+        logger.info(
+            "Filtered by neighborhoods: %d valid signs in %d neighborhoods",
+            len(signs_gdf),
+            config["neighborhoods"]
+        )
 
     # group nearby signs together by truncating lat/long to the nearest grouping distance
     grouping_distance = config["grouping_distance_ft"]
-    signs_gdf["truncated_geometry"] = signs_gdf["geometry"].to_crs("epsg:2249").apply(
-        lambda p: Point(
-            math.floor(p.x / grouping_distance) * grouping_distance,
-            math.floor(p.y / grouping_distance) * grouping_distance,
-        )
+    signs_gdf["truncated_geometry"] = signs_gdf["geometry"]. \
+        to_crs("epsg:2249").apply(
+            lambda p: Point(
+                math.floor(p.x / grouping_distance) * grouping_distance,
+                math.floor(p.y / grouping_distance) * grouping_distance,
+            )
     ).to_crs(config["output_crs"])
 
     date_cols = ["entry_date_field", "cg_last_modified_field"]
@@ -98,15 +138,18 @@ def preprocess_signs(
         "truncated_geometry",
         "attachment_oid"
     ]
+    logger.info("Preprocessing complete: %d signs processed", len(signs_gdf))
     return signs_gdf[output_cols]
 
 
 def format_sign_tbls(
         signs_gdf: gpd.GeoDataFrame,
-        config: dict
+        config: dict,
+        logger: logging.Logger
     ) -> dict:
     """Format signs geodataframe into tables for asset_jobs, data_sources,
         asset_locations, signs, and images."""
+    logger.info("Formatting %d signs into database tables", len(signs_gdf))
     base_signs = signs_gdf.copy()
 
     # Format for asset_jobs table
@@ -118,6 +161,7 @@ def format_sign_tbls(
             "job_description": [config["job_description"]]
         }
     )
+    logger.info("Sucessfully formatted asset_jobs table")
 
     # Format for data_sources table
     data_source_id = str(uuid.uuid4().hex)
@@ -127,6 +171,7 @@ def format_sign_tbls(
             "source_name": [config["data_source_name"]]
         }
     )
+    logger.info("Sucessfully formatted data_sources table")
 
     # Format for asset_locations table
     asset_locations = base_signs.groupby(
@@ -152,6 +197,7 @@ def format_sign_tbls(
             "location"
         ]
     ]
+    logger.info("Sucessfully formatted asset_locations table")
 
     # Format for signs table
     base_signs["sign_id"] = [
@@ -188,6 +234,7 @@ def format_sign_tbls(
             'sign_notes'
         ]
     ]
+    logger.info("Sucessfully formatted signs table")
 
     # Format for images table
     images = signs_gdf[signs_gdf["attachment_public_url"].notnull()]
@@ -209,6 +256,8 @@ def format_sign_tbls(
             'source_image_id'
         ]
     ]
+    logger.info("Sucessfully formatted images table")
+
     to_upload_dict = {
         "asset_jobs": asset_jobs,
         "data_sources": data_sources,
@@ -216,6 +265,7 @@ def format_sign_tbls(
         "signs": signs,
         "images": images
     }
+    logger.info("Successfully formatted all tables for upload")
     return to_upload_dict
 
 
@@ -223,50 +273,92 @@ def upload_sign_tbls(
         upload_dict: dict,
         dbname: str,
         schema: str,
+        logger: logging.Logger, 
         debug_mode: bool = False
 ) -> None:
     """Upload tables to database.
         If debug_mode is True, does not write to DB."""
+    logger.info(
+        "Starting upload to database %s.%s (debug_mode=%s)",
+        dbname,
+        schema,
+        debug_mode
+    )
     load_dotenv()
     with SmartCurbDB(dbname=dbname, schema=schema) as db:
         for tbl_name, df in upload_dict.items():
             if not bool(debug_mode):
                 db.append_data(tbl_name, df)
+                logger.info("Uploaded %d rows to table %s", len(df), tbl_name)
+            else:
+                logger.info(
+                    "[DEBUG MODE] Would upload %d rows to table %s",
+                    len(df),
+                    tbl_name
+                )
 
 
 def main():
     """Main function to run the ETL process for loading parking sign data
         into the database."""
-    # Read in config & files
-    config = load_config(
-        "packages/cartegraph-loader/src/cartegraph_loader/config.yaml"
-    )
-    signs_df = pd.read_csv(config["signs_path"])
-    neighborhoods_gdf = gpd.read_file(
-        config["neighborhoods_path"],
-        crs="EPSG:4326"
-    )[["name", "geometry"]]
+    logger = setup_logging()
+    logger.info("="*80)
+    logger.info("Starting Cartegraph Signs ETL Pipeline")
+    logger.info("="*80)
+    try:
+        # Read in config & files
+        logger.info("Loading configuration and input files...")
+        config = load_config(
+            "packages/cartegraph-loader/src/cartegraph_loader/config.yaml"
+        )
+        signs_df = pd.read_csv(config["signs_path"])
+        logger.info(
+            "Loaded %d signs from %s", len(signs_df), config['signs_path']
+        )
 
-    # Clean for relevant signs
-    cleaned_signs_gdf = preprocess_signs(
-        signs_df=signs_df,
-        neighborhoods_gdf=neighborhoods_gdf,
-        config=config
-    )
+        neighborhoods_gdf = gpd.read_file(
+            config["neighborhoods_path"],
+            crs="EPSG:4326"
+        )[["name", "geometry"]]
+        logger.info(
+            "Loaded neighborhoods from %s",
+            config['neighborhoods_path']
+        )
 
-    # Format signs for database tbls
-    to_upload_dict = format_sign_tbls(
-        signs_gdf=cleaned_signs_gdf,
-        config=config
-    )
+        # Clean for relevant signs
+        cleaned_signs_gdf = preprocess_signs(
+            signs_df=signs_df,
+            neighborhoods_gdf=neighborhoods_gdf,
+            config=config,
+            logger=logger,
+        )
 
-    # Upload signs to database
-    upload_sign_tbls(
-        to_upload_dict,
-        config["dbname"],
-        config["schema"],
-        config["debug_mode"]
-    )
+        # Format signs for database tbls
+        to_upload_dict = format_sign_tbls(
+            signs_gdf=cleaned_signs_gdf,
+            config=config,
+            logger=logger
+        )
+
+        # Upload signs to database
+        upload_sign_tbls(
+            upload_dict=to_upload_dict,
+            dbname=config["dbname"],
+            schema=config["schema"],
+            logger=logger,
+            debug_mode=config["debug_mode"]
+        )
+
+        logger.info("="*80)
+        logger.info("ETL Pipeline completed successfully!")
+        logger.info("="*80)
+    except Exception as e:
+        logger.error(
+            "ETL Pipeline failed with error: %s",
+            str(e),
+            exc_info=True
+        )
+        raise
 
 
 if __name__ == "__main__":
