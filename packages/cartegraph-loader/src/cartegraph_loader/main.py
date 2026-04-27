@@ -1,9 +1,23 @@
+"""
+==============================================================================
+Main Script for Signs Preprocessing and Loading Pipeline
+==============================================================================
+This script runs the ETL process for loading parking sign data  from Cartegraph 
+into the database. Configuration parameters are loaded from `config.yaml` to ensure
+consistency and reproducibility across runs.
+
+Usage:
+    python main.py
+
+Ensure that all dependencies are installed and configuration paths are correctly
+set before running the script.
+==============================================================================
+"""
 import datetime
 import math
 import uuid
 from dotenv import load_dotenv
 import geopandas as gpd
-import numpy as np
 import pandas as pd
 from shapely import Point
 
@@ -12,19 +26,21 @@ from curb_utils.db_utils import SmartCurbDB
 
 
 def preprocess_signs(
-        signs_df,
-        neighborhoods_gdf,
-        config
-    ):
+        signs_df: pd.DataFrame,
+        neighborhoods_gdf: gpd.GeoDataFrame,
+        config: dict
+    ) -> gpd.GeoDataFrame:
+    """Preprocess signs data by filtering for parking signs,
+        removing duplicates, and grouping nearby signs together."""
     # filter out signs with missing lat/long
     no_nulls = signs_df[
         (signs_df["longitude"].notnull()) & \
                 signs_df["latitude"].notnull() & \
                 (signs_df["mutcd_code_field"].notnull())
     ]
-    no_nulls["geometry"] = [
+    no_nulls["geometry"] = pd.Series([
         Point(xy) for xy in zip(no_nulls["longitude"], no_nulls["latitude"])
-    ]
+    ], index=no_nulls.index)
 
     # filter for known parking signs
     sign_filter = "|".join(
@@ -86,11 +102,15 @@ def preprocess_signs(
 
 
 def format_sign_tbls(
-        signs_gdf,
-        config
-    ):
+        signs_gdf: gpd.GeoDataFrame,
+        config: dict
+    ) -> dict:
+    """Format signs geodataframe into tables for asset_jobs, data_sources,
+        asset_locations, signs, and images."""
+    base_signs = signs_gdf.copy()
+
     # Format for asset_jobs table
-    job_id = uuid.uuid4()
+    job_id = str(uuid.uuid4().hex)
     asset_jobs = pd.DataFrame(
         {
             "job_id": [job_id],
@@ -100,7 +120,7 @@ def format_sign_tbls(
     )
 
     # Format for data_sources table
-    data_source_id = uuid.uuid4()
+    data_source_id = str(uuid.uuid4().hex)
     data_sources = pd.DataFrame(
         {
             "data_source_id": [data_source_id],
@@ -109,20 +129,20 @@ def format_sign_tbls(
     )
 
     # Format for asset_locations table
-    asset_locations = signs_gdf.groupby(
-        ['truncated_geometry'],
-        as_index=False
-    )['oid'].apply(lambda x: "oid: " + ', '.join(str(v) for v in x if pd.notna(v)))
+    asset_locations = base_signs.groupby(
+        'truncated_geometry'
+    )['oid'].apply(
+        lambda x: "oid: " + ', '.join(str(v) for v in x if pd.notna(v))
+    ).to_frame(name='source_location_id').reset_index()
     asset_locations["asset_location_id"] = [
-        uuid.uuid4() for _ in range(len(asset_locations))
+        str(uuid.uuid4().hex) for _ in range(len(asset_locations))
     ]
     asset_locations["data_source_id"] = data_source_id
     asset_locations["job_id"] = job_id
     asset_locations = asset_locations.rename(
         columns={
-            "oid": "source_location_id",
             "truncated_geometry": "location"
-        }
+        },
     )[
         [
             "asset_location_id",
@@ -134,16 +154,17 @@ def format_sign_tbls(
     ]
 
     # Format for signs table
-    signs_gdf["sign_id"] = [uuid.uuid4() for _ in range(len(signs_gdf))]
-    signs_gdf["data_source_id"] = data_source_id
-    signs_gdf["job_id"] = job_id
-    signs_gdf["sign_notes"] = None
-    signs_gdf["sign_removed_date"] = np.where(
-        signs_gdf["asset_status_field"] == "Removed",
-        signs_gdf["cg_last_modified_field"],
-        None
-    )
-    signs = signs_gdf.merge(
+    base_signs["sign_id"] = [
+        str(uuid.uuid4().hex) for _ in range(len(base_signs))
+    ]
+    base_signs["data_source_id"] = data_source_id
+    base_signs["job_id"] = job_id
+    base_signs["sign_notes"] = None
+    base_signs["sign_removed_date"] = base_signs["cg_last_modified_field"]. \
+        where(
+            base_signs["asset_status_field"] == "Removed"
+        )
+    signs = base_signs.merge(
         asset_locations[['location', 'asset_location_id']],
         left_on='truncated_geometry',
         right_on='location'
@@ -170,7 +191,7 @@ def format_sign_tbls(
 
     # Format for images table
     images = signs_gdf[signs_gdf["attachment_public_url"].notnull()]
-    images["image_id"] = [uuid.uuid4() for _ in range(len(images))]
+    images["image_id"] = [str(uuid.uuid4().hex) for _ in range(len(images))]
     images["image_date"] = datetime.datetime.now()
     images = images.rename(
         columns={
@@ -199,20 +220,23 @@ def format_sign_tbls(
 
 
 def upload_sign_tbls(
-        upload_dict,
-        dbname,
-        schema,
-        debug_mode=False
-):
+        upload_dict: dict,
+        dbname: str,
+        schema: str,
+        debug_mode: bool = False
+) -> None:
+    """Upload tables to database.
+        If debug_mode is True, does not write to DB."""
     load_dotenv()
     with SmartCurbDB(dbname=dbname, schema=schema) as db:
-        for tbl_name, df in upload_dict.items(): 
+        for tbl_name, df in upload_dict.items():
             if not bool(debug_mode):
                 db.append_data(tbl_name, df)
 
 
-
 def main():
+    """Main function to run the ETL process for loading parking sign data
+        into the database."""
     # Read in config & files
     config = load_config(
         "packages/cartegraph-loader/src/cartegraph_loader/config.yaml"
