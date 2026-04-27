@@ -18,6 +18,10 @@ data_source_name: "Cartegraph"
 dbname: "cds"
 schema: "staging_next"
 
+
+# Debug mode (Set this to True for debugging) True does not write to DB.
+debug_mode: False
+
 grouping_distance_ft: 5
 signs_path: "data/boston-cartegraph.csv"
 neighborhoods_path: "data/boston_neighborhood_boundaries/Boston_Neighborhood_Boundaries.shp"
