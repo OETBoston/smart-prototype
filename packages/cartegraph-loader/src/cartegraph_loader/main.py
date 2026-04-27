@@ -3,10 +3,12 @@ import math
 import uuid
 from dotenv import load_dotenv
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 from shapely import Point
 
 from curb_utils.io_tools import load_config
+from curb_utils.db_utils import SmartCurbDB
 
 
 def preprocess_signs(
@@ -93,8 +95,7 @@ def format_sign_tbls(
         {
             "job_id": [job_id],
             "job_name": [config["job_name"]],
-            "job_description": [config["job_description"]],
-            "job_timestamp": [datetime.datetime.now()]
+            "job_description": [config["job_description"]]
         }
     )
 
@@ -123,24 +124,92 @@ def format_sign_tbls(
             "truncated_geometry": "location"
         }
     )[
-        "asset_location_id",
-        "data_source_id",
-        "job_id",
-        "source_location_id",
-        "location"
+        [
+            "asset_location_id",
+            "data_source_id",
+            "job_id",
+            "source_location_id",
+            "location"
+        ]
     ]
 
     # Format for signs table
+    signs_gdf["sign_id"] = [uuid.uuid4() for _ in range(len(signs_gdf))]
+    signs_gdf["data_source_id"] = data_source_id
+    signs_gdf["job_id"] = job_id
+    signs_gdf["sign_notes"] = None
+    signs_gdf["sign_removed_date"] = np.where(
+        signs_gdf["asset_status_field"] == "Removed",
+        signs_gdf["cg_last_modified_field"],
+        None
+    )
+    signs = signs_gdf.merge(
+        asset_locations[['location', 'asset_location_id']],
+        left_on='truncated_geometry',
+        right_on='location'
+    ).rename(
+        columns={
+            "oid": "source_sign_id",
+            "mutcd_code_field": "sign_type_code",
+            "entry_date_field": "date_added",
+            "asset_location_id": "sign_location_id"
+        }
+    )[
+        [
+            'sign_id',
+            'sign_location_id',
+            'data_source_id',
+            'job_id',
+            'source_sign_id',
+            'date_added',
+            'sign_removed_date',
+            'sign_type_code',
+            'sign_notes'
+        ]
+    ]
 
     # Format for images table
-    return asset_jobs, data_sources, asset_locations
-    
-    # data_sources['source_id'] = [uuid.UUID(uuid.uuid4().hex) for _ in range(len(data_sources))]
+    images = signs_gdf[signs_gdf["attachment_public_url"].notnull()]
+    images["image_id"] = [uuid.uuid4() for _ in range(len(images))]
+    images["image_date"] = datetime.datetime.now()
+    images = images.rename(
+        columns={
+            'attachment_public_url': 'uri',
+            'attachment_oid': 'source_image_id'
+        }
+    )[
+        [
+            'image_id',
+            'sign_id',
+            'data_source_id',
+            'job_id',
+            'uri',
+            'image_date',
+            'source_image_id'
+        ]
+    ]
+    to_upload_dict = {
+        "asset_jobs": asset_jobs,
+        "data_sources": data_sources,
+        "asset_locations": asset_locations,
+        "signs": signs,
+        "images": images
+    }
+    return to_upload_dict
 
 
-
-def upload_sign_tbls():
+def upload_sign_tbls(
+        upload_dict,
+        dbname,
+        schema,
+        debug_mode=False
+):
     load_dotenv()
+    with SmartCurbDB(dbname=dbname, schema=schema) as db:
+        for tbl_name, df in upload_dict.items(): 
+            if not bool(debug_mode):
+                db.append_data(tbl_name, df)
+
 
 
 def main():
@@ -162,10 +231,19 @@ def main():
     )
 
     # Format signs for database tbls
-    format_sign_tbls(
+    to_upload_dict = format_sign_tbls(
         signs_gdf=cleaned_signs_gdf,
         config=config
     )
 
     # Upload signs to database
-    upload_sign_tbls()
+    upload_sign_tbls(
+        to_upload_dict,
+        config["dbname"],
+        config["schema"],
+        config["debug_mode"]
+    )
+
+
+if __name__ == "__main__":
+    main()
