@@ -146,7 +146,7 @@ def preprocess_cartegraph_signs(
             config["attachment_id_col"]: "source_image_id",
             "mutcd_code_field": "sign_type_code",
             "entry_date_field": "added_date",
-            "attachment_public_url": "uri",
+            config["uri_col"]: "uri",
             "truncated_geometry": "geometry"
         }
     )
@@ -190,7 +190,8 @@ def format_sign_tbls(
     col_mapping = {
         "sign_id_col": "source_sign_id",
         "attachment_id_col": "source_image_id",
-        "geometry_col": "geometry"
+        "geometry_col": "geometry",
+        "uri_col": "uri"
     }
     for config_key, target_name in col_mapping.items():
         if config_key in config and config[config_key] in base_signs.columns:
@@ -369,14 +370,14 @@ def main():
         else:
             # assume formatted geospatial file
             signs_gdf = gpd.read_file(
-                f"{base_path}/{config['signs_path']}",
+                f"{base_path}{config['signs_path']}",
                 crs=config["input_crs"]
             )
             if signs_gdf.crs != config["output_crs"]:
                 signs_gdf = signs_gdf.to_crs(config["output_crs"])
             logger.info(
                 "Loaded signs from %s",
-                f"{base_path}/{config['signs_path']}"
+                f"{base_path}{config['signs_path']}"
             )
 
         # Format signs for database tbls
