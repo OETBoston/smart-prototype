@@ -26,6 +26,7 @@ def append_job(
             (Defaults to "Unnamed job.")
         job_desc (str | None, optional): User provided job description.
             (Defaults to "No description provided.")
+        **kwargs: Arbitrary keyword arguments. Must be compatible with database schema.git stat
 
     Returns:
         uuid.UUID: Job ID entered into the database.
