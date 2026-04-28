@@ -87,6 +87,9 @@ async def main() -> None:
             db_table="sign_reader_jobs",
             job_name=job_name,
             job_desc=job_desc,
+            model_settings=gemini_settings.model_dump_json(),
+            system_instruction=system_instruction,
+            prompt=user_prompt,
         )
 
     logger.info("Fetching images from database...")

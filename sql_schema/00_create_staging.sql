@@ -68,6 +68,9 @@ CREATE TABLE staging_next.sign_reader_jobs (
 	job_timestamp timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	job_name varchar NOT NULL,
 	job_description varchar NULL,
+	model_settings varchar NULL,
+	system_instruction varchar NULL,
+	prompt varchar NULL,
 	CONSTRAINT sign_reader_jobs_pkey PRIMARY KEY (job_id)
 );
 
