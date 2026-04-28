@@ -1,7 +1,7 @@
 [project]
-name = "cartegraph-loader"
+name = "sign-loader"
 version = "0.1.0"
-description = "Preprocesses Cartegraph signs"
+description = "Preprocesses and upload signs"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -18,7 +18,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cartegraph_loader"]
+packages = ["src/sign_loader"]
 
 [tool.uv.sources]
 curb-utils = { workspace = true }

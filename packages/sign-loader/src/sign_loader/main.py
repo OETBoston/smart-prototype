@@ -48,14 +48,20 @@ def setup_logging() -> logging.Logger:
     return logger
 
 
-def preprocess_signs(
-        signs_df: pd.DataFrame,
+def preprocess_cartegraph_signs(
+        base_path: str,
         neighborhoods_gdf: gpd.GeoDataFrame,
         config: dict,
         logger: logging.Logger
     ) -> gpd.GeoDataFrame:
     """Preprocess signs data by filtering for parking signs,
         removing duplicates, and grouping nearby signs together."""
+    signs_df= pd.read_csv(f"{base_path}{config['signs_path']}")
+    logger.info(
+            "Loaded signs from %s",
+            f"{base_path}{config['signs_path']}"
+        )
+
     logger.info("Starting preprocessing with %d total signs", len(signs_df))
     # filter out signs with missing lat/long
     no_nulls = signs_df[
@@ -81,7 +87,7 @@ def preprocess_signs(
     no_dupes = parking_df.sort_values(
         ["cg_last_modified_field", "attachment_cg_last_modified_field"],
         ascending=False
-    ).drop_duplicates(subset="oid", keep="first")
+    ).drop_duplicates(subset=config["sign_id_col"], keep="first")
     logger.info("Removed duplicates: %d unique signs", len(no_dupes))
 
     # filter out based on status
@@ -94,7 +100,7 @@ def preprocess_signs(
     signs_gdf = gpd.GeoDataFrame(
         valid_signs,
         geometry="geometry",
-        crs="EPSG:4326"
+        crs=config["input_crs"]
     )
 
     # filter for specific neighboorhood if specified
@@ -124,22 +130,49 @@ def preprocess_signs(
             )
     ).to_crs(config["output_crs"])
 
+    signs_gdf["sign_removed_date"] = signs_gdf["cg_last_modified_field"]. \
+        where(
+            signs_gdf["asset_status_field"] == "Removed"
+    )
+
     date_cols = ["entry_date_field", "cg_last_modified_field"]
     signs_gdf[date_cols] = signs_gdf[date_cols].apply(pd.to_datetime)
+    signs_gdf.drop(columns=["geometry"], inplace=True)
     signs_gdf.set_geometry("truncated_geometry", inplace=True)
 
+    signs_gdf = signs_gdf.rename(
+        columns={
+            config["sign_id_col"]: "source_sign_id",
+            config["attachment_id_col"]: "source_image_id",
+            "mutcd_code_field": "sign_type_code",
+            "entry_date_field": "added_date",
+            "attachment_public_url": "uri",
+            "truncated_geometry": "geometry"
+        }
+    )
     output_cols = [
-        "oid",
-        "entry_date_field",
-        "mutcd_code_field",
-        "asset_status_field",
-        "attachment_public_url",
-        "cg_last_modified_field",
-        "truncated_geometry",
-        "attachment_oid"
+        "source_sign_id",
+        "source_image_id",
+        "sign_type_code",
+        "added_date",
+        "sign_removed_date",
+        "uri",
+        "geometry"
     ]
+
     logger.info("Preprocessing complete: %d signs processed", len(signs_gdf))
     return signs_gdf[output_cols]
+
+
+def add_columns_for_tbls(
+        df: pd.DataFrame,
+        col_lst: list
+) -> pd.DataFrame:
+    """Add any necessary columns to the dataframe for db table format."""
+    for col in col_lst:
+        if col not in df.columns:
+            df[col] = None
+    return df[col_lst]
 
 
 def format_sign_tbls(
@@ -151,6 +184,18 @@ def format_sign_tbls(
         asset_locations, signs, and images."""
     logger.info("Formatting %d signs into database tables", len(signs_gdf))
     base_signs = signs_gdf.copy()
+
+    # Ensure column names are the same (if these columns exist in the df)
+    rename_dict = {}
+    col_mapping = {
+        "sign_id_col": "source_sign_id",
+        "attachment_id_col": "source_image_id",
+        "geometry_col": "geometry"
+    }
+    for config_key, target_name in col_mapping.items():
+        if config_key in config and config[config_key] in base_signs.columns:
+            rename_dict[config[config_key]] = target_name
+    base_signs = base_signs.rename(columns=rename_dict)
 
     # Format for asset_jobs table
     job_id = str(uuid.uuid4().hex)
@@ -174,21 +219,25 @@ def format_sign_tbls(
     logger.info("Sucessfully formatted data_sources table")
 
     # Format for asset_locations table
-    asset_locations = base_signs.groupby(
-        'truncated_geometry'
-    )['oid'].apply(
-        lambda x: "oid: " + ', '.join(str(v) for v in x if pd.notna(v))
-    ).to_frame(name='source_location_id').reset_index()
+    if "source_sign_id" in base_signs.columns:
+        asset_locations = base_signs.groupby(
+            "geometry"
+        )["source_sign_id"].apply(
+            lambda x: f"{config['sign_id_col']}: " + \
+                ', '.join(str(v) for v in x if pd.notna(v))
+        ).to_frame(name='source_location_id').reset_index()
+    else:
+        asset_locations = base_signs[["geometry"]].drop_duplicates()
+        asset_locations["source_location_id"] = None
     asset_locations["asset_location_id"] = [
         str(uuid.uuid4().hex) for _ in range(len(asset_locations))
     ]
     asset_locations["data_source_id"] = data_source_id
     asset_locations["job_id"] = job_id
-    asset_locations = asset_locations.rename(
-        columns={
-            "truncated_geometry": "location"
-        },
-    )[
+    # Convert geometry to WKT for database storage
+    asset_locations["location"] = asset_locations["geometry"].apply(lambda geom: geom.wkt)
+    asset_lu = asset_locations[["geometry", "asset_location_id"]]
+    asset_locations = asset_locations[
         [
             "asset_location_id",
             "data_source_id",
@@ -197,6 +246,7 @@ def format_sign_tbls(
             "location"
         ]
     ]
+
     logger.info("Sucessfully formatted asset_locations table")
 
     # Format for signs table
@@ -205,57 +255,45 @@ def format_sign_tbls(
     ]
     base_signs["data_source_id"] = data_source_id
     base_signs["job_id"] = job_id
-    base_signs["sign_notes"] = None
-    base_signs["sign_removed_date"] = base_signs["cg_last_modified_field"]. \
-        where(
-            base_signs["asset_status_field"] == "Removed"
-        )
+
+    if "notes_col" in config and config["notes_col"] in base_signs.columns:
+        base_signs["sign_notes"] = base_signs[config["notes_col"]]
+    else:
+        base_signs["sign_notes"] = None
+
+
     signs = base_signs.merge(
-        asset_locations[['location', 'asset_location_id']],
-        left_on='truncated_geometry',
-        right_on='location'
-    ).rename(
-        columns={
-            "oid": "source_sign_id",
-            "mutcd_code_field": "sign_type_code",
-            "entry_date_field": "date_added",
-            "asset_location_id": "sign_location_id"
-        }
-    )[
-        [
-            'sign_id',
-            'sign_location_id',
-            'data_source_id',
-            'job_id',
-            'source_sign_id',
-            'date_added',
-            'sign_removed_date',
-            'sign_type_code',
-            'sign_notes'
-        ]
+        asset_lu,
+        on='geometry'
+    ).rename(columns={"asset_location_id": "sign_location_id"})
+    sign_cols = [
+        'sign_id',
+        'sign_location_id',
+        'data_source_id',
+        'job_id',
+        'source_sign_id',
+        'added_date',
+        'sign_removed_date',
+        'sign_type_code',
+        'sign_notes'
     ]
+    signs = add_columns_for_tbls(signs, sign_cols)
     logger.info("Sucessfully formatted signs table")
 
     # Format for images table
-    images = base_signs[base_signs["attachment_public_url"].notnull()]
+    images = base_signs[base_signs["uri"].notnull()]
     images["image_id"] = [str(uuid.uuid4().hex) for _ in range(len(images))]
     images["image_date"] = datetime.datetime.now()
-    images = images.rename(
-        columns={
-            'attachment_public_url': 'uri',
-            'attachment_oid': 'source_image_id'
-        }
-    )[
-        [
-            'image_id',
-            'sign_id',
-            'data_source_id',
-            'job_id',
-            'uri',
-            'image_date',
-            'source_image_id'
-        ]
+    image_cols = [
+        'image_id',
+        'sign_id',
+        'data_source_id',
+        'job_id',
+        'uri',
+        'image_date',
+        'source_image_id'
     ]
+    images = add_columns_for_tbls(images, image_cols)
     logger.info("Sucessfully formatted images table")
 
     to_upload_dict = {
@@ -301,44 +339,49 @@ def upload_sign_tbls(
 def main():
     """Main function to run the ETL process for loading parking sign data
         into the database."""
-    base_path = "packages/cartegraph-loader/src/cartegraph_loader"
+    base_path = "packages/sign-loader/src/sign_loader/"
     logger = setup_logging()
     logger.info("="*80)
-    logger.info("Starting Cartegraph Signs ETL Pipeline")
+    logger.info("Starting Signs Uploader Pipeline")
     logger.info("="*80)
     try:
         # Read in config & files
         logger.info("Loading configuration and input files...")
         config = load_config(
-            f"{base_path}/config.yaml"
+            f"{base_path}config.yaml"
         )
-        signs_df = pd.read_csv(f"{base_path}/{config['signs_path']}")
-        logger.info(
-            "Loaded %d signs from %s",
-            len(signs_df),
-            f"{base_path}/{config['signs_path']}"
-        )
-
         neighborhoods_gdf = gpd.read_file(
-            f"{base_path}/{config['neighborhoods_path']}",
-            crs="EPSG:4326"
+            f"{base_path}{config['neighborhoods_path']}",
+            crs=config["neightborhoods_crs"]
         )[["name", "geometry"]]
         logger.info(
             "Loaded neighborhoods from %s",
-            f"{base_path}/{config['neighborhoods_path']}"
+            f"{base_path}{config['neighborhoods_path']}"
         )
-
-        # Clean for relevant signs
-        cleaned_signs_gdf = preprocess_signs(
-            signs_df=signs_df,
-            neighborhoods_gdf=neighborhoods_gdf,
-            config=config,
-            logger=logger,
-        )
+        if config["data_source_name"] == "Cartegraph":
+            # Clean for relevant signs
+            signs_gdf = preprocess_cartegraph_signs(
+                base_path=base_path,
+                neighborhoods_gdf=neighborhoods_gdf,
+                config=config,
+                logger=logger,
+            )
+        else:
+            # assume formatted geospatial file
+            signs_gdf = gpd.read_file(
+                f"{base_path}/{config['signs_path']}",
+                crs=config["input_crs"]
+            )
+            if signs_gdf.crs != config["output_crs"]:
+                signs_gdf = signs_gdf.to_crs(config["output_crs"])
+            logger.info(
+                "Loaded signs from %s",
+                f"{base_path}/{config['signs_path']}"
+            )
 
         # Format signs for database tbls
         to_upload_dict = format_sign_tbls(
-            signs_gdf=cleaned_signs_gdf,
+            signs_gdf=signs_gdf,
             config=config,
             logger=logger
         )
@@ -353,11 +396,11 @@ def main():
         )
 
         logger.info("="*80)
-        logger.info("ETL Pipeline completed successfully!")
+        logger.info("Pipeline completed successfully!")
         logger.info("="*80)
     except Exception as e:
         logger.error(
-            "ETL Pipeline failed with error: %s",
+            "Pipeline failed with error: %s",
             str(e),
             exc_info=True
         )

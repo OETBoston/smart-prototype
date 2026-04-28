@@ -26,7 +26,7 @@ pip install uv
 Clone the repository and install dependencies:
 
 ```bash
-cd smart-prototype/packages/cartegraph-loader
+cd smart-prototype/packages/sign-loader
 uv sync
 ```
 
@@ -105,7 +105,7 @@ This project uses `uv` for seamless environment management. You do not need to m
 From the repository root:
 
 ```bash
-uv run python packages/cartegraph-loader/src/cartegraph_loader/main.py
+uv run python packages/sign-loader/src/sign_loader/main.py
 ```
 
 The script will:
@@ -181,7 +181,7 @@ Logs are written to both console and file:
 Ensure you're running the script from the repository root:
 ```bash
 cd /path/to/smart-prototype
-uv run python packages/cartegraph-loader/src/cartegraph_loader/main.py
+uv run python packages/sign-loader/src/sign_loader/main.py
 ```
 
 ### `.env` parse error
