@@ -9,9 +9,9 @@ repo_root = Path(__file__).resolve().parents[4]  # …/smart-prototype
 sys.path.append(str(repo_root))
 
 # Internal imports
-from packages.api_update.src.api_update.exporter import export_to_csv, export_to_db
-from packages.api_update.src.api_update.extractor import read_db_tables
-from packages.api_update.src.api_update.transformer import transform_policy_updates
+from exporter import export_to_csv, export_to_db
+from extractor import read_db_tables
+from transformer import transform_policy_updates
 
 from curb_utils.io_tools import load_config
 
