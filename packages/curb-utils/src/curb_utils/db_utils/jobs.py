@@ -1,6 +1,7 @@
 # Tools for working with jobs tables
 import getpass
 import uuid
+from typing import Any
 
 import pandas as pd
 
@@ -13,6 +14,7 @@ def append_job(
     db_table: str,
     job_name: str | None = None,
     job_desc: str | None = None,
+    **kwargs: Any,
 ) -> uuid.UUID:
     """Registers a job in the database and returns the job ID.
 
@@ -24,6 +26,7 @@ def append_job(
             (Defaults to "Unnamed job.")
         job_desc (str | None, optional): User provided job description.
             (Defaults to "No description provided.")
+        **kwargs: Arbitrary keyword arguments. Must be compatible with database schema.git stat
 
     Returns:
         uuid.UUID: Job ID entered into the database.
@@ -36,6 +39,7 @@ def append_job(
         "job_id": [job_id],
         "job_name": [(job_name or "Unnamed job.") + f" ({user})"],
         "job_description": [job_desc or "No description provided."],
+        **kwargs,
     }
 
     with SmartCurbDB(dbname=db_name, schema=db_schema) as db:

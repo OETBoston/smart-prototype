@@ -133,6 +133,9 @@ process referenced to the original images and their locations.
 | job_timestamp   | TIMESTAMP          | Time job was run                                                                                                                                 |
 | job_name        | VARCHAR            | Short name that concisely describes a sign reader job.                                                                                           |
 | job_description | VARCHAR            | Extended description of a sign reader job. This should include information such as model/process versions, prompts, and other pertinent details. |
+| model_settings | VARCHAR | AI model settings (model id, thinking level, etc.) configured for the run |
+| system_instruction | VARCHAR | LLM system instructions for the run |
+| prompt | VARCHAR | User role prompt used for the run | 
 
 ## Curb Segmenter Output Tables
 
