@@ -29,6 +29,7 @@ neightborhoods_crs: "EPSG:4326"
 # Columns in the input data
 sign_id_col: "oid"
 attachment_id_col: "attachment_oid"
+uri_col: "attachment_public_url"
 notes_col: None
 geometry_col: None
 
