@@ -13,6 +13,8 @@ from packages.api_update.src.api_update.exporter import export_to_csv, export_to
 from packages.api_update.src.api_update.extractor import read_db_tables
 from packages.api_update.src.api_update.transformer import transform_policy_updates
 
+from curb_utils.io_tools import load_config
+
 # Load environment variables
 load_dotenv()
 
@@ -27,15 +29,18 @@ OUTPUT_DIR = Path("data")
 
 
 def run_api_update(
-    job_id: str | None = None,
+    curb_segments_job: str | None = None,
+    policy_handling_job: str | None = None,
     staging_db_schema: str = "staging",
     api_db_schema: str = "public_cds",
 ) -> None:
     """
     Orchestrates curb policy update processing and CSV export.
     Args:
-        job_id (str | None, optional): The policy handling job_id to use.
-        schema (str): database schema for inputs and outputs
+        curb_segments_job (str | None, optional): The curb segments job_id to use.
+        policy_handling_job (str | None, optional): The policy handling job_id to use.
+        staging_db_schema (str): database schema for staging inputs
+        api_db_schema (str): database schema for API inputs and outputs
     """
     logger.info("Starting update process.")
 
@@ -44,8 +49,8 @@ def run_api_update(
         dbname="cds",
         schema=staging_db_schema,
         tables={
-            "curb_segments": None,
-            "curb_segment_policies": None if job_id is None else f"job_id = '{job_id}'",
+            "curb_segments": None if curb_segments_job is None else f"job_id = '{curb_segments_job}'",
+            "curb_segment_policies": None if policy_handling_job is None else f"job_id = '{policy_handling_job}'",
         },
     )
 
@@ -75,26 +80,41 @@ def run_api_update(
     # 3. Export Data
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     export_to_csv(processed, out_dir=OUTPUT_DIR)
-    export_to_db(processed)
+    export_to_db(processed, api_db_schema=api_db_schema)
     logger.info("Update process completed successfully.")
 
 
 def main(
-    job_id: str | None = None,
+    curb_segments_job: str | None = None,
+    policy_handling_job: str | None = None,
     staging_db_schema: str = "staging",
     api_db_schema: str = "public_cds",
 ) -> None:
     try:
-        run_api_update(job_id, staging_db_schema, api_db_schema)
+        run_api_update(curb_segments_job, policy_handling_job, staging_db_schema, api_db_schema)
     except Exception as e:
         logger.error(f"Failed to run update: {e}")
         exit(1)
 
 
 if __name__ == "__main__":
-    job_id = "9b06f534-9b28-4769-bbed-bf8475433b58"
-    staging_db_schema = "staging_next"
-    api_db_schema = "public_cds_next"
+
+    # Define external files
+    local_path = Path(__file__).resolve().parent
+    config_file = local_path / "config.yaml"
+    
+    # Load external data
+    config = load_config(config_file)
+
+    staging_db_schema = config["staging_db"]["schema"]
+    api_db_schema = config["api_db"]["schema"]
+
+    curb_segments_job = config["staging_db"]["curb_segments_job"]
+    policy_handling_job = config["staging_db"]["policy_handling_job"]
+
     main(
-        job_id=job_id, staging_db_schema=staging_db_schema, api_db_schema=api_db_schema
+        curb_segments_job=curb_segments_job, 
+        policy_handling_job=policy_handling_job, 
+        staging_db_schema=staging_db_schema, 
+        api_db_schema=api_db_schema
     )

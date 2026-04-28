@@ -38,12 +38,13 @@ def export_to_csv(
             logger.error(f"Failed to export {filename}: {e}")
 
 
-def export_to_db(data_dict: dict[str, pd.DataFrame]) -> None:
+def export_to_db(data_dict: dict[str, pd.DataFrame],
+                 api_db_schema: str = "public_cds") -> None:
     """
     Exports processed DataFrames to the database.
     """
     for table_name, table in data_dict.items():
         logger.info(f"Exporting {table_name} to database...")
-        with SmartCurbDB(dbname="cds", schema="public_cds_next") as db:
+        with SmartCurbDB(dbname="cds", schema=api_db_schema) as db:
             db.append_data(table_name, table)
         logger.info(f"Successfully exported: {table_name}.")
