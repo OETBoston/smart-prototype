@@ -38,8 +38,8 @@ def extract_unique_policies(df_updates: pd.DataFrame) \
 
 def _create_policy_sub_elements(
         policy_id: uuid.UUID,
-        policy_data: dict) -> tuple[list[dict], list[dict]]:
-    """Extracts rules and time spans from a policy dictionary."""
+        policy_data: dict) -> tuple[list[dict], list[dict], list[dict]]:
+    """Extracts rules, time spans, and rates from a policy dictionary."""
     rules = [
         {
             "rule_id": uuid.uuid4(),
@@ -74,14 +74,33 @@ def _create_policy_sub_elements(
         }
         for ts in policy_data.get("time_spans", [])
     ]
-    return rules, time_spans
+
+    rates = [
+        {
+            "rate_id": uuid.uuid4(),
+            "curb_policy_id": policy_id,
+            **{k: rule.get('rate', {}).get(k) for k in
+               ["rate",
+                "rate_unit",
+                "rate_unit_period",
+                "increment_duration",
+                "increment_amount",
+                "start_duration",
+                "end_duration",
+                "max_fee"]}
+        }
+        for rule in policy_data.get("rules", [])
+        if rule.get('rate')
+    ]
+
+    return rules, time_spans, rates
 
 
 def build_policy_tables(
         unique_policies: list[dict],
-        run_time: pd.Timestamp) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
-    """Builds the Curb Policy, Rules, and Time Span dataframes."""
-    policies, rules, spans = [], [], []
+        run_time: pd.Timestamp) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+    """Builds the Curb Policy, Rules, Time Span, and Rates dataframes."""
+    policies, rules, spans, rates = [], [], [], []
     json_to_id_map = {}
 
     logger.info(f"Building Policy tables for {len(unique_policies)} policies...")
@@ -106,11 +125,12 @@ def build_policy_tables(
                 "priority": policy.get("priority"),
             })
 
-            r, s = _create_policy_sub_elements(p_id, policy)
+            r, s, rt = _create_policy_sub_elements(p_id, policy)
             rules.extend(r)
             spans.extend(s)
+            rates.extend(rt)
 
-    return pd.DataFrame(policies), pd.DataFrame(rules), pd.DataFrame(spans), json_to_id_map
+    return pd.DataFrame(policies), pd.DataFrame(rules), pd.DataFrame(spans), pd.DataFrame(rates), json_to_id_map
 
 
 def build_zone_tables(
@@ -174,7 +194,7 @@ def transform_policy_updates(
     unique_policies, zone_to_json_map = extract_unique_policies(df_updates)
 
     # Build Policy related tables
-    df_policies, df_rules, df_spans, json_to_id_map = build_policy_tables(unique_policies, run_time)
+    df_policies, df_rules, df_spans, df_rates, json_to_id_map = build_policy_tables(unique_policies, run_time)
 
     # Build Zone related tables
     df_zones, df_zone_policies = build_zone_tables(df_updates, zone_to_json_map, json_to_id_map, run_time)
@@ -185,4 +205,5 @@ def transform_policy_updates(
         "curb_zone_policies": df_zone_policies,
         "curb_policy_rules": df_rules,
         "curb_policy_time_spans": df_spans,
+        "curb_policy_rates": df_rates,
     }
