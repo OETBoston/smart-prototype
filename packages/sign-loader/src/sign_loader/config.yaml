@@ -16,16 +16,25 @@ job_description: "this is for testing"
 data_source_name: "Cartegraph"
 
 dbname: "cds"
-schema: "staging_next"
-
+schema: "staging_test"
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
 debug_mode: False
 
-grouping_distance_ft: 5
 signs_path: "data/boston-cartegraph.csv"
+input_crs: "EPSG:4326"
 neighborhoods_path: "data/boston_neighborhood_boundaries/Boston_Neighborhood_Boundaries.shp"
+neightborhoods_crs: "EPSG:4326"
 
+# Columns in the input data
+sign_id_col: "oid"
+attachment_id_col: "attachment_oid"
+notes_col: None
+geometry_col: None
+
+output_crs: "EPSG:4326"
+
+# Cartegraph-related Filters
 neighborhoods:
   - Charlestown
 
@@ -46,4 +55,4 @@ status_filters:
   - "Missing"
   - "Proposed"
 
-output_crs: "EPSG:4326"
+grouping_distance_ft: 5
