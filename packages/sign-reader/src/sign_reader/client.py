@@ -1,8 +1,5 @@
 """Client utilities for initializing and configuring Gemini API."""
 
-import sys
-from pathlib import Path
-
 from google import genai
 
 
@@ -36,16 +33,3 @@ def init_client(api_key: str, use_cache: bool = False) -> genai.Client:
         return _create_client(api_key)
     else:
         return _create_client(api_key)
-
-
-def read_instruction(file_path: str | Path) -> str:
-    """Read initial instruction/prompt for Gemini model."""
-    path = Path(file_path)
-    if not path.exists():
-        print(f"❌ Instruction file not found: {path}")
-        sys.exit(1)
-
-    with open(path, "r", encoding="utf-8") as f:
-        instruction = f.read().strip()
-
-    return instruction

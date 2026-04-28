@@ -5,7 +5,7 @@ Run the curb generation algorithm using roadway centerline dataset.
 # Packages
 import warnings
 
-from curb_utils.io_tools import load_config
+from curb_utils.io_tools import load_from_yaml
 from dotenv import load_dotenv
 
 from blockface_creator import curb_generation as cg
@@ -18,7 +18,9 @@ logger.info("Running curb generation process...")
 
 if __name__ == "__main__":
     # 0. Load configurations
-    config = load_config("packages/blockface-creator/src/blockface_creator/config.yaml")
+    config = load_from_yaml(
+        "packages/blockface-creator/src/blockface_creator/config.yaml"
+    )
     logger.info(
         "Configuration loaded. Running on DEBUG_MODE=%s...", config["debug_mode"]
     )
