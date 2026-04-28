@@ -79,7 +79,6 @@ async def call_gemini_client(
         MIN_PAUSE = 1
         MAX_PAUSE = 5
         pause = random.randint(MIN_PAUSE, MAX_PAUSE)
-        # time.sleep(pause)  # For async, need to chance to asyncio.sleep(pause)
         await asyncio.sleep(pause)  # For async, need to chance to asyncio.sleep(pause)
         return GenerateContentResponse()
 
