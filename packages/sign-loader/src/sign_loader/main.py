@@ -91,9 +91,12 @@ def preprocess_cartegraph_signs(
     logger.info("Removed duplicates: %d unique signs", len(no_dupes))
 
     # filter out based on status
-    valid_signs = no_dupes[
-        ~no_dupes["asset_status_field"].isin(config["status_filters"])
-    ]
+    if config["status_filters"]:
+        valid_signs = no_dupes[
+            ~no_dupes["asset_status_field"].isin(config["status_filters"])
+        ]
+    else:
+        valid_signs = no_dupes
     logger.info("Filtered by status: %d valid signs", len(valid_signs))
 
     # make gdf
@@ -359,7 +362,7 @@ def main():
             "Loaded neighborhoods from %s",
             f"{base_path}{config['neighborhoods_path']}"
         )
-        if config["data_source_name"] == "Cartegraph":
+        if config["data_source_name"].lower() == "cartegraph":
             # Clean for relevant signs
             signs_gdf = preprocess_cartegraph_signs(
                 base_path=base_path,

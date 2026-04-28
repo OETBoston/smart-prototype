@@ -1,11 +1,8 @@
-# Cartegraph Loader
+# Sign Loader
 
-A pipeline for preprocessing and loading parking sign data from Cartegraph into a PostgreSQL/PostGIS database.
+A pipeline for preprocessing and loading parking sign data into PostgreSQL/PostGIS database.
 
 This toolkit automates the ingestion of parking sign data, performs geographic and status-based filtering, groups nearby signs together, and uploads the results to the database in a standardized format.
-
-The pipeline is configuration-driven, reproducible, and designed to run sequentially from a single entry point.
-
 ---
 
 ## Prerequisites
@@ -78,21 +75,29 @@ The pipeline is controlled by `config.yaml`, which defines:
 * **Filtering rules**: MUTCD codes for parking signs, status filters
 * **Processing parameters**: Grouping distance, output CRS
 
-| Parameter             | Description |
-|-----------------------|-------------|
-| job_name              | Name of job being run, to be used in `asset_jobs` table |
-| job_description       | A description of the job being run, e.g. Cartegraph data for Charlestown |
-| data_source_name      | Name of data source, to be used in `data_sources` table |
-| dbname                | Target database name |
-| schema                | Target schema name |
-| debug_mode            | If `True`, disables database writes |
-| signs_path            | Path to where signs csv is stored. This data comes form the [Analyze Boston data portal](https://data.boston.gov/dataset/signs-cartegraph)|
-| neighborhoods_path    | Path to where neighborhoods shp files are stored. This data comes from the [Analyze Boston data portal](https://data.boston.gov/dataset/bpda-neighborhood-boundaries)|
-| neighborhoods         | List of neighborhoods used for filtering; can be empty, then signs from all neighborhoods are processed and uploaded |
-| parking_mutcd_codes   | List of MUTCD codes related to parking regulations |
-| status_filters        | Used to filter `asset_status_field`, currently filtering out "Missing" and "Proposed" signs; "Removed" signs are noted in the db with the `sign_removed_date` field. |
-| grouping_distance_ft  | Number of feet used to group parking signs (e.g. if 2 signs within 5 ft of each other, they are grouped to the same location) |
-| output_crs            | CRS to final uploaded files |
+| Parameter             | Description                                                                                                                                                           | 
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| job_name              | Name of job being run, to be used in `asset_jobs` table                                                                                                               |
+| job_description       | A description of the job being run, e.g. Cartegraph data for Charlestown                                                                                              |
+| data_source_name      | Name of data source, to be used in `data_sources` table                                                                                                               |
+| dbname                | Target database name                                                                                                                                                  |
+| schema                | Target schema name                                                                                                                                                    |
+| debug_mode            | If `True`, disables database writes                                                                                                                                   |
+| signs_path            | Path to where signs csv is stored                                                                                                                                     |
+| input_crs             | CRS of input signs file                                                                                                                                               |
+| neighborhoods_path    | Path to where neighborhoods shp files are stored. This data comes from the [Analyze Boston data portal](https://data.boston.gov/dataset/bpda-neighborhood-boundaries) |
+| neighborhoods_crs     | CRS of neighborhoods dataset                                                                                                                                          |
+| sign_id_col           | ID column for signs in  source sign dataset, e.g. `oid` in Cartegraph. Can be null in other datasets                                                                  |
+| attachment_id_col     | ID column for images in source sign dataset, e.g. `attachment_oid` in Cartegraph. Can be null in other datasets                                                       |
+| uri_col               | Column for URL for images, e.g. `attachment_public_url` in Cartegraph. REQUIRED                                                                                       |
+| notes_col             | Column for notes used for `sign_notes` in `signs` table. Can be null in any dataset                                                                                   |
+| geometry_col          | Column for geometry. This is REQUIRED if not using a Cartegraph dataset                                                                                               | 
+| output_crs            | CRS to final uploaded files                                                                                                                                           |
+| neighborhoods         | List of neighborhoods used for filtering; can be empty, then signs from all neighborhoods are processed and uploaded; Only used for Cartegraph data                   |
+| parking_mutcd_codes   | List of MUTCD codes related to parking regulations; Only used for Cartegraph data                                                                                     |
+| status_filters        | Used to filter `asset_status_field`, currently filtering out "Missing" and "Proposed" signs; "Removed" signs are noted in the db with the `sign_removed_date` field; Only used for Cartegraph data|
+| grouping_distance_ft  | Number of feet used to group parking signs (e.g. if 2 signs within 5 ft of each other, they are grouped to the same location); Only used for Cartegraph data          |
+
 
 ---
 
@@ -100,9 +105,9 @@ The pipeline is controlled by `config.yaml`, which defines:
 
 This project uses `uv` for seamless environment management. You do not need to manually activate a virtual environment; `uv run` handles it automatically.
 
-### Running the ETL Pipeline
+### Running the Pipeline
 
-From the repository root:
+Before running the pipeline, update the `config.yaml`. Then, from the repository root:
 
 ```bash
 uv run python packages/sign-loader/src/sign_loader/main.py
@@ -110,11 +115,39 @@ uv run python packages/sign-loader/src/sign_loader/main.py
 
 The script will:
 1. Load and validate input data
-2. Filter signs by MUTCD codes and status
-3. Remove duplicates based on modification date
-4. Group nearby signs by geographic proximity
-5. Format data into database tables
-6. Upload to PostgreSQL (or log what would be uploaded in debug mode)
+2. Preprocess data
+3. Format data into database tables
+4. Upload to PostgreSQL (or log what would be uploaded in debug mode)
+
+Below is information on running with Cartegraph vs. not Cartegraph datasets.
+
+#### With Cartegraph Data
+
+`main.py` is set up to preprocess Cartegraph data. By Cartegraph data, we mean that the data comes from the [Cartegraph dataset on Analyze Boston data portal](https://data.boston.gov/dataset/signs-cartegraph).
+
+If running with Cartegraph data, in `config.yaml`, ensure that:
+- `data_source_name`: "Cartegraph"
+- `sign_id_col`: "oid"
+- `attachment_id_col`: "attachment_oid"
+- `uri_col`: "attachment_public_url"
+- `input_crs`: "EPSG:4326"
+
+With Cartegraph data, there are also options for sign filtering including:
+- `neighborhoods`
+- `parking_mutcd_codes`
+- `status_filters`
+
+These can be null but if used, should be lists.
+
+`grouping_distance_ft` is also used to group nearby Cartegraph signs.
+The default of 5' was found after some test groups of various distances were made and verified using Google Maps.
+
+#### With Another Dataset
+
+If using a different dataset (like a smaller survey of signs for a specific neighborhood),
+it is assumed that less preprocessing is necessary. It is assumed that it this file is geospatial (i.e. can be read by GeoPandas), so likely a geojson or shp file.
+The only required columns in this dataset are `uri_col` and `geometry_col`.
+In `config.yaml`, `input_crs` is also necessary. 
 
 ### Debug Mode
 
