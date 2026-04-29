@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from logging import Logger
 from pathlib import Path
 
 from rich.console import Console
@@ -85,3 +86,10 @@ def get_today(sep: str = "", include_time: bool = False) -> str:
         return f"{date_part}-{time_part}"
 
     return date_part
+
+
+def log_list(logger: Logger, log_messages: list[tuple[str, str]]) -> None:
+    """Log a list of collected messages.
+    Each element must be a log level followed by a message"""
+    for level, message in log_messages:
+        getattr(logger, level)(message)

@@ -211,6 +211,8 @@ async def process_image(
                 client=client,
                 system_instruction=pre_system_instruction,
                 image_bytes=image_bytes,
+                image_uri=image_uri,
+                logger=logger,
                 model_opts=pre_model_opts,
                 check_multiple=False,
             )
@@ -235,6 +237,7 @@ async def process_image(
                     model_opts=model_opts,
                     image_bytes=image_bytes,
                     image_uri=image_uri,
+                    logger=logger,
                     max_retries=max_retries,
                 )
             except Exception as e:
@@ -245,7 +248,7 @@ async def process_image(
     if parsed_image is None or not parsed_image.signs:
         # TODO: Return a policy indicating an issue with this sign/image
         logger.warning("Detection empty: No signs extracted")
-        progress.remove_task(task)
+        _end_task(progress, loop_task, task)
         return
 
     # Save raw AI output to local disk - debug mode only

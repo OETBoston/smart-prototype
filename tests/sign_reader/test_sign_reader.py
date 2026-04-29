@@ -1,4 +1,5 @@
 import json
+from logging import Logger
 from pathlib import Path
 from typing import Dict, Generator
 
@@ -33,12 +34,14 @@ class SignImagePolicy:
 
 
 async def run_gemini(client, config, image_path, image_bytes) -> Dict[str, str]:
+    logger = Logger(__name__)
     parsed_image = await get_image_policy(
         client=client,
         system_instruction=config["instruction"],
         user_prompt=config["user_prompt"],
         image_bytes=image_bytes,
         image_uri=image_path,
+        logger=logger,
         model_opts=GeminiOptions(**config["gemini_settings"]),
     )
 
