@@ -105,12 +105,16 @@ def preprocess_cartegraph_signs(
         geometry="geometry",
         crs=config["input_crs"]
     )
+    if signs_gdf.crs != config["output_crs"]:
+        signs_gdf = signs_gdf.to_crs(config["output_crs"])
 
     # filter for specific neighboorhood if specified
     if config["neighborhoods"]:
         spec_neighborhood = neighborhoods_gdf[
             neighborhoods_gdf["name"].isin(config["neighborhoods"])
         ]
+        if spec_neighborhood.crs != config["output_crs"]:
+            spec_neighborhood = spec_neighborhood.to_crs(config["output_crs"])
         signs_gdf = gpd.sjoin(
             signs_gdf,
             spec_neighborhood,
