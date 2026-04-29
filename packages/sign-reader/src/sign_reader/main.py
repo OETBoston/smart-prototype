@@ -19,7 +19,7 @@ from curb_utils.io_tools import load_from_txt, load_from_yaml
 from curb_utils.logging import get_today, setup_logger
 from dotenv import load_dotenv
 from google import genai
-from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
+from rich.progress import BarColumn, Progress, TaskID, TextColumn, TimeElapsedColumn
 
 from sign_reader.config import SignReaderConfig
 from sign_reader.db_connector import (
@@ -126,6 +126,9 @@ async def main() -> None:
             TimeElapsedColumn(),
             console=console,
         ) as progress:
+            loop_task = progress.add_task(
+                f"Processing {len(images_list)} Images", total=len(images_list)
+            )
             async with asyncio.TaskGroup() as tg:
                 ### then create tasks using tg.create_task(<<function to run>>)
                 for image_uri, sign_id in images_list:
@@ -145,6 +148,7 @@ async def main() -> None:
                             logger=logger,
                             records_policies=records_policies,
                             progress=progress,
+                            loop_task=loop_task,
                             pre_model_opts=pre_model_opts,
                             model_opts=model_opts,
                             max_retries=config.max_retries,
@@ -173,6 +177,7 @@ async def process_image(
     logger: Logger,
     records_policies: list,
     progress: Progress,
+    loop_task: TaskID,
     pre_model_opts: GeminiOptions | None = None,
     model_opts: GeminiOptions | None = None,
     max_retries: int = 3,
@@ -180,6 +185,7 @@ async def process_image(
     # Running the image download and LLM in async, processing the results
     async with sem:
         # info = f"Processing Sign ID: {sign_id} | URI: {image_uri}"
+        progress.advance(loop_task)
         info = str(sign_id)[-10:]
         task = progress.add_task(info, total=None)
         try:
