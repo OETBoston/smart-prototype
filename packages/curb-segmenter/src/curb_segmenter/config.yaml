@@ -23,8 +23,8 @@ dbname: "cds"
 schema: "staging_next"
 
 # PostgreSQL export settings for curb segments
-cs_job_name: "Charlestown Test 1 (subset)"
-cs_job_description: "Charlestown subset signs, blockfaces, hydrants, and bus stops for all of Boston."
+cs_job_name: "Charlestown Complete for Demo"
+cs_job_description: "Charlestown signs - run for full pipeline demo"
 
 # Blockface table specification
 bf_table_name: "curb_blockfaces"

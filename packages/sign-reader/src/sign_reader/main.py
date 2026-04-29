@@ -28,11 +28,30 @@ from sign_reader.io_utils.storage import (
     save_parsed_output,
 )
 from sign_reader.logging_tools import get_logger
+from sign_reader.models import Activity, Image, Policy, Rule, Sign
+from sign_reader.pre_reader import pre_test_image
 from sign_reader.priority_engine import get_policy_priority
 from sign_reader.reader import read_image
 
 BATCH_SIZE = 50
 load_dotenv()
+
+
+def unusable_image() -> Image:
+    # Define the unusable policy
+    return Image(
+        signs=[
+            Sign(
+                policy=Policy(
+                    priority=98,
+                    time_spans=[],
+                    rules=[
+                        Rule(activity=Activity(value="unusable image"), purposes=None)
+                    ],
+                )
+            )
+        ]
+    )
 
 
 async def main() -> None:
@@ -43,15 +62,18 @@ async def main() -> None:
     local_path = Path(__file__).resolve().parent
     config_file = local_path / "config.yaml"
     instruction_file = local_path / "instructions/default_instruction.txt"
+    pre_instruction_file = local_path / "instructions/preprocess_instruction.txt"
     user_prompt_file = local_path / "instructions/default_user_prompt.txt"
 
     # Load external data
     config = load_from_yaml(config_file)
     system_instruction = load_from_txt(instruction_file)
+    pre_system_instruction = load_from_txt(pre_instruction_file)
     user_prompt = load_from_txt(user_prompt_file)
 
     # Gemini Settings
-    gemini_settings = GeminiOptions(**config["gemini_settings"])
+    model_opts = GeminiOptions(**config["gemini_settings"])
+    pre_model_opts = GeminiOptions(**config["gemini_preprocess_settings"])
 
     # Database Settings
     db_name = config["db_name"]
@@ -87,12 +109,12 @@ async def main() -> None:
             db_table="sign_reader_jobs",
             job_name=job_name,
             job_desc=job_desc,
-            model_settings=gemini_settings.model_dump_json(),
+            model_settings=model_opts.model_dump_json(),
             system_instruction=system_instruction,
             prompt=user_prompt,
         )
 
-    logger.info("Fetching images from database...")
+    logger.info("Fetching list from database...")
     images_list = read_images(
         asset_job_id=uuid.UUID(sign_job_id) if sign_job_id else None,
         re_process=sign_re_process,
@@ -111,13 +133,12 @@ async def main() -> None:
         async with asyncio.TaskGroup() as tg:
             ### then create tasks using tg.create_task(<<function to run>>)
             for image_uri, sign_id in images_list:
-                logger.info(f"Processing Sign ID: {sign_id} | URI: {image_uri}")
-
                 tg.create_task(
                     process_image(
                         client=client,
                         sem=sem,
                         lock=lock,
+                        pre_system_instruction=pre_system_instruction,
                         system_instruction=system_instruction,
                         user_prompt=user_prompt,
                         image_uri=image_uri,
@@ -127,7 +148,8 @@ async def main() -> None:
                         output_dir=output_dir,
                         logger=logger,
                         records_policies=records_policies,
-                        model_opts=gemini_settings,
+                        pre_model_opts=pre_model_opts,
+                        model_opts=model_opts,
                         max_retries=max_images,
                     )
                 )
@@ -143,6 +165,7 @@ async def process_image(
     client: genai.Client,
     sem: asyncio.Semaphore,
     lock: asyncio.Lock,
+    pre_system_instruction: str,
     system_instruction: str,
     user_prompt: str,
     image_uri: str,
@@ -152,29 +175,51 @@ async def process_image(
     output_dir: Path,
     logger: Logger,
     records_policies: list,
+    pre_model_opts: GeminiOptions | None = None,
     model_opts: GeminiOptions | None = None,
     max_retries: int = 3,
 ) -> None:
-    try:
-        image_bytes = get_image(image_uri)
-    except Exception as e:
-        logger.warning(f"Failed to load {image_uri}: {e}", exc_info=True)
-        return
-
-    # Running the LLM in async, processing the results
+    # Running the image download and LLM in async, processing the results
     async with sem:
+        logger.info(f"Processing Sign ID: {sign_id} | URI: {image_uri}")
         try:
-            parsed_image = await read_image(
-                client,
-                system_instruction=system_instruction,
-                user_prompt=user_prompt,
-                model_opts=model_opts,
-                image_bytes=image_bytes,
-                image_uri=image_uri,
-            )
-        except Exception as e:
-            logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
+            image_bytes = get_image(image_uri)
+        except Exception:
+            logger.warning(f"Failed to load {image_uri}:")
             return
+
+        # Pre-process the image
+        try:
+            pre_check = await pre_test_image(
+                client=client,
+                system_instruction=pre_system_instruction,
+                image_bytes=image_bytes,
+                model_opts=pre_model_opts,
+                check_multiple=False,
+            )
+        except Exception:
+            logger.warning(f"Failed to pre-process {image_uri}:")
+            return None
+
+        if not pre_check[0]:
+            logger.warning(f"Image {image_uri} failed pre-check.")
+            logger.warning(pre_check[1])
+
+            parsed_image = unusable_image()
+
+        else:
+            try:
+                parsed_image = await read_image(
+                    client,
+                    system_instruction=system_instruction,
+                    user_prompt=user_prompt,
+                    model_opts=model_opts,
+                    image_bytes=image_bytes,
+                    image_uri=image_uri,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
+                return
 
     if parsed_image is None or not parsed_image.signs:
         # TODO: Return a policy indicating an issue with this sign/image

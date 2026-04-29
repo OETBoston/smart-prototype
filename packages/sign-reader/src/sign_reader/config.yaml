@@ -6,9 +6,17 @@ debug_mode: False
 max_images: null # For debugging - run only the first n images. Omit or set to null to run all images
 
 # Number of simultaneous Gemini calls to allow
-gemini_concurrent_limit: 10
+gemini_concurrent_limit: 50
 
 # Gemini model settings
+
+gemini_preprocess_settings:
+
+  model: "gemini-3.1-flash-lite-preview"
+  thinking_level: "minimal"
+  temperature: 0 # Must be from 0 to 2 (inclusive)
+  mock_ai: False # For debugging, mock the AI call instead of running it
+
 gemini_settings:
   model: "gemini-3-flash-preview"
   thinking_level: "low"
@@ -22,9 +30,9 @@ db_schema: "staging_next"
 # Sign source data settings
 sign_assets:
   job_id: null # Include a sign job ID to filter, or null/omit to run for all signs
-  re_process: True # True to re-process signs that already have policies. Defaults to False.
+  re_process: False # True to re-process signs that already have policies. Defaults to False.
 
 # PostgreSQL export settings for curb segments
 # Both are OPTIONAL - but a description is recommended.
-sr_job_name: "Charlestown subset async test"
-sr_job_description: "Run of small Charlestown test dataset"
+sr_job_name: "Charlsetown full with Pre-processor Pt 2"
+sr_job_description: "Run of complete Charlestown dataset with the pre-processor (remaining)"

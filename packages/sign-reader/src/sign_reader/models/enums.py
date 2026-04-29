@@ -17,6 +17,8 @@ class Activity(str, Enum):
     # travel = "travel"
     # no_travel = "no travel"
 
+    unusable_image = "unusable image"
+
 
 class UserClass(str, Enum):
     """A user class represents any class of vehicles that is regulated by a city.
