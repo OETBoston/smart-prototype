@@ -141,9 +141,11 @@ async def pre_test_image(
         )
 
         if not result:
+            log_list(logger, log_messages)
             return (False, "LLM did not produce a valid response")
         if result != prompt_obj.acceptable_response:
             log_messages.append(("debug", f"Image rejected: {prompt_obj.error_text}"))
+            log_list(logger, log_messages)
             return (False, prompt_obj.error_text)
 
     # Indicate success if we're still here
