@@ -1,0 +1,2 @@
+sign_policy_id,sign_id,job_id,run_date,policy_json,policy_arrow
+52bd9759-8092-5c91-8785-01d9cf086943,52bd9759-8092-5c91-8785-01d9cf086943,test-job,2026-04-08 14:28:54,"{'rules': [{'activity': 'no parking'}], 'time_spans': [{'days_of_week': ['wed'], 'time_of_day_start': '08:00', 'time_of_day_end': '12:00', 'designated_period': 'street cleaning'}]}",left

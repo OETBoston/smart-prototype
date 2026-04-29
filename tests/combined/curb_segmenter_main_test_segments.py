@@ -1,15 +1,14 @@
 """
 ==============================================================================
-Main Script for Curb Segmentation Pipeline
+Main Script for Curb Segmentation Pipeline for Making Test Data
 ==============================================================================
 This script serves as the primary entry point for executing the curb segmentation
-workflow. It orchestrates the complete process, including data loading,
-preprocessing, inference, and post-processing. Configuration parameters
-are loaded from `config.yaml` to ensure consistency and reproducibility across
-runs.
-
-Usage:
-    python main.py
+workflow for test data. This is used in making curb segment test data for
+testing curb-segmentation and smart-curb-policy-handling
+workflows. Static data files are read in and processed to generate curb
+segments. If no parameters are provided on the command line, the script will
+run for all tests in the test data directory. Some configuration parameters
+are loaded from `config.yaml`.
 
 Ensure that all dependencies are installed and configuration paths are correctly
 set before running the script.
@@ -22,9 +21,10 @@ import warnings
 
 import curb_segmenter.curb_segmentation as cs
 from curb_segmenter import io_utils
+from curb_utils.io_tools import load_config
 warnings.filterwarnings("ignore")
 
-BASE_TEST_DIR = "../../smart-curb-policy-handling/tests/test_data"
+BASE_TEST_DIR = "tests/combined/test_data/"
 
 def main(test_lst=None):
     """Main function for the Curb Segmentation Pipeline."""
@@ -33,7 +33,8 @@ def main(test_lst=None):
     logger.info("Running Curb Segmentation Pipeline...")
 
     # Read config
-    config = load_config("config.yaml")
+    config = load_config("packages/curb-segmenter/src/curb_segmenter/config.yaml")
+    config["debug_mode"] = True  # Override debug mode to True for test data generation
     for test in Path(BASE_TEST_DIR).iterdir():
         if not test.is_dir():
             continue
@@ -127,12 +128,12 @@ def run_one_test(test, config, logger):
         logger_obj=logger,
     )
 
-    # Write curb segments to a local file (for QA)
+    # Write curb segments to a local file (to run tests)
     io_utils.write_curb_segments_to_file(
         output_gdf=merged_curb_segments,
         job_id=job_id,
         timestamp=ts,
-        output_path=f"../tests/test_data/{test.name}",
+        output_path=f"tests/combined/test_data/{test.name}",
         output_file_name=config["output_file_name"],
         file_type=config["output_file_format"],
         output_crs=config["proj_crs"],
