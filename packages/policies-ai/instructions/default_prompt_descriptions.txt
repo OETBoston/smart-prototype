@@ -32,4 +32,7 @@ USER CLASS REQUIREMENTS
 - "Negative Rule Except" Pattern - reframe as "[ACTIVITY] [USER CLASS] Only".
     - "No Parking Except Residents" -> "Parking Residents Only"
 
+RATE REQUIREMENTS:
+- If policy contains a non-zero rate, add "(Metered)" to the *end* of the description.
+
 ~~~ POLICY JSON: ~~~
