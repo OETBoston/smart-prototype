@@ -56,7 +56,7 @@ class RuleBase(BaseModel, Generic[T]):
     # )
 
     purposes: Optional[List[Purposes]] = Field(
-        ..., description=("The purposes to which this rule applies.")
+        default=None, description=("The purposes to which this rule applies.")
     )
 
     @field_validator("purposes", mode="after")

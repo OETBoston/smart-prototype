@@ -1,12 +1,14 @@
-from typing import Literal, Optional
+from typing import Generic, Literal, Optional, TypeVar
 
 from pydantic import BaseModel, Field, model_serializer
 
-from .policy import Policy
+from .policy import Policy, PolicyExtended
+
+T = TypeVar("T")
 
 
-class Sign(BaseModel):
-    policy: Policy
+class SignBase(BaseModel, Generic[T]):
+    policy: T
     arrow: Optional[Literal["left", "right", "both", "none"]] = Field(
         default="none",
         description=(
@@ -18,3 +20,11 @@ class Sign(BaseModel):
     @model_serializer(when_used="json")
     def sort_model(self) -> dict:
         return {"arrow": self.arrow, "policy": self.policy}
+
+
+class Sign(SignBase[Policy]):
+    pass
+
+
+class SignExtended(SignBase[PolicyExtended]):
+    pass

@@ -30,7 +30,14 @@ from sign_reader.io_utils.image_utils import get_image
 from sign_reader.io_utils.storage import (
     save_parsed_output,
 )
-from sign_reader.models import Activity, Image, Policy, Rule, Sign, TimeSpan
+from sign_reader.models import (
+    ImageExtended,
+    PolicyExtended,
+    RuleExtended,
+    SignExtended,
+    TimeSpan,
+    Unusable,
+)
 from sign_reader.pre_reader import pre_test_image
 from sign_reader.priority_engine import get_policy_priority
 from sign_reader.progress import ConditionalBar, ConditionalSpinner
@@ -40,12 +47,12 @@ BATCH_SIZE = 50
 load_dotenv()
 
 
-def unusable_image() -> Image:
+def unusable_image() -> ImageExtended:
     # Define the unusable policy
-    return Image(
+    return ImageExtended(
         signs=[
-            Sign(
-                policy=Policy(
+            SignExtended(
+                policy=PolicyExtended(
                     priority=98,
                     time_spans=[
                         TimeSpan(
@@ -63,7 +70,9 @@ def unusable_image() -> Image:
                         )
                     ],
                     rules=[
-                        Rule(activity=Activity(value="unusable image"), purposes=None)
+                        RuleExtended(
+                            activity=Unusable(value="unusable image"),
+                        )
                     ],
                 )
             )

@@ -52,6 +52,7 @@ class PolicyBase(BaseModel, Generic[T]):
         )
 
     time_spans: List[TimeSpan] = Field(
+        ...,
         description=("The times at which the curb rules are in effect."),
     )
 
