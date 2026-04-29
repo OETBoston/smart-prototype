@@ -29,10 +29,10 @@ OUTPUT_DIR = Path("data")
 
 
 def run_api_update(
-    curb_segments_job: str | None = None,
-    policy_handling_job: str | None = None,
-    staging_db_schema: str = "staging",
-    api_db_schema: str = "public_cds",
+        curb_segments_job: str | None = None,
+        policy_handling_job: str | None = None,
+        staging_db_schema: str = "staging",
+        api_db_schema: str = "public_cds",
 ) -> None:
     """
     Orchestrates curb policy update processing and CSV export.
@@ -62,11 +62,12 @@ def run_api_update(
         dbname="cds",
         schema=api_db_schema,
         tables={
-            "curb_zones": None,
+            "curb_zones": f"end_date IS NULL",
             "curb_policies": None,
             "curb_zone_policies": None,
             "curb_policy_rules": None,
             "curb_policy_time_spans": None,
+            "curb_policy_rates": None
         },
     )
 
@@ -85,10 +86,10 @@ def run_api_update(
 
 
 def main(
-    curb_segments_job: str | None = None,
-    policy_handling_job: str | None = None,
-    staging_db_schema: str = "staging",
-    api_db_schema: str = "public_cds",
+        curb_segments_job: str | None = None,
+        policy_handling_job: str | None = None,
+        staging_db_schema: str = "staging",
+        api_db_schema: str = "public_cds",
 ) -> None:
     try:
         run_api_update(curb_segments_job, policy_handling_job, staging_db_schema, api_db_schema)
@@ -98,11 +99,10 @@ def main(
 
 
 if __name__ == "__main__":
-
     # Define external files
     local_path = Path(__file__).resolve().parent
     config_file = local_path / "config.yaml"
-    
+
     # Load external data
     config = load_config(config_file)
 
@@ -113,8 +113,8 @@ if __name__ == "__main__":
     policy_handling_job = config["staging_db"]["policy_handling_job"]
 
     main(
-        curb_segments_job=curb_segments_job, 
-        policy_handling_job=policy_handling_job, 
-        staging_db_schema=staging_db_schema, 
+        curb_segments_job=curb_segments_job,
+        policy_handling_job=policy_handling_job,
+        staging_db_schema=staging_db_schema,
         api_db_schema=api_db_schema
     )
