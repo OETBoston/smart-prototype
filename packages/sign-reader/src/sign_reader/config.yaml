@@ -2,8 +2,8 @@
 
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
-debug_mode: False
-max_images: null # For debugging - run only the first n images. Omit or set to null to run all images
+debug_mode: True
+max_images: 3 # For debugging - run only the first n images. Omit or set to null to run all images
 
 # Number of simultaneous Gemini calls to allow
 gemini_concurrent_limit: 50
