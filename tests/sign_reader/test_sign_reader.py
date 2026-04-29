@@ -5,11 +5,14 @@ from typing import Dict, Generator
 
 import pytest
 from curb_utils.ai_client import GeminiOptions
+from dotenv import load_dotenv
 from google import genai
 from sign_reader.models import Image
 from sign_reader.reader import get_image_policy
 
 TEST_DATA_DIR = Path(__file__).parent / "test_data"
+
+load_dotenv()
 
 
 class SignImagePolicy:
