@@ -1,0 +1,31 @@
+{
+    "name": "Park Boston Zone ID 530",
+    "rules": [
+        {
+            "rate": {
+                "rate": 375,
+                "rate_unit": "hour"
+            },
+            "activity": "parking",
+            "max_stay": 120,
+            "purposes": [
+                "parking"
+            ],
+            "max_stay_unit": "minute"
+        }
+    ],
+    "priority": 83,
+    "time_spans": [
+        {
+            "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri"
+            ],
+            "time_of_day_end": "18:00",
+            "time_of_day_start": "08:00"
+        }
+    ]
+}

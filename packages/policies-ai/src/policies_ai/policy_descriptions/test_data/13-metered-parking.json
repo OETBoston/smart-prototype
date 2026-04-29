@@ -1,0 +1,32 @@
+{
+    "name": "Park Boston Zone ID 10254",
+    "rules": [
+        {
+            "rate": {
+                "rate": 200,
+                "rate_unit": "hour"
+            },
+            "activity": "parking",
+            "max_stay": 120,
+            "purposes": [
+                "parking"
+            ],
+            "max_stay_unit": "minute"
+        }
+    ],
+    "priority": 83,
+    "time_spans": [
+        {
+            "days_of_week": [
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat"
+            ],
+            "time_of_day_end": "20:00",
+            "time_of_day_start": "08:00"
+        }
+    ]
+}
