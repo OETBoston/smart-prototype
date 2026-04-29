@@ -1,8 +1,8 @@
 # ==============================================================================
-# Configuration File for Cartegraph Loader
+# Configuration File for Sign Loader
 # ==============================================================================
 # This YAML file defines all parameters and settings required to run the
-# Cartegraph loader workflow. It provides centralized control over data input paths,
+# Sign Loader workflow. It provides centralized control over data input paths,
 # preprocessing options, required parameters, inference thresholds, and output
 # specifications.
 #
