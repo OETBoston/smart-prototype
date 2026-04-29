@@ -63,7 +63,7 @@ class Rule(BaseModel):
         if v is None:
             return v
         enum_position_map = {member: i for i, member in enumerate(Purposes)}
-        return sorted(v, key=lambda x: enum_position_map.get(x))
+        return sorted(v, key=lambda x: enum_position_map[x])
 
     user_classes: Optional[List[UserClass]] = Field(
         default=None,
@@ -81,7 +81,7 @@ class Rule(BaseModel):
         if v is None:
             return v
         enum_position_map = {member: i for i, member in enumerate(UserClass)}
-        return sorted(v, key=lambda x: enum_position_map.get(x))
+        return sorted(v, key=lambda x: enum_position_map[x])
 
     user_classes_except: Optional[List[UserClass]] = Field(
         default=None,
@@ -98,7 +98,7 @@ class Rule(BaseModel):
         if v is None:
             return v
         member_order = {member: i for i, member in enumerate(UserClass)}
-        return sorted(v, key=lambda x: member_order.get(x))
+        return sorted(v, key=lambda x: member_order[x])
 
     @model_validator(mode="after")
     def convert_minutes_to_hours(self) -> "Rule":
