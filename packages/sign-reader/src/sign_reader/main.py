@@ -32,6 +32,7 @@ from sign_reader.io_utils.storage import (
 )
 from sign_reader.models import (
     ImageExtended,
+    Policy,
     PolicyExtended,
     RuleExtended,
     SignExtended,
@@ -292,7 +293,9 @@ async def process_image(
             for s in parsed_image.signs:
                 arrow_value = s.arrow if s.arrow and s.arrow.lower() != "none" else None
 
-                s.policy.priority = get_policy_priority(s.policy)
+                # Compute priority for usable images
+                if isinstance(s.policy, Policy):
+                    s.policy.priority = get_policy_priority(s.policy)
 
                 # TODO: Remove AI Confidence Score, or do a bit of cleanup here if
                 # we are keeping it
