@@ -17,6 +17,8 @@ class Activity(str, Enum):
     # travel = "travel"
     # no_travel = "no travel"
 
+
+class Unusable(str, Enum):
     unusable_image = "unusable image"
 
 
