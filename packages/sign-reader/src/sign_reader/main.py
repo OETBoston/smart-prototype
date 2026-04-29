@@ -72,7 +72,7 @@ def unusable_image() -> ImageExtended:
                     ],
                     rules=[
                         RuleExtended(
-                            activity=Unusable(value="unusable image"),
+                            activity=Unusable("unusable image"),
                         )
                     ],
                 )
@@ -317,7 +317,6 @@ async def evaluate_image(
             return
 
     if parsed_image is None or not parsed_image.signs:
-        # TODO: Return a policy indicating an issue with this sign/image
         logger.warning("Detection empty: No signs extracted")
         return
 

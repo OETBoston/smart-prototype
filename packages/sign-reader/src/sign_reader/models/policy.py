@@ -6,7 +6,7 @@ Multiple Policy objects together define the full extent of regulations.
 
 """
 
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, List, Optional, TypeVar, Union
 
 from pydantic import BaseModel, Field, field_validator, model_serializer
 
@@ -35,7 +35,9 @@ class PolicyBase(BaseModel, Generic[T]):
 
     @field_validator("rules", mode="after")
     @classmethod
-    def sort_rules(cls, v: List[Rule]) -> List[Rule]:
+    def sort_rules(
+        cls, v: List[Union[Rule, RuleExtended]]
+    ) -> List[Union[Rule, RuleExtended]]:
         if not v:
             return v
         return sorted(

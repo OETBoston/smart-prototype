@@ -2,7 +2,7 @@
 A rule defines who is allowed to do what, and for how long, on a curb, per the policy.
 """
 
-from typing import Generic, List, Literal, Optional, TypeVar, Union
+from typing import Generic, List, Literal, Optional, Self, TypeVar, Union
 
 from pydantic import (
     BaseModel,
@@ -103,7 +103,7 @@ class RuleBase(BaseModel, Generic[T]):
         return sorted(v, key=lambda x: member_order[x])
 
     @model_validator(mode="after")
-    def convert_minutes_to_hours(self) -> "RuleBase":
+    def convert_minutes_to_hours(self) -> Self:
         # Convert max_stay if needed
         if self.max_stay is not None and self.max_stay != 0:
             if self.max_stay % 60 == 0 and self.max_stay_unit == "minute":
