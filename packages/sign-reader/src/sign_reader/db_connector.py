@@ -6,7 +6,7 @@ from curb_utils.db_utils import SmartCurbDB
 DB_SCHEMA = "staging_next"
 
 
-def read_images(
+def get_image_list(
     re_process: bool = False, asset_job_id: uuid.UUID | None = None
 ) -> list[tuple[str, uuid.UUID]]:
     """

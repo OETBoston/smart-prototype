@@ -16,7 +16,7 @@ dependencies = [
     "requests>=2.32.5",
     "toml>=0.10.2",
     "google-cloud-storage>=3.6.0",
-    "dummylog>=0.0.4",
+    "rich",
     "curb-utils",
 ]
 

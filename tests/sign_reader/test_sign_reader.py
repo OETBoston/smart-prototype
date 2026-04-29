@@ -1,14 +1,18 @@
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Generator
 
 import pytest
 from curb_utils.ai_client import GeminiOptions
+from dotenv import load_dotenv
 from google import genai
 from sign_reader.models import Image
-from sign_reader.reader import read_image
+from sign_reader.reader import get_image_policy
 
 TEST_DATA_DIR = Path(__file__).parent / "test_data"
+
+load_dotenv()
 
 
 class SignImagePolicy:
@@ -33,12 +37,14 @@ class SignImagePolicy:
 
 
 async def run_gemini(client, config, image_path, image_bytes) -> Dict[str, str]:
-    parsed_image = await read_image(
+    logger = logging.getLogger(__name__)
+    parsed_image = await get_image_policy(
         client=client,
         system_instruction=config["instruction"],
         user_prompt=config["user_prompt"],
         image_bytes=image_bytes,
         image_uri=image_path,
+        logger=logger,
         model_opts=GeminiOptions(**config["gemini_settings"]),
     )
 

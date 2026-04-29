@@ -1,6 +1,7 @@
 import asyncio
 import os
 import random
+from logging import Logger
 from typing import Type
 
 from google import genai
@@ -47,6 +48,7 @@ async def call_gemini_client(
     client: genai.Client,
     system_instruction: str,
     contents: genai.types.ContentListUnionDict,
+    logger: Logger,
     response_schema: Type[BaseModel] | None = None,
     response_mime_type: str = "text/plain",
     model_opts: GeminiOptions | None = None,
@@ -58,6 +60,7 @@ async def call_gemini_client(
         system_instruction (str): System prompt
         contents (genai.types.ContentListUnionDict): User prompt, possibly including
                                                      images and/or conversation history.
+        logger (Logger): Logger
         response_schema (Type[BaseModel] | None, optional): Optional Pydantic model to
             force results to conform to that model.
         response_mime_type (str, optional): Optional mime type, should be
@@ -75,7 +78,7 @@ async def call_gemini_client(
     if model_opts.mock_ai:
         # When running a mock AI client, simply pause
         # for a moment and then return an empty content response
-        print("Mocking AI")
+        logger.debug("Mocking AI")
         MIN_PAUSE = 1
         MAX_PAUSE = 5
         pause = random.randint(MIN_PAUSE, MAX_PAUSE)
