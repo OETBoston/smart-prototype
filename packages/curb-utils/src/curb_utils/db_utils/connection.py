@@ -4,6 +4,7 @@ from typing import Any, Sequence, overload
 from uuid import uuid4
 
 import geopandas as gpd
+import jinja2
 import pandas as pd
 from psycopg2.errors import InvalidTextRepresentation
 from sqlalchemy import Connection, Engine, Inspector, Row, create_engine, inspect, text
@@ -329,6 +330,38 @@ class SmartCurbDB:
         # for type checker, guaranteed by _check_db_status inside _check_data_to_modify
         assert self.engine is not None
         assert self.connection is not None
+
+        # Build DELETE sql query
+        template_str = """
+        DELETE FROM {{schema}}.{{table_name}}
+        WHERE {% for row in data.itertuples() %}
+        ( 
+            {% for col in key_columns %}
+            "{{col}}" = '{{row[col]}}'
+            {% if not loop.last %} AND {% endif %}
+            {% endfor%}
+        )
+        {% if not loop.last %} OR {% endif %}
+        {% endfor %}
+        """
+        env = jinja2.Environment()
+        template = env.from_string(template_str)
+        rendered_sql = template.render(
+            schema=self.schema,
+            table_name=table_name,
+            data=data,
+            key_columns=key_columns
+        )
+
+        # Update the database in a transaction
+        with self.engine.begin() as tx_connection:
+            try:
+                tx_connection.execute(text(rendered_sql))
+            except (DataError, ProgrammingError) as e:
+                raise InvalidInputError(
+                    "Failed to delete records from PostgreSQL (likely bad input)"
+                ) from e
+
 
     def _check_data_to_modify(
         self,
