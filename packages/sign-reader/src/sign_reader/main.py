@@ -206,6 +206,7 @@ async def process_image(
                     model_opts=model_opts,
                     image_bytes=image_bytes,
                     image_uri=image_uri,
+                    max_retries=max_retries,
                 )
             except Exception as e:
                 logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
