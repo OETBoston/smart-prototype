@@ -7,7 +7,11 @@ from logging import Logger
 from pathlib import Path
 from typing import Annotated, Any, TypeGuard
 
-from curb_utils.ai_client import GeminiOptions, call_gemini_client, init_gemini_client
+from curb_utils.ai_client import (
+    GeminiOptions,
+    call_gemini_client_aoi,
+    init_gemini_client,
+)
 from curb_utils.io_tools import load_from_txt
 from curb_utils.logging import log_list
 from dotenv import load_dotenv
@@ -113,7 +117,7 @@ async def pre_test_image(
 
         mime = "application/json" if prompt_obj.response_schema else "text/plain"
 
-        response = await call_gemini_client(
+        response = await call_gemini_client_aoi(
             client=client,
             system_instruction=system_instruction,
             contents=contents,

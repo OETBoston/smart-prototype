@@ -44,7 +44,7 @@ def init_gemini_client(api_key: str | None = None) -> genai.Client:
     return client
 
 
-async def call_gemini_client(
+async def call_gemini_client_aoi(
     client: genai.Client,
     system_instruction: str,
     contents: genai.types.ContentListUnionDict,
