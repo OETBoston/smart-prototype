@@ -16,6 +16,7 @@ from pathlib import Path
 from curb_utils.ai_client import GeminiOptions, init_gemini_client
 from curb_utils.db_utils import append_job
 from curb_utils.io_tools import load_from_txt, load_from_yaml
+from curb_utils.logging import get_today, setup_logger
 from dotenv import load_dotenv
 from google import genai
 from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
@@ -29,7 +30,6 @@ from sign_reader.io_utils.image_utils import get_image
 from sign_reader.io_utils.storage import (
     save_parsed_output,
 )
-from sign_reader.logging_tools import get_logger
 from sign_reader.models import Activity, Image, Policy, Rule, Sign
 from sign_reader.pre_reader import pre_test_image
 from sign_reader.priority_engine import get_policy_priority
@@ -57,7 +57,8 @@ def unusable_image() -> Image:
 
 
 async def main() -> None:
-    logger = get_logger()
+    log_file = f"logs/sign-reader-{get_today()}.log"
+    logger, console = setup_logger(__name__, log_file=log_file)
     logger.info("Running Sign Reader Task...")
 
     # Define external files
@@ -123,7 +124,7 @@ async def main() -> None:
             BarColumn(),
             TextColumn("[progress.description]{task.description}"),
             TimeElapsedColumn(),
-            transient=True,
+            console=console,
         ) as progress:
             async with asyncio.TaskGroup() as tg:
                 ### then create tasks using tg.create_task(<<function to run>>)
@@ -185,7 +186,7 @@ async def process_image(
             image_bytes = get_image(image_uri)
         except Exception:
             logger.warning(f"Failed to load {image_uri}:")
-            progress.stop_task(task)
+            progress.remove_task(task)
             return
 
         # Pre-process the image
@@ -199,7 +200,7 @@ async def process_image(
             )
         except Exception:
             logger.warning(f"Failed to pre-process {image_uri}:")
-            progress.stop_task(task)
+            progress.remove_task(task)
             return None
 
         if not pre_check[0]:
@@ -221,13 +222,13 @@ async def process_image(
                 )
             except Exception as e:
                 logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
-                progress.stop_task(task)
+                progress.remove_task(task)
                 return
 
     if parsed_image is None or not parsed_image.signs:
         # TODO: Return a policy indicating an issue with this sign/image
         logger.warning("Detection empty: No signs extracted")
-        progress.stop_task(task)
+        progress.remove_task(task)
         return
 
     # Save raw AI output to local disk - debug mode only
@@ -269,7 +270,7 @@ async def process_image(
                 logger.info("Batch upload successful.")
 
     logger.debug(f"Successfully parsed {len(parsed_image.signs)} signs.")
-    progress.stop_task(task)
+    progress.remove_task(task)
 
 
 if __name__ == "__main__":
