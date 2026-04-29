@@ -1,5 +1,6 @@
 """Gemini content generation and structured image reading logic."""
 
+import time
 from logging import Logger
 
 from curb_utils.ai_client import GeminiOptions, call_gemini_client
@@ -37,6 +38,7 @@ async def get_image_policy(
     """
 
     log_messages = []
+    start = time.perf_counter()
     log_messages.append(("info", f"Reading {image_uri}"))
 
     contents: genai.types.ContentListUnionDict = [
@@ -80,7 +82,9 @@ async def get_image_policy(
             if not isinstance(result, Image):
                 raise TypeError("Incorrect data type provided by the AI model.")
 
-            log_messages.append(("info", f"Completed processing image {image_uri}"))
+            elapsed = time.perf_counter() - start
+            log_messages.append(("info", f"Processed {image_uri}."))
+            log_messages.append(("info", f"Elapsed Time: {elapsed:.2f} seconds."))
             log_list(logger, log_messages)
             return result
 
