@@ -4,14 +4,16 @@ transformer.py
 Contains modular functions for curb data acquisition, processing, and export.
 """
 
-import os
+import ast
 import uuid
 import json
 import pandas as pd
 import logging
+from typing import cast
+import geopandas as gpd
+from shapely import wkb
 
-from policies_ai.clients import init_gemini_client
-from policies_ai.policy_descriptions.descriptions import generate_description, add_json_to_prompt, default_prompt
+from packages.api_update.src.utils import get_policy_json, get_policy_signatures, get_policy_descriptions
 from packages.api_update.src.utils_geo import consolidate_curb_segments
 
 
@@ -33,7 +35,7 @@ def extract_unique_policies(df_updates: pd.DataFrame) \
     unique_json = df_exploded['policy_json'].unique()
     unique_dicts = [json.loads(x) for x in unique_json]
 
-    return unique_dicts, zone_to_policies
+    return unique_dicts, cast(dict[str, list[str]], zone_to_policies)
 
 
 def _create_policy_sub_elements(
@@ -105,30 +107,25 @@ def build_policy_tables(
 
     logger.info(f"Building Policy tables for {len(unique_policies)} policies...")
 
-    with init_gemini_client(os.getenv("GEMINI_API_KEY")) as client:
-        for i, policy in enumerate(unique_policies):
-            
-            logger.info(f"Processing policy {i + 1}/{len(unique_policies)}")
+    for i, policy in enumerate(unique_policies):
 
-            p_id = uuid.uuid4()
-            p_json = json.dumps(policy, sort_keys=True)
-            json_to_id_map[p_json] = p_id
+        p_id = uuid.uuid4()
+        p_json = json.dumps(policy, sort_keys=True)
+        json_to_id_map[p_json] = p_id
 
-            logger.info("Generating policy description...")
-            prompt = add_json_to_prompt(default_prompt, p_json)
-            description = generate_description(client, prompt, model_opts=None)
+        policies.append({
+            "curb_policy_id": p_id,
+            "name": policy.get("name", None),
+            "description": policy.get("description", None),
+            "published_date": run_time,
+            "priority": policy.get("priority"),
+            "policy_color_id": None
+        })
 
-            policies.append({
-                "curb_policy_id": p_id,
-                "description": description,
-                "published_date": run_time,
-                "priority": policy.get("priority"),
-            })
-
-            r, s, rt = _create_policy_sub_elements(p_id, policy)
-            rules.extend(r)
-            spans.extend(s)
-            rates.extend(rt)
+        r, s, rt = _create_policy_sub_elements(p_id, policy)
+        rules.extend(r)
+        spans.extend(s)
+        rates.extend(rt)
 
     return pd.DataFrame(policies), pd.DataFrame(rules), pd.DataFrame(spans), pd.DataFrame(rates), json_to_id_map
 
@@ -185,25 +182,128 @@ def transform_policy_updates(
 
     run_time = pd.Timestamp.now()
 
-    # Process staging tables to create a consolidated view
+    # 1. Pre-process Existing Data
+    old_policies = api_data_dict["curb_policies"].copy()
+    old_rules = api_data_dict["curb_policy_rules"].copy()
+    old_spans = api_data_dict["curb_policy_time_spans"].copy()
+    old_rates = api_data_dict["curb_policy_rates"].copy()
+    old_zone_policies = api_data_dict["curb_zone_policies"].copy()
+
+    # Vectorized eval
+    old_spans['designated_period'] = old_spans['designated_period'].apply(
+        lambda x: list(ast.literal_eval(x)) if pd.notna(x) else None)
+
+    old_policies['policy_json'] = get_policy_json(old_policies, old_rules, old_spans, old_rates)
+    old_policies["signature"] = get_policy_signatures(old_policies)
+
+    # 2. Process Staging Data
     df_updates = consolidate_curb_segments(
         staging_data_dict["curb_segments"],
         staging_data_dict["curb_segment_policies"])
 
     # Flatten and get unique policies
     unique_policies, zone_to_json_map = extract_unique_policies(df_updates)
-
     # Build Policy related tables
-    df_policies, df_rules, df_spans, df_rates, json_to_id_map = build_policy_tables(unique_policies, run_time)
+    new_policies, new_rules, new_spans, new_rates, json_to_id_map = build_policy_tables(unique_policies, run_time)
 
-    # Build Zone related tables
-    df_zones, df_zone_policies = build_zone_tables(df_updates, zone_to_json_map, json_to_id_map, run_time)
+    new_policies['policy_json'] = get_policy_json(new_policies, new_rules, new_spans, new_rates)
+    new_policies["signature"] = get_policy_signatures(new_policies)
 
+    # 3. Geo Processing
+    new_zones, new_zone_policies = build_zone_tables(df_updates, zone_to_json_map, json_to_id_map, run_time)
+    new_zones['geometry'] = gpd.GeoSeries.from_wkt(new_zones['geometry'])
+    new_zones = gpd.GeoDataFrame(new_zones, geometry='geometry', crs="EPSG:4326")
+
+    old_zones = api_data_dict["curb_zones"].copy()
+    old_zones['geometry'] = old_zones['geometry'].apply(lambda x: wkb.loads(x, hex=True) if isinstance(x, str) else x)
+    old_zones = gpd.GeoDataFrame(old_zones, geometry='geometry', crs="EPSG:4326")
+
+    # 4. Change Detection
+    # Spatial join to find candidates
+    zones_change = gpd.sjoin(new_zones, old_zones, how="inner", predicate="intersects", lsuffix='new', rsuffix='old')
+    left_geom = zones_change.geometry
+    right_geom = gpd.GeoSeries(
+        old_zones.loc[zones_change["index_old"], "geometry"].values,
+        index=zones_change.index,
+        crs=zones_change.crs
+    )
+    zones_change['geometry_existing'] = right_geom
+    intersections = left_geom.intersection(right_geom)
+    zones_change = zones_change[intersections.geom_type.isin(['LineString', 'MultiLineString'])]
+
+    # Pre-map signatures to zones
+    def get_zone_sig_map(zp_df, poly_df):
+        merged = zp_df.merge(poly_df[['curb_policy_id', 'signature']], on='curb_policy_id')
+        return merged.groupby('curb_zone_id')['signature'].apply(set).to_dict()
+
+    new_zone_sigs = get_zone_sig_map(new_zone_policies, new_policies)
+    old_zone_sigs = get_zone_sig_map(old_zone_policies, old_policies)
+
+    old_zones = old_zones.set_index('curb_zone_id')
+
+    zones_to_drop_from_new = set()
+    zones_to_expire_in_old = set()
+    zone_id_replacements = {}
+
+    # Iterating only over intersections is faster, but we use dict lookups inside
+    for _, row in zones_change.iterrows():
+        n_id, o_id = row['curb_zone_id_new'], row['curb_zone_id_old']
+
+        # Check geometry equality
+        if row['geometry'].equals(row['geometry_existing']):
+            if new_zone_sigs.get(n_id) == old_zone_sigs.get(o_id):
+                # Identical: just update timestamp and discard the "new" one
+                old_zones.at[o_id, 'last_updated_date'] = run_time
+                zones_to_drop_from_new.add(n_id)
+            else:
+                # Same geometry, different policy: update old, map new ID to old ID
+                old_zones.at[o_id, 'last_updated_date'] = run_time
+                zones_to_expire_in_old.add(o_id)  # Clear old policies
+                zone_id_replacements[n_id] = o_id
+        else:
+            # Different geometry: Expire old zone
+            old_zones.loc[o_id, ['last_updated_date', 'end_date']] = run_time
+            zones_to_expire_in_old.add(o_id)
+
+    # 5. Bulk Updates
+    old_zones = old_zones.reset_index()
+    new_zones = new_zones[~new_zones['curb_zone_id'].isin(zones_to_drop_from_new)]
+    old_zone_policies = old_zone_policies[
+        ~old_zone_policies['curb_zone_id'].isin(zones_to_expire_in_old)]
+
+    # Apply ID replacements in bulk
+    new_zone_policies['curb_zone_id'] = new_zone_policies['curb_zone_id'].replace(zone_id_replacements)
+
+    # --- 5. CLEANUP & ORPHAN REMOVAL ---
+    # Only keep policies that are actually linked to an active zone
+    active_old_zone_ids = set(old_zones[old_zones['end_date'].isna()]['curb_zone_id'])
+    active_new_zone_ids = set(new_zones['curb_zone_id'])
+    active_zone_ids = active_new_zone_ids.union(active_old_zone_ids)
+
+    new_zone_policies = new_zone_policies[new_zone_policies['curb_zone_id'].isin(active_zone_ids)]
+    old_zone_policies = old_zone_policies[old_zone_policies['curb_zone_id'].isin(active_zone_ids)]
+
+    active_policy_ids = set(new_zone_policies['curb_policy_id']).union(set(old_zone_policies['curb_policy_id']))
+
+    # Helper to filter multiple dataframes at once
+    def filter_by_policy(dfs, ids):
+        return [df[df['curb_policy_id'].isin(ids)] for df in dfs]
+
+    [new_policies, new_rules, new_spans, new_rates] = filter_by_policy(
+        [new_policies, new_rules, new_spans, new_rates], active_policy_ids
+    )
+    [old_policies, old_rules, old_spans, old_rates] = filter_by_policy(
+        [old_policies, old_rules, old_spans, old_rates], active_policy_ids
+    )
+
+    new_policies['description'] = get_policy_descriptions(new_policies)
+
+    # --- 6. FINAL CONCATENATION ---
     return {
-        "curb_zones": df_zones,
-        "curb_policies": df_policies,
-        "curb_zone_policies": df_zone_policies,
-        "curb_policy_rules": df_rules,
-        "curb_policy_time_spans": df_spans,
-        "curb_policy_rates": df_rates,
+        "curb_zones": pd.concat([new_zones, old_zones], ignore_index=True),
+        "curb_policies": pd.concat([new_policies, old_policies], ignore_index=True),
+        "curb_zone_policies": pd.concat([new_zone_policies, old_zone_policies], ignore_index=True),
+        "curb_policy_rules": pd.concat([new_rules, old_rules], ignore_index=True),
+        "curb_policy_time_spans": pd.concat([new_spans, old_spans], ignore_index=True),
+        "curb_policy_rates": pd.concat([new_rates, old_rates], ignore_index=True),
     }
