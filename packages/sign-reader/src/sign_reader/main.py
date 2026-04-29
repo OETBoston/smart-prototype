@@ -45,7 +45,6 @@ from sign_reader.priority_engine import get_policy_priority
 from sign_reader.progress import ConditionalBar, ConditionalSpinner
 from sign_reader.reader import get_image_policy
 
-BATCH_SIZE = 50
 load_dotenv()
 
 
@@ -110,7 +109,6 @@ async def main() -> None:
 
     # Set up the semaphore - defaulting to max 1 if not set
     sem = asyncio.Semaphore(config.gemini_concurrent_limit)
-    lock = asyncio.Lock()
 
     # If in debug mode, save the parsed outputs to disk
     output_dir = Path("outputs/sign_reader")
@@ -168,7 +166,6 @@ async def main() -> None:
                         process_image(
                             client=client,
                             sem=sem,
-                            lock=lock,
                             pre_system_instruction=pre_system_instruction,
                             system_instruction=system_instruction,
                             user_prompt=user_prompt,
@@ -179,6 +176,7 @@ async def main() -> None:
                             output_dir=output_dir,
                             logger=logger,
                             records_policies=records_policies,
+                            batch_size=config.batch_size,
                             progress=progress,
                             loop_task=loop_task,
                             pre_model_opts=pre_model_opts,
@@ -197,7 +195,6 @@ async def main() -> None:
 async def process_image(
     client: genai.Client,
     sem: asyncio.Semaphore,
-    lock: asyncio.Lock,
     pre_system_instruction: str,
     system_instruction: str,
     user_prompt: str,
@@ -208,6 +205,7 @@ async def process_image(
     output_dir: Path,
     logger: Logger,
     records_policies: list,
+    batch_size: int,
     progress: Progress,
     loop_task: TaskID,
     pre_model_opts: GeminiOptions | None = None,
@@ -248,6 +246,7 @@ async def process_image(
         logger=logger,
         progress=progress,
         task=task,
+        batch_size=batch_size,
     )
 
     _end_task(progress, loop_task, task)
@@ -336,6 +335,7 @@ def write_image(
     logger: Logger,
     progress: Progress,
     task: TaskID,
+    batch_size: int,
 ) -> None:
     # Turn None into unusable image
     image_or_unusable = parsed_image or unusable_image()
@@ -376,7 +376,7 @@ def write_image(
                     "ai_confidence_score": int(getattr(s, "confidence", 0) * 100),
                 }
             )
-        if len(records_policies) >= BATCH_SIZE:
+        if len(records_policies) >= batch_size:
             logger.info(
                 f"Threshold reached ({len(records_policies)}). Uploading batch..."
             )
