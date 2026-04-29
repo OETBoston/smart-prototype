@@ -357,22 +357,12 @@ def write_image(
             if isinstance(s.policy, Policy):
                 s.policy.priority = get_policy_priority(s.policy)
 
-            # TODO: Remove AI Confidence Score, or do a bit of cleanup here if
-            # we are keeping it
-
             records_policies.append(
                 {
                     "sign_policy_id": uuid.uuid4(),
                     "sign_id": sign_id,
-                    "policy_json": s.policy.model_dump_json(
-                        indent=4,
-                        exclude={
-                            "rules": {"__all__": {"confidence"}},
-                            "time_spans": {"__all__": {"confidence"}},
-                        },
-                    ),
+                    "policy_json": s.policy.model_dump_json(indent=4),
                     "policy_arrow": arrow_value,
-                    "ai_confidence_score": int(getattr(s, "confidence", 0) * 100),
                 }
             )
         if len(records_policies) >= batch_size:
