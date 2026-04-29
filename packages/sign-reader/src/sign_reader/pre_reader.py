@@ -157,16 +157,20 @@ async def pre_test_image(
 
 
 if __name__ == "__main__":
+    from curb_utils.logging import setup_logger
+
     load_dotenv()
-    logger = Logger(__name__)
+    logger, console = setup_logger(__name__)
+    logger.setLevel("DEBUG")
     # Instructions file
     local_path = Path(__file__).resolve().parent
     instruction_file = local_path / "instructions/preprocess_instruction.txt"
     system_instruction = load_from_txt(instruction_file)
 
     # Test image file
-    test_image_path = Path(
-        "/home/smcatee/github/smart-prototype/tests/sign_reader/test_data/"
+    test_image_path = (
+        Path(__file__).parent.parent.parent.parent.parent
+        / "tests/sign_reader/test_data/"
     )
     images = [
         "01-limit2hr-1600.0000-none.jpg",
