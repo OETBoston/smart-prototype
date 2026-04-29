@@ -120,7 +120,6 @@ process referenced to the original images and their locations.
 | job_id                  | UUID (FOREIGN KEY) | Job ID that links to metadata about the sign reader job that generated the policy.      |
 | policy_json             | JSONB              | Sign policy as interpreted by the sign reader in CDS policy object format.             |
 | policy_arrow            | VARCHAR            | left, right, or both (no arrows implies both).                                          |
-| ai_confidence_score     | VARCHAR            | Score of 1-100 indicating AI confidence in CDS policy [may be broken into components?]. |
 | ai_commentary           | VARCHAR            | Optional field to allow AI to provide "commentary" on reasoning.                        |
 | cds_override            | VARCHAR            | Human-modified CDS override based on manual review.                                     |
 | cds_override_commentary | VARCHAR            | Human commentary on reasoning for CDS override.                                         |
