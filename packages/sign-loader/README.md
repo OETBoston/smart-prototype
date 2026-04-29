@@ -142,6 +142,8 @@ These can be null but if used, should be lists.
 `grouping_distance_ft` is also used to group nearby Cartegraph signs.
 The default of 5' was found after some test groups of various distances were made and verified using Google Maps.
 
+Records with missing latitute and longtitude columns or with null in the `mutcd_code_field` are filtered out.
+
 #### With Another Dataset
 
 If using a different dataset (like a smaller survey of signs for a specific neighborhood),
@@ -161,20 +163,20 @@ The pipeline will log all operations as if uploading, but no data will be writte
 ### 1. **Data Loading**
 Reads sign data from CSV and neighborhood boundaries from GeoJSON/Shapefile.
 
-### 2. **Data Cleaning**
+### 2. **Data Preprocessing**
+For Cartegraph datasets:
 * Filters for signs with valid latitude/longitude coordinates
 * Removes records missing required fields (MUTCD code)
 * Removes duplicates, keeping the most recently modified record
-
-### 3. **Sign Filtering**
 * Filters for parking signs using configurable MUTCD codes (e.g., "P-", "MS-")
 * Excludes signs with certain statuses (e.g., "Missing", "Proposed")
-
-### 4. **Geographic Filtering**
 * Optionally filters signs to specific neighborhoods using spatial joins
 * Groups nearby signs together by truncating coordinates to a configurable distance (default: 5 ft)
 
-### 5. **Data Formatting**
+For other datasets:
+* Reprojects dataset into correct CRS
+
+### 3. **Data Formatting**
 Transforms the processed GeoDataFrame into database-ready tables:
 * `asset_jobs`: Job metadata
 * `data_sources`: Data source information
@@ -182,7 +184,7 @@ Transforms the processed GeoDataFrame into database-ready tables:
 * `signs`: Individual sign records
 * `images`: Associated sign images
 
-### 6. **Database Upload**
+### 4. **Database Upload**
 Appends formatted tables to PostgreSQL database using the `SmartCurbDB` connector.
 
 ---
