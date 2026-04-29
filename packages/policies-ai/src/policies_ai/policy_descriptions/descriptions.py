@@ -59,19 +59,7 @@ async def generate_description(
         # use the defaults
         model_opts = DEFAULT_OPTIONS
 
-    # config_gemini_typed = genai.types.GenerateContentConfig(
-    #     system_instruction=system_instruction,
-    #     response_mime_type="text/plain",
-    #     temperature=model_opts.temperature,
-    #     thinking_config=genai.types.ThinkingConfig(
-    #         include_thoughts=model_opts.include_thoughts,
-    #         thinking_level=model_opts.thinking_level,  # type: ignore
-    #     ),
-    # )
-
     async with sem:
-        # contents = [genai.types.Part.from_text(text=prompt)]
-
         contents: genai.types.ContentListUnionDict = [
             genai.types.Content(
                 parts=[
@@ -79,10 +67,6 @@ async def generate_description(
                 ]
             )
         ]
-
-        # response = client.models.generate_content(
-        #     model=model_opts.model, contents=contents, config=config_gemini_typed
-        # )
 
         response = await call_gemini_client(
             client=client,
