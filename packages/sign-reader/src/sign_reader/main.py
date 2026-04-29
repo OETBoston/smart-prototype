@@ -100,9 +100,7 @@ async def main() -> None:
 
     logger.info("Fetching list from database...")
     images_list = read_images(
-        asset_job_id=uuid.UUID(config.sign_assets.job_id)
-        if config.sign_assets.job_id
-        else None,
+        asset_job_id=config.sign_assets.job_id if config.sign_assets.job_id else None,
         re_process=config.sign_assets.re_process,
     )
 

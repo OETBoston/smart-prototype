@@ -1,16 +1,20 @@
+from uuid import UUID
+
 from curb_utils.ai_client import GeminiOptions
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SignAssetsConfig(BaseModel):
-    job_id: str | None = Field(None)
+    model_config = ConfigDict(extra="forbid")
+    job_id: UUID | None = Field(None)
     re_process: bool = Field(False)
 
 
 class SignReaderConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     debug_mode: bool = Field(False)
     max_images: int | None = Field(None)
-    gemini_concurrent_limit: int = Field(10)
+    gemini_concurrent_limit: int = Field(1, ge=1)
     gemini_preprocess_settings: GeminiOptions
     gemini_settings: GeminiOptions
     max_retries: int = Field(3)
