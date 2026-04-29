@@ -39,7 +39,6 @@ def save_parsed_output(
     parsed_image, output_dir: Path, image_uri: str, sign_id: str | None
 ) -> None:
     """Save structured parsed output to a JSON file."""
-    print(f"Debug output for {image_uri}")
 
     # Assign a filename, icnluding the sign_id if present
     stem = Path(image_uri).stem

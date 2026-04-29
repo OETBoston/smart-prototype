@@ -6,7 +6,7 @@ import pytest
 from curb_utils.ai_client import GeminiOptions
 from google import genai
 from sign_reader.models import Image
-from sign_reader.reader import read_image
+from sign_reader.reader import get_image_policy
 
 TEST_DATA_DIR = Path(__file__).parent / "test_data"
 
@@ -33,7 +33,7 @@ class SignImagePolicy:
 
 
 async def run_gemini(client, config, image_path, image_bytes) -> Dict[str, str]:
-    parsed_image = await read_image(
+    parsed_image = await get_image_policy(
         client=client,
         system_instruction=config["instruction"],
         user_prompt=config["user_prompt"],

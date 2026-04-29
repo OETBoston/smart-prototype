@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from sign_reader.models import Image
 
 
-async def read_image(
+async def get_image_policy(
     client: genai.Client,
     system_instruction: str,
     user_prompt: str,

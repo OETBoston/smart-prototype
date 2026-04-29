@@ -51,7 +51,6 @@ def setup_logger(
         show_time=True,
         show_path=True,
     )
-    rich_handler.setLevel(level)
     logger.addHandler(rich_handler)
 
     # --- File handler ---
@@ -60,7 +59,6 @@ def setup_logger(
         log_file.parent.mkdir(parents=True, exist_ok=True)
 
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setLevel(level)
         file_handler.setFormatter(
             logging.Formatter(
                 fmt="%(asctime)s | %(levelname)-8s | %(name)s - %(message)s",
