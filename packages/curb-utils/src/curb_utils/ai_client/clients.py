@@ -60,6 +60,7 @@ async def call_gemini_client(
         system_instruction (str): System prompt
         contents (genai.types.ContentListUnionDict): User prompt, possibly including
                                                      images and/or conversation history.
+        logger (Logger): Logger
         response_schema (Type[BaseModel] | None, optional): Optional Pydantic model to
             force results to conform to that model.
         response_mime_type (str, optional): Optional mime type, should be
