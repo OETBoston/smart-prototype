@@ -30,7 +30,7 @@ from sign_reader.io_utils.image_utils import get_image
 from sign_reader.io_utils.storage import (
     save_parsed_output,
 )
-from sign_reader.models import Activity, Image, Policy, Rule, Sign
+from sign_reader.models import Activity, Image, Policy, Rule, Sign, TimeSpan
 from sign_reader.pre_reader import pre_test_image
 from sign_reader.priority_engine import get_policy_priority
 from sign_reader.progress import ConditionalBar, ConditionalSpinner
@@ -47,7 +47,21 @@ def unusable_image() -> Image:
             Sign(
                 policy=Policy(
                     priority=98,
-                    time_spans=[],
+                    time_spans=[
+                        TimeSpan(
+                            days_of_week=[
+                                "sun",
+                                "mon",
+                                "tue",
+                                "wed",
+                                "thu",
+                                "fri",
+                                "sat",
+                            ],
+                            time_of_day_end="00:00",
+                            time_of_day_start="00:00",
+                        )
+                    ],
                     rules=[
                         Rule(activity=Activity(value="unusable image"), purposes=None)
                     ],
