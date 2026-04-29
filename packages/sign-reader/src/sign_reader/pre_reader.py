@@ -9,7 +9,7 @@ from typing import Annotated, Any, TypeGuard
 
 from curb_utils.ai_client import (
     GeminiOptions,
-    call_gemini_client_aoi,
+    call_gemini_client_aio,
     init_gemini_client,
 )
 from curb_utils.io_tools import load_from_txt
@@ -117,7 +117,7 @@ async def pre_test_image(
 
         mime = "application/json" if prompt_obj.response_schema else "text/plain"
 
-        response = await call_gemini_client_aoi(
+        response = await call_gemini_client_aio(
             client=client,
             system_instruction=system_instruction,
             contents=contents,

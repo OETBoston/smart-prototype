@@ -44,7 +44,7 @@ def init_gemini_client(api_key: str | None = None) -> genai.Client:
     return client
 
 
-async def call_gemini_client_aoi(
+async def call_gemini_client_aio(
     client: genai.Client,
     system_instruction: str,
     contents: genai.types.ContentListUnionDict,
@@ -112,7 +112,7 @@ def call_gemini_client(
     response_mime_type: str = "text/plain",
     model_opts: GeminiOptions | None = None,
 ) -> GenerateContentResponse:
-    """Call the gemini client in syncronous mode
+    """Call the gemini client in synchronous  mode
 
     Args:
         client (genai.Client): Initialized Gemini client
@@ -132,7 +132,7 @@ def call_gemini_client(
     """
 
     return asyncio.run(
-        call_gemini_client_aoi(
+        call_gemini_client_aio(
             client=client,
             system_instruction=system_instruction,
             contents=contents,
