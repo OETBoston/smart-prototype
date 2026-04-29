@@ -19,7 +19,7 @@ from curb_utils.io_tools import load_from_txt, load_from_yaml
 from curb_utils.logging import get_today, setup_logger
 from dotenv import load_dotenv
 from google import genai
-from rich.progress import BarColumn, Progress, TaskID, TextColumn, TimeElapsedColumn
+from rich.progress import Progress, TaskID, TextColumn, TimeElapsedColumn
 
 from sign_reader.config import SignReaderConfig
 from sign_reader.db_connector import (
@@ -33,6 +33,7 @@ from sign_reader.io_utils.storage import (
 from sign_reader.models import Activity, Image, Policy, Rule, Sign
 from sign_reader.pre_reader import pre_test_image
 from sign_reader.priority_engine import get_policy_priority
+from sign_reader.progress import ConditionalBar, ConditionalSpinner
 from sign_reader.reader import get_image_policy
 
 BATCH_SIZE = 50
@@ -125,13 +126,16 @@ async def main() -> None:
 
     with init_gemini_client() as client:
         with Progress(
-            BarColumn(),
+            ConditionalSpinner(),
             TextColumn("[progress.description]{task.description}"),
             TimeElapsedColumn(),
+            ConditionalBar(),
             console=console,
         ) as progress:
             loop_task = progress.add_task(
-                f"Processing {len(images_list)} Images", total=len(images_list)
+                f"Processing {len(images_list)} Images",
+                total=len(images_list),
+                use_spinner=False,
             )
             async with asyncio.TaskGroup() as tg:
                 ### then create tasks using tg.create_task(<<function to run>>)
@@ -193,7 +197,7 @@ async def process_image(
         info_extended = f"{info} | URI: {image_uri}"
         logger.info(info_extended)
         progress.advance(loop_task, 0.5)
-        task = progress.add_task(info, total=None)
+        task = progress.add_task(info, total=None, use_spinner=True)
 
         # Fetch the image
         try:
