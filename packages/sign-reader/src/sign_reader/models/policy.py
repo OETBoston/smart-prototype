@@ -6,21 +6,23 @@ Multiple Policy objects together define the full extent of regulations.
 
 """
 
-from typing import List, Optional
+from typing import Generic, List, Optional, TypeVar
 
 from pydantic import BaseModel, Field, field_validator, model_serializer
 
-from .rule import Rule
+from .rule import Rule, RuleExtended
 from .timespan import TimeSpan
 
+T = TypeVar("T")
 
-class Policy(BaseModel):
+
+class PolicyBase(BaseModel, Generic[T]):
     policy_id: str | None = None
     name: str | None = None
     description: str | None = None
     published_date: int | None = None
     priority: int | None = None
-    rules: List[Rule] = Field(
+    rules: List[T] = Field(
         ...,
         description=(
             "One or more rules describing what activities are allowed/forbidden,"
@@ -90,3 +92,11 @@ class Policy(BaseModel):
             data["time_spans"] = self.time_spans
 
         return data
+
+
+class Policy(PolicyBase[Rule]):
+    pass
+
+
+class PolicyExtended(PolicyBase[RuleExtended]):
+    pass
