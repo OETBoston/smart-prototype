@@ -1,6 +1,7 @@
+import asyncio
 from pathlib import Path
 
-from curb_utils.ai_client.clients import init_gemini_client
+from curb_utils.ai_client.clients import call_gemini_client, init_gemini_client
 from curb_utils.ai_client.config import GeminiOptions
 from curb_utils.io_tools import load_from_txt
 from google import genai
@@ -30,8 +31,9 @@ def add_json_to_prompt(prompt: str, policy_json: str) -> str:
     return prompt + "\n" + policy_json
 
 
-def generate_description(
+async def generate_description(
     client: genai.Client,
+    sem: asyncio.Semaphore,
     prompt: str = default_prompt,
     system_instruction=default_instruction,
     model_opts: GeminiOptions | None = None,
@@ -57,28 +59,47 @@ def generate_description(
         # use the defaults
         model_opts = DEFAULT_OPTIONS
 
-    config_gemini_typed = genai.types.GenerateContentConfig(
-        system_instruction=system_instruction,
-        response_mime_type="text/plain",
-        temperature=model_opts.temperature,
-        thinking_config=genai.types.ThinkingConfig(
-            include_thoughts=model_opts.include_thoughts,
-            thinking_level=model_opts.thinking_level,  # type: ignore
-        ),
-    )
+    # config_gemini_typed = genai.types.GenerateContentConfig(
+    #     system_instruction=system_instruction,
+    #     response_mime_type="text/plain",
+    #     temperature=model_opts.temperature,
+    #     thinking_config=genai.types.ThinkingConfig(
+    #         include_thoughts=model_opts.include_thoughts,
+    #         thinking_level=model_opts.thinking_level,  # type: ignore
+    #     ),
+    # )
 
-    contents = [genai.types.Part.from_text(text=prompt)]
-    response = client.models.generate_content(
-        model=model_opts.model, contents=contents, config=config_gemini_typed
-    )
+    async with sem:
+        # contents = [genai.types.Part.from_text(text=prompt)]
 
-    if not response.text:
-        return "NO DESCRIPTION AVAILABLE"
+        contents: genai.types.ContentListUnionDict = [
+            genai.types.Content(
+                parts=[
+                    genai.types.Part.from_text(text=prompt),
+                ]
+            )
+        ]
 
-    return response.text
+        # response = client.models.generate_content(
+        #     model=model_opts.model, contents=contents, config=config_gemini_typed
+        # )
+
+        response = await call_gemini_client(
+            client=client,
+            system_instruction=system_instruction,
+            contents=contents,
+            response_schema=None,
+            response_mime_type="text/plain",
+            model_opts=model_opts,
+        )
+
+        if not response.text:
+            return "NO DESCRIPTION AVAILABLE"
+        else:
+            return response.text
 
 
-def run_examples(api_key) -> None:
+async def run_examples(api_key) -> None:
     """Provides basic example for running the description"""
     from time import perf_counter
 
@@ -89,28 +110,35 @@ def run_examples(api_key) -> None:
             policy = json.load(f)
         return json.dumps(policy)
 
+    async def process_example(policy_file: Path) -> str:
+        sem = asyncio.Semaphore(50)
+        print(f"Processing {policy_file}...")
+        policy_json = read_policy_example(policy_file)
+        outfile = policy_file.with_suffix(".RESULT.txt")
+        prompt = add_json_to_prompt(default_prompt, policy_json)
+        description = await generate_description(
+            client, sem, prompt, model_opts=None, api_key=api_key
+        )
+        with open(outfile, "w+") as f:
+            f.write(description)
+        return description
+
     examples_dir = Path(__file__).parent / "test_data"
+    files_to_process = list(examples_dir.glob("*.json"))
+
+    start = perf_counter()
 
     with init_gemini_client(api_key) as client:
-        for p in examples_dir.glob("*.json"):
-            print(f"Generating Description for {p}")
-            start = perf_counter()
-            outfile = p.with_suffix(".RESULT.txt")
-            p_json = read_policy_example(p)
-            prompt = add_json_to_prompt(default_prompt, p_json)
-            description = generate_description(
-                client, prompt, model_opts=None, api_key=api_key
-            )
-            with open(outfile, "w+") as f:
-                f.write(description)
-            end = perf_counter()
-            elapsed = round(end - start, 3)
-            print(f"Processed file in {elapsed}s")
-            print("=" * 20)
+        async with asyncio.TaskGroup() as tg:
+            for f in files_to_process:
+                tg.create_task(process_example(f))
+    end = perf_counter()
+    elapsed = round(end - start, 3)
+    print(f"Processed {len(files_to_process)} files in {elapsed}s")
 
 
 if __name__ == "__main__":
     import os
 
     api_key = os.environ["GEMINI_API_KEY"]
-    run_examples(api_key)
+    asyncio.run(run_examples(api_key))
