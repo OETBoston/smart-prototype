@@ -204,7 +204,7 @@ async def process_image(
             progress.update(task, description=f"Fetching Sign ID: {sign_id}")
             image_bytes = get_image(image_uri)
         except Exception:
-            logger.warning(f"Failed to load {image_uri}:")
+            logger.warning(f"Failed to load {image_uri}:", exc_info=True)
             _end_task(progress, loop_task, task)
             return
 
@@ -223,7 +223,7 @@ async def process_image(
         except Exception:
             logger.warning(f"Failed to pre-process {image_uri}:")
             _end_task(progress, loop_task, task)
-            return None
+            return
 
         if not pre_check[0]:
             logger.warning(f"Image {image_uri} failed pre-check.")
@@ -246,7 +246,7 @@ async def process_image(
                 )
             except Exception as e:
                 logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
-                progress.remove_task(task)
+                _end_task(progress, loop_task, task)
                 return
 
     if parsed_image is None or not parsed_image.signs:
@@ -302,7 +302,7 @@ async def process_image(
 
 
 def _end_task(progress: Progress, loop_task: TaskID, image_task: TaskID) -> None:
-    """Remove a task and increment the image task by 0.5"""
+    """Remove a task and increment the loop task by 0.5"""
     progress.remove_task(image_task)
     progress.advance(loop_task, 0.5)
 
