@@ -47,6 +47,7 @@ class TimeSpan(BaseModel):
 
     days_of_week: List[Literal["sun", "mon", "tue", "wed", "thu", "fri", "sat"]] = (
         Field(
+            ...,
             description=(
                 "List of days of the week when this policy applies. "
                 "TUESDAY AND THURSDAY means days_of_week ['tue', 'thu'] "
@@ -118,6 +119,7 @@ class TimeSpan(BaseModel):
         return sorted_months
 
     time_of_day_start: str = Field(
+        ...,
         pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$",
         description=(
             "The 24-hour local time that this policy starts to apply (inclusive), "
@@ -126,6 +128,7 @@ class TimeSpan(BaseModel):
     )
 
     time_of_day_end: str = Field(
+        ...,
         pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$",
         description=(
             "The 24-hour local time that this policy stops applying (exclusive), "

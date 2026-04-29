@@ -15,6 +15,7 @@ class SignReaderConfig(BaseModel):
     debug_mode: bool = Field(False)
     max_images: int | None = Field(None)
     gemini_concurrent_limit: int = Field(1, ge=1)
+    batch_size: int = Field(50, ge=1)
     gemini_preprocess_settings: GeminiOptions
     gemini_settings: GeminiOptions
     max_retries: int = Field(3)

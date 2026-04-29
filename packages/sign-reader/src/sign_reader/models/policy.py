@@ -6,21 +6,23 @@ Multiple Policy objects together define the full extent of regulations.
 
 """
 
-from typing import List, Optional
+from typing import Generic, List, Optional, TypeVar, Union
 
 from pydantic import BaseModel, Field, field_validator, model_serializer
 
-from .rule import Rule
+from .rule import Rule, RuleExtended
 from .timespan import TimeSpan
 
+T = TypeVar("T")
 
-class Policy(BaseModel):
+
+class PolicyBase(BaseModel, Generic[T]):
     policy_id: str | None = None
     name: str | None = None
     description: str | None = None
     published_date: int | None = None
     priority: int | None = None
-    rules: List[Rule] = Field(
+    rules: List[T] = Field(
         ...,
         description=(
             "One or more rules describing what activities are allowed/forbidden,"
@@ -33,7 +35,9 @@ class Policy(BaseModel):
 
     @field_validator("rules", mode="after")
     @classmethod
-    def sort_rules(cls, v: List[Rule]) -> List[Rule]:
+    def sort_rules(
+        cls, v: List[Union[Rule, RuleExtended]]
+    ) -> List[Union[Rule, RuleExtended]]:
         if not v:
             return v
         return sorted(
@@ -50,6 +54,7 @@ class Policy(BaseModel):
         )
 
     time_spans: List[TimeSpan] = Field(
+        ...,
         description=("The times at which the curb rules are in effect."),
     )
 
@@ -90,3 +95,11 @@ class Policy(BaseModel):
             data["time_spans"] = self.time_spans
 
         return data
+
+
+class Policy(PolicyBase[Rule]):
+    pass
+
+
+class PolicyExtended(PolicyBase[RuleExtended]):
+    pass

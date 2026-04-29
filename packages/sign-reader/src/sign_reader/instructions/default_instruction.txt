@@ -4,7 +4,6 @@ ACTIVITIES (exact values):
 - "parking", "no parking", "loading" (commercial vehicle or pick-up/drop-off), "no loading", "stopping", "no stopping"
 - When activity is limited to a USER CLASS, prefer negative activities over positive. Example:
    → {"activity": "no parking", "user_classes_except": [CLASS]} usually better than {"activity": "parking", "user_classes": [CLASS]}
-- DO NOT USE the "unusable image" activity.
 
 LOADING vs PARKING — choose the correct activity:
 - Use "loading"/"no loading": commercial vehicle (CV) zones, pick-up/drop-off (PUDO) zones

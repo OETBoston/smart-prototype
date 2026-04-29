@@ -2,7 +2,7 @@
 A rule defines who is allowed to do what, and for how long, on a curb, per the policy.
 """
 
-from typing import List, Literal, Optional
+from typing import Generic, List, Literal, Optional, Self, TypeVar, Union
 
 from pydantic import (
     BaseModel,
@@ -12,11 +12,13 @@ from pydantic import (
     model_validator,
 )
 
-from .enums import Activity, Purposes, UserClass
+from .enums import Activity, Purposes, Unusable, UserClass
+
+T = TypeVar("T")
 
 
-class Rule(BaseModel):
-    activity: Activity = Field(
+class RuleBase(BaseModel, Generic[T]):
+    activity: T = Field(
         ...,
         description=("The activity that is forbidden or permitted by this regulation."),
     )
@@ -54,7 +56,7 @@ class Rule(BaseModel):
     # )
 
     purposes: Optional[List[Purposes]] = Field(
-        ..., description=("The purposes to which this rule applies.")
+        default=None, description=("The purposes to which this rule applies.")
     )
 
     @field_validator("purposes", mode="after")
@@ -63,7 +65,7 @@ class Rule(BaseModel):
         if v is None:
             return v
         enum_position_map = {member: i for i, member in enumerate(Purposes)}
-        return sorted(v, key=lambda x: enum_position_map.get(x))
+        return sorted(v, key=lambda x: enum_position_map[x])
 
     user_classes: Optional[List[UserClass]] = Field(
         default=None,
@@ -81,7 +83,7 @@ class Rule(BaseModel):
         if v is None:
             return v
         enum_position_map = {member: i for i, member in enumerate(UserClass)}
-        return sorted(v, key=lambda x: enum_position_map.get(x))
+        return sorted(v, key=lambda x: enum_position_map[x])
 
     user_classes_except: Optional[List[UserClass]] = Field(
         default=None,
@@ -98,10 +100,10 @@ class Rule(BaseModel):
         if v is None:
             return v
         member_order = {member: i for i, member in enumerate(UserClass)}
-        return sorted(v, key=lambda x: member_order.get(x))
+        return sorted(v, key=lambda x: member_order[x])
 
     @model_validator(mode="after")
-    def convert_minutes_to_hours(self) -> "Rule":
+    def convert_minutes_to_hours(self) -> Self:
         # Convert max_stay if needed
         if self.max_stay is not None and self.max_stay != 0:
             if self.max_stay % 60 == 0 and self.max_stay_unit == "minute":
@@ -143,3 +145,11 @@ class Rule(BaseModel):
                 data.pop(field, None)
 
         return data
+
+
+class Rule(RuleBase[Activity]):
+    pass
+
+
+class RuleExtended(RuleBase[Union[Activity, Unusable]]):
+    pass

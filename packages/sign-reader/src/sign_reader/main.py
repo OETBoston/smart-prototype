@@ -30,26 +30,50 @@ from sign_reader.io_utils.image_utils import get_image
 from sign_reader.io_utils.storage import (
     save_parsed_output,
 )
-from sign_reader.models import Activity, Image, Policy, Rule, Sign
+from sign_reader.models import (
+    Image,
+    ImageExtended,
+    Policy,
+    PolicyExtended,
+    RuleExtended,
+    SignExtended,
+    TimeSpan,
+    Unusable,
+)
 from sign_reader.pre_reader import pre_test_image
 from sign_reader.priority_engine import get_policy_priority
 from sign_reader.progress import ConditionalBar, ConditionalSpinner
 from sign_reader.reader import get_image_policy
 
-BATCH_SIZE = 50
 load_dotenv()
 
 
-def unusable_image() -> Image:
+def unusable_image() -> ImageExtended:
     # Define the unusable policy
-    return Image(
+    return ImageExtended(
         signs=[
-            Sign(
-                policy=Policy(
+            SignExtended(
+                policy=PolicyExtended(
                     priority=98,
-                    time_spans=[],
+                    time_spans=[
+                        TimeSpan(
+                            days_of_week=[
+                                "sun",
+                                "mon",
+                                "tue",
+                                "wed",
+                                "thu",
+                                "fri",
+                                "sat",
+                            ],
+                            time_of_day_end="00:00",
+                            time_of_day_start="00:00",
+                        )
+                    ],
                     rules=[
-                        Rule(activity=Activity(value="unusable image"), purposes=None)
+                        RuleExtended(
+                            activity=Unusable("unusable image"),
+                        )
                     ],
                 )
             )
@@ -85,7 +109,6 @@ async def main() -> None:
 
     # Set up the semaphore - defaulting to max 1 if not set
     sem = asyncio.Semaphore(config.gemini_concurrent_limit)
-    lock = asyncio.Lock()
 
     # If in debug mode, save the parsed outputs to disk
     output_dir = Path("outputs/sign_reader")
@@ -138,13 +161,11 @@ async def main() -> None:
                 use_spinner=False,
             )
             async with asyncio.TaskGroup() as tg:
-                ### then create tasks using tg.create_task(<<function to run>>)
                 for image_uri, sign_id in images_list:
                     tg.create_task(
                         process_image(
                             client=client,
                             sem=sem,
-                            lock=lock,
                             pre_system_instruction=pre_system_instruction,
                             system_instruction=system_instruction,
                             user_prompt=user_prompt,
@@ -155,6 +176,7 @@ async def main() -> None:
                             output_dir=output_dir,
                             logger=logger,
                             records_policies=records_policies,
+                            batch_size=config.batch_size,
                             progress=progress,
                             loop_task=loop_task,
                             pre_model_opts=pre_model_opts,
@@ -173,7 +195,6 @@ async def main() -> None:
 async def process_image(
     client: genai.Client,
     sem: asyncio.Semaphore,
-    lock: asyncio.Lock,
     pre_system_instruction: str,
     system_instruction: str,
     user_prompt: str,
@@ -184,28 +205,76 @@ async def process_image(
     output_dir: Path,
     logger: Logger,
     records_policies: list,
+    batch_size: int,
     progress: Progress,
     loop_task: TaskID,
     pre_model_opts: GeminiOptions | None = None,
     model_opts: GeminiOptions | None = None,
     max_retries: int = 3,
 ) -> None:
+    # Log image start
+    info = f"Processing Sign ID: {sign_id}"
+    info_extended = f"{info} | URI: {image_uri}"
+    logger.info(info_extended)
+    progress.advance(loop_task, 0.5)
+    task = progress.add_task(info, total=None, use_spinner=True)
+
+    parsed_image = await evaluate_image(
+        client=client,
+        sem=sem,
+        pre_system_instruction=pre_system_instruction,
+        system_instruction=system_instruction,
+        user_prompt=user_prompt,
+        image_uri=image_uri,
+        sign_id=sign_id,
+        logger=logger,
+        progress=progress,
+        task=task,
+        pre_model_opts=pre_model_opts,
+        model_opts=model_opts,
+        max_retries=max_retries,
+    )
+
+    write_image(
+        parsed_image=parsed_image,
+        records_policies=records_policies,
+        job_id=job_id,
+        image_uri=image_uri,
+        sign_id=sign_id,
+        output_dir=output_dir,
+        debug_mode=debug_mode,
+        logger=logger,
+        progress=progress,
+        task=task,
+        batch_size=batch_size,
+    )
+
+    _end_task(progress, loop_task, task)
+
+
+async def evaluate_image(
+    client: genai.Client,
+    sem: asyncio.Semaphore,
+    pre_system_instruction: str,
+    system_instruction: str,
+    user_prompt: str,
+    image_uri: str,
+    sign_id: uuid.UUID,
+    logger: Logger,
+    progress: Progress,
+    task: TaskID,
+    pre_model_opts: GeminiOptions | None = None,
+    model_opts: GeminiOptions | None = None,
+    max_retries: int = 3,
+) -> Image | None:
     # Running the image download and LLM in async, processing the results
     async with sem:
-        # Log image start
-        info = f"Processing Sign ID: {sign_id}"
-        info_extended = f"{info} | URI: {image_uri}"
-        logger.info(info_extended)
-        progress.advance(loop_task, 0.5)
-        task = progress.add_task(info, total=None, use_spinner=True)
-
         # Fetch the image
         try:
             progress.update(task, description=f"Fetching Sign ID: {sign_id}")
             image_bytes = get_image(image_uri)
         except Exception:
             logger.warning(f"Failed to load {image_uri}:", exc_info=True)
-            _end_task(progress, loop_task, task)
             return
 
         # Pre-process the image
@@ -222,38 +291,53 @@ async def process_image(
             )
         except Exception:
             logger.warning(f"Failed to pre-process {image_uri}:")
-            _end_task(progress, loop_task, task)
             return
 
         if not pre_check[0]:
             logger.warning(f"Image {image_uri} failed pre-check.")
             logger.warning(pre_check[1])
 
-            parsed_image = unusable_image()
+            return
 
-        else:
-            progress.update(task, description=f"Reading Sign ID: {sign_id}")
-            try:
-                parsed_image = await get_image_policy(
-                    client,
-                    system_instruction=system_instruction,
-                    user_prompt=user_prompt,
-                    model_opts=model_opts,
-                    image_bytes=image_bytes,
-                    image_uri=image_uri,
-                    logger=logger,
-                    max_retries=max_retries,
-                )
-            except Exception as e:
-                logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
-                _end_task(progress, loop_task, task)
-                return
+        # Process the image
+        progress.update(task, description=f"Reading Sign ID: {sign_id}")
+        try:
+            parsed_image = await get_image_policy(
+                client,
+                system_instruction=system_instruction,
+                user_prompt=user_prompt,
+                model_opts=model_opts,
+                image_bytes=image_bytes,
+                image_uri=image_uri,
+                logger=logger,
+                max_retries=max_retries,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
+            return
 
     if parsed_image is None or not parsed_image.signs:
-        # TODO: Return a policy indicating an issue with this sign/image
         logger.warning("Detection empty: No signs extracted")
-        _end_task(progress, loop_task, task)
         return
+
+    return parsed_image
+
+
+def write_image(
+    parsed_image: Image | None,
+    records_policies: list,
+    job_id: uuid.UUID,
+    image_uri: str,
+    sign_id: uuid.UUID,
+    output_dir: Path,
+    debug_mode: bool,
+    logger: Logger,
+    progress: Progress,
+    task: TaskID,
+    batch_size: int,
+) -> None:
+    # Turn None into unusable image
+    image_or_unusable = parsed_image or unusable_image()
 
     # Save raw AI output to local disk - debug mode only
     if debug_mode:
@@ -261,44 +345,45 @@ async def process_image(
         logger.debug(debug_message)
         progress.update(task, description=debug_message)
 
-        save_parsed_output(parsed_image, output_dir, image_uri, str(sign_id))
+        save_parsed_output(image_or_unusable, output_dir, image_uri, str(sign_id))
 
     else:  # Only write to the database if not in debug mode
         progress.update(task, description=f"Post-processing Sign ID: {sign_id}")
-        async with lock:
-            for s in parsed_image.signs:
-                arrow_value = s.arrow if s.arrow and s.arrow.lower() != "none" else None
 
+        for s in image_or_unusable.signs:
+            arrow_value = s.arrow if s.arrow and s.arrow.lower() != "none" else None
+
+            # Compute priority for usable images
+            if isinstance(s.policy, Policy):
                 s.policy.priority = get_policy_priority(s.policy)
 
-                # TODO: Remove AI Confidence Score, or do a bit of cleanup here if
-                # we are keeping it
+            # TODO: Remove AI Confidence Score, or do a bit of cleanup here if
+            # we are keeping it
 
-                records_policies.append(
-                    {
-                        "sign_policy_id": uuid.uuid4(),
-                        "sign_id": sign_id,
-                        "policy_json": s.policy.model_dump_json(
-                            indent=4,
-                            exclude={
-                                "rules": {"__all__": {"confidence"}},
-                                "time_spans": {"__all__": {"confidence"}},
-                            },
-                        ),
-                        "policy_arrow": arrow_value,
-                        "ai_confidence_score": int(getattr(s, "confidence", 0) * 100),
-                    }
-                )
-            if len(records_policies) >= BATCH_SIZE:
-                logger.info(
-                    f"Threshold reached ({len(records_policies)}). Uploading batch..."
-                )
-                append_sign_policies(records_policies, job_id)
-                records_policies.clear()  # Empty the list for the next batch
-                logger.info("Batch upload successful.")
+            records_policies.append(
+                {
+                    "sign_policy_id": uuid.uuid4(),
+                    "sign_id": sign_id,
+                    "policy_json": s.policy.model_dump_json(
+                        indent=4,
+                        exclude={
+                            "rules": {"__all__": {"confidence"}},
+                            "time_spans": {"__all__": {"confidence"}},
+                        },
+                    ),
+                    "policy_arrow": arrow_value,
+                    "ai_confidence_score": int(getattr(s, "confidence", 0) * 100),
+                }
+            )
+        if len(records_policies) >= batch_size:
+            logger.info(
+                f"Threshold reached ({len(records_policies)}). Uploading batch..."
+            )
+            append_sign_policies(records_policies, job_id)
+            records_policies.clear()  # Empty the list for the next batch
+            logger.info("Batch upload successful.")
 
-    logger.debug(f"Successfully parsed {len(parsed_image.signs)} signs.")
-    _end_task(progress, loop_task, task)
+    logger.debug(f"Successfully parsed {len(image_or_unusable.signs)} signs.")
 
 
 def _end_task(progress: Progress, loop_task: TaskID, image_task: TaskID) -> None:
