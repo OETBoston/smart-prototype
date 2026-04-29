@@ -23,6 +23,9 @@ gemini_settings:
   temperature: 0 # Must be from 0 to 2 (inclusive)
   mock_ai: False # For debugging, mock the AI call instead of running it
 
+# Maximum number of retries if Gemini does not produce valid JSON
+max_retries: 3
+
 # PostgreSQL database settings
 db_name: "cds"
 db_schema: "staging_next"

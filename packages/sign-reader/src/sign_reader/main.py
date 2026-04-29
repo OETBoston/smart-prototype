@@ -19,6 +19,7 @@ from curb_utils.io_tools import load_from_txt, load_from_yaml
 from dotenv import load_dotenv
 from google import genai
 
+from sign_reader.config import SignReaderConfig
 from sign_reader.db_connector import (
     append_sign_policies,
     read_images,
@@ -66,49 +67,32 @@ async def main() -> None:
     user_prompt_file = local_path / "instructions/default_user_prompt.txt"
 
     # Load external data
-    config = load_from_yaml(config_file)
+    config = SignReaderConfig(**load_from_yaml(config_file))
     system_instruction = load_from_txt(instruction_file)
     pre_system_instruction = load_from_txt(pre_instruction_file)
     user_prompt = load_from_txt(user_prompt_file)
 
     # Gemini Settings
-    model_opts = GeminiOptions(**config["gemini_settings"])
-    pre_model_opts = GeminiOptions(**config["gemini_preprocess_settings"])
-
-    # Database Settings
-    db_name = config["db_name"]
-    db_schema = config["db_schema"]
-
-    # Sign Settings
-    sign_job_id = config["sign_assets"]["job_id"]
-    sign_re_process = config["sign_assets"]["re_process"]
-
-    # Other settings
-    debug_mode = config["debug_mode"]
-    max_images = config["max_images"]
-    job_name = config.get("sr_job_name")
-    job_desc = config.get("sr_job_description")
-
-    # async settings
-    sem_limit: int = config.get("gemini_concurrent_limit", 1)
+    model_opts = config.gemini_settings
+    pre_model_opts = config.gemini_preprocess_settings
 
     # Set up the semaphore - defaulting to max 1 if not set
-    sem = asyncio.Semaphore(sem_limit)
+    sem = asyncio.Semaphore(config.gemini_concurrent_limit)
     lock = asyncio.Lock()
 
     # If in debug mode, save the parsed outputs to disk
     output_dir = Path("outputs/sign_reader")
-    if debug_mode:
+    if config.debug_mode:
         output_dir.mkdir(parents=True, exist_ok=True)  # create dir if not exists
         job_id = uuid.uuid4()  # placeholder job for debug mode
     else:
         logger.info("Registering job...")
         job_id = append_job(
-            db_name=db_name,
-            db_schema=db_schema,
+            db_name=config.db_name,
+            db_schema=config.db_schema,
             db_table="sign_reader_jobs",
-            job_name=job_name,
-            job_desc=job_desc,
+            job_name=config.sr_job_name,
+            job_desc=config.sr_job_description,
             model_settings=model_opts.model_dump_json(),
             system_instruction=system_instruction,
             prompt=user_prompt,
@@ -116,14 +100,20 @@ async def main() -> None:
 
     logger.info("Fetching list from database...")
     images_list = read_images(
-        asset_job_id=uuid.UUID(sign_job_id) if sign_job_id else None,
-        re_process=sign_re_process,
+        asset_job_id=uuid.UUID(config.sign_assets.job_id)
+        if config.sign_assets.job_id
+        else None,
+        re_process=config.sign_assets.re_process,
     )
 
     # Debug - image limit
-    if max_images and max_images > 0 and max_images < len(images_list):
+    if (
+        config.max_images
+        and config.max_images > 0
+        and config.max_images < len(images_list)
+    ):
         START_AT = 0
-        images_list = images_list[START_AT : max_images + START_AT]
+        images_list = images_list[START_AT : config.max_images + START_AT]
 
     # Processing Loop
     logger.info(f"Queueing {len(images_list)} images for processing.")
@@ -144,13 +134,13 @@ async def main() -> None:
                         image_uri=image_uri,
                         sign_id=sign_id,
                         job_id=job_id,
-                        debug_mode=debug_mode,
+                        debug_mode=config.debug_mode,
                         output_dir=output_dir,
                         logger=logger,
                         records_policies=records_policies,
                         pre_model_opts=pre_model_opts,
                         model_opts=model_opts,
-                        max_retries=max_images,
+                        max_retries=config.max_retries,
                     )
                 )
 
