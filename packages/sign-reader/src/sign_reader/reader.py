@@ -94,7 +94,7 @@ async def get_image_policy(
                 log_messages.append(
                     (
                         "warning",
-                        f" Max retries reached for validating JSON output "
+                        f"Max retries reached for validating JSON output "
                         f"for image {image_uri} after {max_retries}. Returning None.",
                     )
                 )
