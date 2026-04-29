@@ -212,28 +212,28 @@ async def process_image(
     model_opts: GeminiOptions | None = None,
     max_retries: int = 3,
 ) -> None:
-    # Log image start
-    info = f"Processing Sign ID: {sign_id}"
-    info_extended = f"{info} | URI: {image_uri}"
-    logger.info(info_extended)
-    progress.advance(loop_task, 0.5)
-    task = progress.add_task(info, total=None, use_spinner=True)
+    async with sem:
+        # Log image start
+        info = f"Processing Sign ID: {sign_id}"
+        info_extended = f"{info} | URI: {image_uri}"
+        logger.info(info_extended)
+        progress.advance(loop_task, 0.5)
+        task = progress.add_task(info, total=None, use_spinner=True)
 
-    parsed_image = await evaluate_image(
-        client=client,
-        sem=sem,
-        pre_system_instruction=pre_system_instruction,
-        system_instruction=system_instruction,
-        user_prompt=user_prompt,
-        image_uri=image_uri,
-        sign_id=sign_id,
-        logger=logger,
-        progress=progress,
-        task=task,
-        pre_model_opts=pre_model_opts,
-        model_opts=model_opts,
-        max_retries=max_retries,
-    )
+        parsed_image = await evaluate_image(
+            client=client,
+            pre_system_instruction=pre_system_instruction,
+            system_instruction=system_instruction,
+            user_prompt=user_prompt,
+            image_uri=image_uri,
+            sign_id=sign_id,
+            logger=logger,
+            progress=progress,
+            task=task,
+            pre_model_opts=pre_model_opts,
+            model_opts=model_opts,
+            max_retries=max_retries,
+        )
 
     write_image(
         parsed_image=parsed_image,
@@ -254,7 +254,6 @@ async def process_image(
 
 async def evaluate_image(
     client: genai.Client,
-    sem: asyncio.Semaphore,
     pre_system_instruction: str,
     system_instruction: str,
     user_prompt: str,
@@ -267,54 +266,52 @@ async def evaluate_image(
     model_opts: GeminiOptions | None = None,
     max_retries: int = 3,
 ) -> Image | None:
-    # Running the image download and LLM in async, processing the results
-    async with sem:
-        # Fetch the image
-        try:
-            progress.update(task, description=f"Fetching Sign ID: {sign_id}")
-            image_bytes = get_image(image_uri)
-        except Exception:
-            logger.warning(f"Failed to load {image_uri}:", exc_info=True)
-            return
+    # Fetch the image
+    try:
+        progress.update(task, description=f"Fetching Sign ID: {sign_id}")
+        image_bytes = get_image(image_uri)
+    except Exception:
+        logger.warning(f"Failed to load {image_uri}:", exc_info=True)
+        return
 
-        # Pre-process the image
-        try:
-            progress.update(task, description=f"Pre-Checking Sign ID: {sign_id}")
-            pre_check = await pre_test_image(
-                client=client,
-                system_instruction=pre_system_instruction,
-                image_bytes=image_bytes,
-                image_uri=image_uri,
-                logger=logger,
-                model_opts=pre_model_opts,
-                check_multiple=False,
-            )
-        except Exception:
-            logger.warning(f"Failed to pre-process {image_uri}:")
-            return
+    # Pre-process the image
+    try:
+        progress.update(task, description=f"Pre-Checking Sign ID: {sign_id}")
+        pre_check = await pre_test_image(
+            client=client,
+            system_instruction=pre_system_instruction,
+            image_bytes=image_bytes,
+            image_uri=image_uri,
+            logger=logger,
+            model_opts=pre_model_opts,
+            check_multiple=False,
+        )
+    except Exception:
+        logger.warning(f"Failed to pre-process {image_uri}:")
+        return
 
-        if not pre_check[0]:
-            logger.warning(f"Image {image_uri} failed pre-check.")
-            logger.warning(pre_check[1])
+    if not pre_check[0]:
+        logger.warning(f"Image {image_uri} failed pre-check.")
+        logger.warning(pre_check[1])
 
-            return
+        return
 
-        # Process the image
-        progress.update(task, description=f"Reading Sign ID: {sign_id}")
-        try:
-            parsed_image = await get_image_policy(
-                client,
-                system_instruction=system_instruction,
-                user_prompt=user_prompt,
-                model_opts=model_opts,
-                image_bytes=image_bytes,
-                image_uri=image_uri,
-                logger=logger,
-                max_retries=max_retries,
-            )
-        except Exception as e:
-            logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
-            return
+    # Process the image
+    progress.update(task, description=f"Reading Sign ID: {sign_id}")
+    try:
+        parsed_image = await get_image_policy(
+            client,
+            system_instruction=system_instruction,
+            user_prompt=user_prompt,
+            model_opts=model_opts,
+            image_bytes=image_bytes,
+            image_uri=image_uri,
+            logger=logger,
+            max_retries=max_retries,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
+        return
 
     if parsed_image is None or not parsed_image.signs:
         logger.warning("Detection empty: No signs extracted")
