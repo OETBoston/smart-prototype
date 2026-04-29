@@ -18,6 +18,7 @@ from curb_utils.db_utils import append_job
 from curb_utils.io_tools import load_from_txt, load_from_yaml
 from dotenv import load_dotenv
 from google import genai
+from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 
 from sign_reader.config import SignReaderConfig
 from sign_reader.db_connector import (
@@ -118,29 +119,36 @@ async def main() -> None:
     records_policies = []
 
     with init_gemini_client() as client:
-        async with asyncio.TaskGroup() as tg:
-            ### then create tasks using tg.create_task(<<function to run>>)
-            for image_uri, sign_id in images_list:
-                tg.create_task(
-                    process_image(
-                        client=client,
-                        sem=sem,
-                        lock=lock,
-                        pre_system_instruction=pre_system_instruction,
-                        system_instruction=system_instruction,
-                        user_prompt=user_prompt,
-                        image_uri=image_uri,
-                        sign_id=sign_id,
-                        job_id=job_id,
-                        debug_mode=config.debug_mode,
-                        output_dir=output_dir,
-                        logger=logger,
-                        records_policies=records_policies,
-                        pre_model_opts=pre_model_opts,
-                        model_opts=model_opts,
-                        max_retries=config.max_retries,
+        with Progress(
+            BarColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
+            transient=True,
+        ) as progress:
+            async with asyncio.TaskGroup() as tg:
+                ### then create tasks using tg.create_task(<<function to run>>)
+                for image_uri, sign_id in images_list:
+                    tg.create_task(
+                        process_image(
+                            client=client,
+                            sem=sem,
+                            lock=lock,
+                            pre_system_instruction=pre_system_instruction,
+                            system_instruction=system_instruction,
+                            user_prompt=user_prompt,
+                            image_uri=image_uri,
+                            sign_id=sign_id,
+                            job_id=job_id,
+                            debug_mode=config.debug_mode,
+                            output_dir=output_dir,
+                            logger=logger,
+                            records_policies=records_policies,
+                            progress=progress,
+                            pre_model_opts=pre_model_opts,
+                            model_opts=model_opts,
+                            max_retries=config.max_retries,
+                        )
                     )
-                )
 
     # 4. Final Batch Upload
     if records_policies:
@@ -163,17 +171,21 @@ async def process_image(
     output_dir: Path,
     logger: Logger,
     records_policies: list,
+    progress: Progress,
     pre_model_opts: GeminiOptions | None = None,
     model_opts: GeminiOptions | None = None,
     max_retries: int = 3,
 ) -> None:
     # Running the image download and LLM in async, processing the results
     async with sem:
-        logger.info(f"Processing Sign ID: {sign_id} | URI: {image_uri}")
+        # info = f"Processing Sign ID: {sign_id} | URI: {image_uri}"
+        info = str(sign_id)[-10:]
+        task = progress.add_task(info, total=None)
         try:
             image_bytes = get_image(image_uri)
         except Exception:
             logger.warning(f"Failed to load {image_uri}:")
+            progress.stop_task(task)
             return
 
         # Pre-process the image
@@ -187,6 +199,7 @@ async def process_image(
             )
         except Exception:
             logger.warning(f"Failed to pre-process {image_uri}:")
+            progress.stop_task(task)
             return None
 
         if not pre_check[0]:
@@ -208,11 +221,13 @@ async def process_image(
                 )
             except Exception as e:
                 logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
+                progress.stop_task(task)
                 return
 
     if parsed_image is None or not parsed_image.signs:
         # TODO: Return a policy indicating an issue with this sign/image
         logger.warning("Detection empty: No signs extracted")
+        progress.stop_task(task)
         return
 
     # Save raw AI output to local disk - debug mode only
@@ -254,6 +269,7 @@ async def process_image(
                 logger.info("Batch upload successful.")
 
     logger.debug(f"Successfully parsed {len(parsed_image.signs)} signs.")
+    progress.stop_task(task)
 
 
 if __name__ == "__main__":
