@@ -3,15 +3,15 @@ import json
 import geopandas as gpd
 import pandas as pd
 from dotenv import load_dotenv
-from tqdm import tqdm
+from rich.progress import track
 
-from .db_utils import (
+from policy_applier.db_utils import (
     append_curb_segment_policies,
     append_policy_handling_jobs,
     read_policy_applier_tables,
 )
-from .handler_utils import Direction, generate_event_log, run_policy_pass
-from .io_utils.arguments import parse_args
+from policy_applier.handler_utils import Direction, generate_event_log, run_policy_pass
+from policy_applier.io_utils.arguments import parse_args
 
 load_dotenv()
 
@@ -244,9 +244,8 @@ def process_segment_policies(
 
     all_blockface_results = []
 
-    for blockface in tqdm(
-        df_segments["blockface_id"].unique(),
-        total=len(df_segments["blockface_id"].unique()),
+    for blockface in track(
+        df_segments["blockface_id"].unique(), description="processing blockfaces"
     ):
         df_block = df_segments[df_segments["blockface_id"] == blockface].reset_index(
             drop=True

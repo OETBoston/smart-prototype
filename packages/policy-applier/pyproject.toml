@@ -12,7 +12,7 @@ dependencies = [
     "streamlit-folium>=0.26.1",
     "google-cloud-storage>=3.8.0",
     "dummylog>=0.0.4",
-    "tqdm>=4.67.1",
+    "rich",
 ]
 
 [build-system]
