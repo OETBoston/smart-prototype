@@ -8,6 +8,7 @@ Main entry point for the Sign Reader Visualizer Streamlit application.
 import json
 import logging
 import os
+import random
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
@@ -144,6 +145,8 @@ def load_jobs(dbname="cds", schema="staging") -> pd.DataFrame:
                 "job_name",
                 "job_description",
                 "model_settings",
+                "system_instruction",
+                "prompt",
             ],
         )
 
@@ -213,6 +216,24 @@ if not jobs_df.empty:
                 st.json(job_info["model_settings"])
         else:
             st.sidebar.warning("Empty model settings")
+
+        # 3. System Instruction & Prompt
+        st.sidebar.markdown("### LLM Configuration")
+
+        # System Instruction
+        if pd.notnull(job_info.get("system_instruction")):
+            with st.sidebar.expander("📝 System Instruction", expanded=False):
+                st.write(job_info["system_instruction"])
+        else:
+            st.sidebar.caption("No system instruction found.")
+
+        # Prompt
+        if pd.notnull(job_info.get("prompt")):
+            with st.sidebar.expander("💬 User Prompt", expanded=False):
+                st.write(job_info["prompt"])
+        else:
+            st.sidebar.caption("No prompt found.")
+
         st.sidebar.divider()
     else:
         st.sidebar.info("Please select a job to see details.")
@@ -224,27 +245,54 @@ if job_id:
     df = load_data(schema=schema_option, sign_reader_job_id=job_id)
 
     if not df.empty:
+        record = df.iloc[st.session_state.record_index]
+
         if "location" in df.columns:
             df["lat"] = df["location"].apply(lambda g: g.y if g else None)
             df["lon"] = df["location"].apply(lambda g: g.x if g else None)
 
         # Navigation Controls
-        col_nav1, col_nav2, col_nav3 = st.columns([1, 5, 1])
+
+        col_nav1, col_nav2, col_nav3, col_nav4, col_nav5, col_nav6 = st.columns(
+            [1, 1, 1, 3, 1, 1]
+        )
+
+        n = len(df)
+
         with col_nav1:
-            if st.button("⬅️ Prev"):
-                st.session_state.record_index = max(
-                    0, st.session_state.record_index - 1
-                )
+            if st.button("⏪ -10"):
+                st.session_state.record_index = (st.session_state.record_index - 10) % n
+
         with col_nav2:
-            st.write(f"**Record {st.session_state.record_index + 1} of {len(df)}**")
+            if st.button("⬅️ Prev"):
+                st.session_state.record_index = (st.session_state.record_index - 1) % n
+
         with col_nav3:
+            if st.button("🎲 Random"):
+                st.session_state.record_index = random.randint(0, n - 1)
+
+        with col_nav5:
             if st.button("Next ➡️"):
-                st.session_state.record_index = min(
-                    len(df) - 1, st.session_state.record_index + 1
-                )
+                st.session_state.record_index = (st.session_state.record_index + 1) % n
+
+        with col_nav6:
+            if st.button("+10 ⏩"):
+                st.session_state.record_index = (st.session_state.record_index + 10) % n
 
         # Get current record
         record = df.iloc[st.session_state.record_index]
+
+        with col_nav4:
+            # Centered record and Sign ID display
+            st.markdown(
+                f"<div style='text-align: center; line-height: 1.2;'>"
+                f"<strong>"
+                f"Record {st.session_state.record_index + 1} of {len(df)}"
+                f"</strong><br>"
+                f"<code style='font-size: 0.8em;'>{record['sign_id']}</code>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
 
         # TOP SECTION: Wide Map using PyDeck
         st.subheader("Location")
