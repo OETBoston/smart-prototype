@@ -3,9 +3,9 @@ import uuid
 from datetime import datetime
 
 import pandas as pd
+from curb_utils.db_utils import SmartCurbDB
 from geopandas import GeoDataFrame
 from pandas import DataFrame
-from smart_curb_db import SmartCurbDB
 
 
 def append_policy_handling_jobs(schema: str) -> str:

@@ -2,15 +2,16 @@ import json
 
 import geopandas as gpd
 import pandas as pd
-from db_utils import (
+from dotenv import load_dotenv
+from tqdm import tqdm
+
+from .db_utils import (
     append_curb_segment_policies,
     append_policy_handling_jobs,
     read_policy_applier_tables,
 )
-from dotenv import load_dotenv
-from handler_utils import Direction, generate_event_log, run_policy_pass
-from io_utils.arguments import parse_args
-from tqdm import tqdm
+from .handler_utils import Direction, generate_event_log, run_policy_pass
+from .io_utils.arguments import parse_args
 
 load_dotenv()
 
