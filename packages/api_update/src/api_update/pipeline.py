@@ -13,7 +13,7 @@ from exporter import export_to_csv, export_to_db
 from extractor import read_db_tables
 from transformer import transform_policy_updates
 
-from curb_utils.io_tools import load_config
+from curb_utils.io_tools import load_from_yaml
 
 # Load environment variables
 load_dotenv()
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     config_file = local_path / "config.yaml"
 
     # Load external data
-    config = load_config(config_file)
+    config = load_from_yaml(config_file)
 
     staging_db_schema = config["staging_db"]["schema"]
     api_db_schema = config["api_db"]["schema"]

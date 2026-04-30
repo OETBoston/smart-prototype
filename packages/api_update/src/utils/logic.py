@@ -1,8 +1,9 @@
 import os
 import json
 import logging
-from policies_ai.clients import init_gemini_client
-from policies_ai.policy_descriptions.descriptions import generate_description, add_json_to_prompt, default_prompt
+import pandas as pd
+# from policies_ai.clients import init_gemini_client
+# from policies_ai.policy_descriptions.descriptions import generate_description, add_json_to_prompt, default_prompt
 
 
 logging.getLogger("google_genai").setLevel(logging.WARNING)
@@ -77,30 +78,38 @@ def get_policy_json(policies_df, rules_df, spans_df, rates_df):
     policy_json = []
 
     # Use a standard loop or list comprehension (faster than .apply for dict lookups)
-    for pid in policies_df['curb_policy_id']:
-        full_policy = {
-            "rules": rules_lookup.get(pid, []),
-            "time_spans": spans_lookup.get(pid, []),
-            "rates": rates_lookup.get(pid, [])
-        }
+    for pid, name in zip(policies_df['curb_policy_id'], policies_df['name']):
+        if pd.isna(name):
+            full_policy = {
+                "rules": rules_lookup.get(pid, []),
+                "time_spans": spans_lookup.get(pid, []),
+                "rates": rates_lookup.get(pid, [])
+            }
+        else:
+            full_policy = {
+                "name": name,
+                "rules": rules_lookup.get(pid, []),
+                "time_spans": spans_lookup.get(pid, []),
+                "rates": rates_lookup.get(pid, [])
+            }
 
         policy_json.append(json.dumps(full_policy, sort_keys=True, default=str))
 
     return policy_json
 
 
-def get_policy_descriptions(policies_df):
-    """Generates natural language descriptions for each policy based on its JSON representation using Gemini.
-    Args:
-        policies_df (pd.DataFrame): DataFrame containing a 'policy_json' column
-    Returns:
-        list: A list of natural language descriptions corresponding to each policy.
-    """
-    descriptions = []
-    logger.info("Initializing Gemini client...")
-    with init_gemini_client(os.getenv("GEMINI_API_KEY")) as client:
-        for idx, json_str in enumerate(policies_df['policy_json']):
-            logger.info("Generating description for policy %d/%d", idx + 1, len(policies_df))
-            prompt = add_json_to_prompt(default_prompt, json_str)
-            descriptions.append(generate_description(client, prompt, model_opts=None))
-    return descriptions
+# def get_policy_descriptions(policies_df):
+#     """Generates natural language descriptions for each policy based on its JSON representation using Gemini.
+#     Args:
+#         policies_df (pd.DataFrame): DataFrame containing a 'policy_json' column
+#     Returns:
+#         list: A list of natural language descriptions corresponding to each policy.
+#     """
+#     descriptions = []
+#     logger.info("Initializing Gemini client...")
+#     with init_gemini_client(os.getenv("GEMINI_API_KEY")) as client:
+#         for idx, json_str in enumerate(policies_df['policy_json']):
+#             logger.info("Generating description for policy %d/%d", idx + 1, len(policies_df))
+#             prompt = add_json_to_prompt(default_prompt, json_str)
+#             descriptions.append(generate_description(client, prompt, model_opts=None))
+#     return descriptions

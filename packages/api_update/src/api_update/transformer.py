@@ -13,7 +13,7 @@ from typing import cast
 import geopandas as gpd
 from shapely import wkb
 
-from packages.api_update.src.utils import get_policy_json, get_policy_signatures, get_policy_descriptions
+from packages.api_update.src.utils import get_policy_json, get_policy_signatures
 from packages.api_update.src.utils_geo import consolidate_curb_segments
 
 
@@ -218,6 +218,19 @@ def transform_policy_updates(
     old_zones['geometry'] = old_zones['geometry'].apply(lambda x: wkb.loads(x, hex=True) if isinstance(x, str) else x)
     old_zones = gpd.GeoDataFrame(old_zones, geometry='geometry', crs="EPSG:4326")
 
+    #
+    lookup = old_policies.set_index('signature')['curb_policy_id']
+    valid_new = new_policies[new_policies['signature'].isin(lookup.index)]
+    mapping_dict = dict(zip(
+        valid_new['curb_policy_id'],
+        valid_new['signature'].map(lookup)
+    ))
+    new_zone_policies['curb_policy_id'] = new_zone_policies['curb_policy_id'].replace(mapping_dict)
+    new_policies = new_policies[~new_policies['curb_policy_id'].isin(mapping_dict.keys())]
+    new_rules = new_rules[~new_rules['curb_policy_id'].isin(mapping_dict.keys())]
+    new_spans = new_spans[~new_spans['curb_policy_id'].isin(mapping_dict.keys())]
+    new_rates = new_rates[~new_rates['curb_policy_id'].isin(mapping_dict.keys())]
+
     # 4. Change Detection
     # Spatial join to find candidates
     zones_change = gpd.sjoin(new_zones, old_zones, how="inner", predicate="intersects", lsuffix='new', rsuffix='old')
@@ -231,13 +244,9 @@ def transform_policy_updates(
     intersections = left_geom.intersection(right_geom)
     zones_change = zones_change[intersections.geom_type.isin(['LineString', 'MultiLineString'])]
 
-    # Pre-map signatures to zones
-    def get_zone_sig_map(zp_df, poly_df):
-        merged = zp_df.merge(poly_df[['curb_policy_id', 'signature']], on='curb_policy_id')
-        return merged.groupby('curb_zone_id')['signature'].apply(set).to_dict()
-
-    new_zone_sigs = get_zone_sig_map(new_zone_policies, new_policies)
-    old_zone_sigs = get_zone_sig_map(old_zone_policies, old_policies)
+    # Pre-map policies to zones
+    new_zone_policies_dict = new_zone_policies.groupby('curb_zone_id')['curb_policy_id'].apply(set).to_dict()
+    old_zone_policies_dict = old_zone_policies.groupby('curb_zone_id')['curb_policy_id'].apply(set).to_dict()
 
     old_zones = old_zones.set_index('curb_zone_id')
 
@@ -251,10 +260,10 @@ def transform_policy_updates(
 
         # Check geometry equality
         if row['geometry'].equals(row['geometry_existing']):
-            if new_zone_sigs.get(n_id) == old_zone_sigs.get(o_id):
+            zones_to_drop_from_new.add(n_id)
+            if new_zone_policies_dict.get(n_id) == old_zone_policies_dict.get(o_id):
                 # Identical: just update timestamp and discard the "new" one
                 old_zones.at[o_id, 'last_updated_date'] = run_time
-                zones_to_drop_from_new.add(n_id)
             else:
                 # Same geometry, different policy: update old, map new ID to old ID
                 old_zones.at[o_id, 'last_updated_date'] = run_time
@@ -268,6 +277,8 @@ def transform_policy_updates(
     # 5. Bulk Updates
     old_zones = old_zones.reset_index()
     new_zones = new_zones[~new_zones['curb_zone_id'].isin(zones_to_drop_from_new)]
+    old_zone_policies_to_delete = old_zone_policies[
+        old_zone_policies['curb_zone_id'].isin(zones_to_expire_in_old)].reset_index(drop=True)
     old_zone_policies = old_zone_policies[
         ~old_zone_policies['curb_zone_id'].isin(zones_to_expire_in_old)]
 
@@ -296,14 +307,43 @@ def transform_policy_updates(
         [old_policies, old_rules, old_spans, old_rates], active_policy_ids
     )
 
-    new_policies['description'] = get_policy_descriptions(new_policies)
+    new_policies['description'] = "dummy description"
 
     # --- 6. FINAL CONCATENATION ---
     return {
-        "curb_zones": pd.concat([new_zones, old_zones], ignore_index=True),
-        "curb_policies": pd.concat([new_policies, old_policies], ignore_index=True),
-        "curb_zone_policies": pd.concat([new_zone_policies, old_zone_policies], ignore_index=True),
-        "curb_policy_rules": pd.concat([new_rules, old_rules], ignore_index=True),
-        "curb_policy_time_spans": pd.concat([new_spans, old_spans], ignore_index=True),
-        "curb_policy_rates": pd.concat([new_rates, old_rates], ignore_index=True),
+        "curb_zones":
+            {
+                "table": pd.concat([new_zones, old_zones], ignore_index=True),
+                "keys": ["curb_zone_id"]
+             },
+        "curb_policies":
+            {
+                "table": pd.concat([new_policies, old_policies], ignore_index=True),
+                "keys": ["curb_policy_id"]
+             },
+        "curb_zone_policies":
+            {
+                "table": pd.concat([new_zone_policies, old_zone_policies], ignore_index=True),
+                "keys": ["curb_zone_id", "curb_policy_id"]
+            },
+        "curb_zone_policies_to_delete":
+            {
+                "table": old_zone_policies_to_delete,
+                "keys": ["curb_zone_id", "curb_policy_id"]
+            },
+        "curb_policy_rules":
+            {
+                "table": pd.concat([new_rules, old_rules], ignore_index=True),
+                "keys": ["rule_id"]
+            },
+        "curb_policy_time_spans":
+            {
+                "table": pd.concat([new_spans, old_spans], ignore_index=True),
+                "keys": ["time_span_id"]
+            },
+        "curb_policy_rates":
+            {
+                "table": pd.concat([new_rates, old_rates], ignore_index=True),
+                "keys": ["rate_id"]
+            },
     }

@@ -43,8 +43,13 @@ def export_to_db(data_dict: dict[str, pd.DataFrame],
     """
     Exports processed DataFrames to the database.
     """
-    for table_name, table in data_dict.items():
+    for table_name, table_data in data_dict.items():
         logger.info(f"Exporting {table_name} to database...")
+        table = table_data['table']
+        keys = table_data['keys']
         with SmartCurbDB(dbname="cds", schema=api_db_schema) as db:
-            db.append_data(table_name, table)
+            if table_name == 'curb_zone_policies_to_delete':
+                pass
+            else:
+                db.update_or_append(table_name, table, key_columns=keys)
         logger.info(f"Successfully exported: {table_name}.")
