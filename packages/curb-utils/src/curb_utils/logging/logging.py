@@ -7,6 +7,8 @@ from typing import Optional
 from rich.console import Console
 from rich.logging import RichHandler
 
+DEFAULT_LOG_FILE = "logs/log{day}.log"
+
 
 class ContextFilter(logging.Filter):
     """Filter that adds context attribute to log records."""
@@ -115,8 +117,8 @@ class LoggerManager:
                 self._default_log_file = Path(log_file)
             else:
                 # Use default filename with current date
-                day = get_today()
-                self._default_log_file = Path(f"logs/log{day}.log")
+                day = datetime.today().strftime("%Y%m%d")
+                self._default_log_file = Path(DEFAULT_LOG_FILE.format(day=day))
 
         # Determine which log file to use for this logger
         effective_log_file = (
@@ -205,22 +207,3 @@ def set_log_context(context: str) -> None:
 def clear_log_context() -> None:
     """Clear the logging context, reverting to actual module names."""
     _manager.clear_context()
-
-
-# Utility functions
-def get_today(sep: str = "", include_time: bool = False) -> str:
-    """Get the current date, optionally including time in HHMMSS format."""
-    now = datetime.today()
-    date_part = now.strftime(f"%Y{sep}%m{sep}%d")
-
-    if include_time:
-        time_part = now.strftime("%H%M%S")
-        return f"{date_part}-{time_part}"
-
-    return date_part
-
-
-def log_list(logger: Logger, log_messages: list[tuple[str, str]]) -> None:
-    """Log a list of collected messages."""
-    for level, message in log_messages:
-        getattr(logger, level)(message)
