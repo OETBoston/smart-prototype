@@ -43,12 +43,12 @@ def append_curb_segment_policies(
 def read_policy_applier_tables(
     curb_segment_job_id: str, schema: str
 ) -> tuple[
-    DataFrame | GeoDataFrame,
-    DataFrame | GeoDataFrame,
-    DataFrame | GeoDataFrame,
-    DataFrame | GeoDataFrame,
-    DataFrame | GeoDataFrame,
-    DataFrame | GeoDataFrame,
+    GeoDataFrame,
+    DataFrame,
+    GeoDataFrame,
+    DataFrame,
+    DataFrame,
+    DataFrame,
 ]:
     """Fetches necessary tables for policy application."""
     filter = None
