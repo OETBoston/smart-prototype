@@ -1,83 +1,215 @@
 import logging
 from datetime import datetime
-from logging import Logger
+from logging import Logger, LogRecord
 from pathlib import Path
+from typing import Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
 
 
-def setup_logger(
-    name: str,
-    log_file: Path | str | None = None,
-    level: int = logging.INFO,
-    console: Console | None = None,
-) -> tuple[logging.Logger, Console]:
+class ContextFilter(logging.Filter):
+    """Filter that adds context attribute to log records."""
+
+    def __init__(self, manager: "LoggerManager") -> None:
+        super().__init__()
+        self.manager = manager
+
+    def filter(self, record: LogRecord) -> bool:
+        # Add context attribute to the record
+        record.context = self.manager.context or record.name
+        return True
+
+
+class BufferedLogger:
+    """Logger wrapper that queues messages and writes them on flush or destruction."""
+
+    def __init__(self, logger: Logger) -> None:
+        self.logger = logger
+        self.queue: list[tuple[str, str]] = []
+
+    def debug(self, message: str) -> None:
+        """Queue a debug message."""
+        self.queue.append(("debug", message))
+
+    def info(self, message: str) -> None:
+        """Queue an info message."""
+        self.queue.append(("info", message))
+
+    def warning(self, message: str) -> None:
+        """Queue a warning message."""
+        self.queue.append(("warning", message))
+
+    def error(self, message: str) -> None:
+        """Queue an error message."""
+        self.queue.append(("error", message))
+
+    def critical(self, message: str) -> None:
+        """Queue a critical message."""
+        self.queue.append(("critical", message))
+
+    def flush(self) -> None:
+        """Write all queued messages to the logger and clear the queue."""
+        for level, message in self.queue:
+            getattr(self.logger, level)(message)
+        self.queue.clear()
+
+    def __del__(self) -> None:
+        """Flush messages when the object is destroyed."""
+        self.flush()
+
+
+class LoggerManager:
+    """Singleton class that manages loggers and a shared console rich instance for."""
+
+    _instance: Optional["LoggerManager"] = None
+    _loggers: dict[str, Logger] = {}
+    _console: Optional[Console] = None
+    _default_log_file: Optional[Path] = None
+    context: Optional[str] = None
+
+    def __new__(cls) -> "LoggerManager":
+        """Ensure only one instance of LoggerManager exists"""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def get_console(self) -> Console:
+        """Get the shared console instance."""
+        if self._console is None:
+            self._console = Console()
+        return self._console
+
+    def set_context(self, context: str) -> None:
+        """Set the logging context. All logs will show this context name."""
+        self.context = context
+
+    def clear_context(self) -> None:
+        """Clear the logging context, reverting to actual module names."""
+        self.context = None
+
+    def get_logger(
+        self,
+        name: str,
+        log_file: Path | str | None = None,
+        level: int = logging.INFO,
+    ) -> Logger:
+        """
+        Get or create a logger. All loggers share the same console.
+
+        Args:
+            name: Logger name (typically __name__)
+            log_file: Path to log file. If None, uses the default log file
+                     (logs/log[day].log where [day] is the current date).
+            level: Logging level
+
+        Returns:
+            Logger instance that shares the global console
+        """
+        if name in self._loggers:
+            return self._loggers[name]
+
+        # Set the default log file if not already set
+        if self._default_log_file is None:
+            if log_file is not None:
+                self._default_log_file = Path(log_file)
+            else:
+                # Use default filename with current date
+                day = get_today()
+                self._default_log_file = Path(f"logs/log{day}.log")
+
+        # Determine which log file to use for this logger
+        effective_log_file = (
+            log_file if log_file is not None else self._default_log_file
+        )
+
+        console = self.get_console()
+        logger = logging.getLogger(name)
+        logger.setLevel(level)
+
+        # Add context filter to include context in log records
+        context_filter = ContextFilter(self)
+        logger.addFilter(context_filter)
+
+        # Rich screen handler
+        rich_handler = RichHandler(
+            console=console,
+            rich_tracebacks=True,
+            tracebacks_show_locals=True,
+            show_time=True,
+            show_path=True,
+        )
+        logger.addHandler(rich_handler)
+
+        # File handler with custom format that uses %(context)s
+        if effective_log_file is not None:
+            effective_log_file = Path(effective_log_file)
+            effective_log_file.parent.mkdir(parents=True, exist_ok=True)
+
+            file_handler = logging.FileHandler(effective_log_file, encoding="utf-8")
+            file_handler.setFormatter(
+                logging.Formatter(
+                    fmt="%(asctime)s | %(levelname)-8s | %(context)s - %(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S",
+                )
+            )
+            logger.addHandler(file_handler)
+
+        logger.propagate = False
+        self._loggers[name] = logger
+        return logger
+
+
+# Convenience functions
+_manager = LoggerManager()
+
+
+def get_logger(
+    name: str, log_file: Path | str | None = None, level: int = logging.INFO
+) -> Logger:
+    """Get a logger that shares the global console."""
+    return _manager.get_logger(name, log_file, level)
+
+
+def get_logger_aio(
+    name: str, log_file: Path | str | None = None, level: int = logging.INFO
+) -> BufferedLogger:
     """
-    Set up a logger that writes to both the screen (via Rich) and optionally a file.
+    Get a buffered logger that queues messages and writes them on flush or destruction.
 
-    Args:
-        name:      Logger name, typically __name__ of the calling module.
-        log_file:  Path to log file. If None, file logging is disabled.
-        level:     Logging level (default: INFO).
-        console:   Existing Rich Console to use. If None, a new one is created.
-                   Pass your Progress instance's console to keep them in sync.
-
-    Returns:
-        A (logger, console) tuple. Pass the console to your Rich Progress instance.
+    The returned logger collects log messages in a queue and writes them when:
+    - flush() is called explicitly
+    - The object goes out of scope (automatic cleanup)
 
     Usage:
-        log, console = setup_logger(__name__, log_file="app.log")
-        log.info("Hello!")
+        logger = get_logger_aio(__name__)
+        logger.info("This is queued")
+        logger.info("This too")
+        logger.flush()  # Both messages written now
 
-        # With a Progress bar:
-        with Progress(..., console=console) as progress:
-            ...
     """
-    console = console or Console()
-
-    logger = logging.getLogger(name)
-
-    # Avoid adding duplicate handlers if called multiple times
-    if logger.handlers:
-        return logger, console
-
-    logger.setLevel(level)
-
-    # --- Rich screen handler ---
-    rich_handler = RichHandler(
-        console=console,
-        rich_tracebacks=True,
-        tracebacks_show_locals=True,
-        show_time=True,
-        show_path=True,
-    )
-    logger.addHandler(rich_handler)
-
-    # --- File handler ---
-    if log_file is not None:
-        log_file = Path(log_file)
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-
-        file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setFormatter(
-            logging.Formatter(
-                fmt="%(asctime)s | %(levelname)-8s | %(name)s - %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-            )
-        )
-        logger.addHandler(file_handler)
-
-    # Prevent log messages from propagating to the root logger
-    logger.propagate = False
-
-    return logger, console
+    logger = get_logger(name, log_file, level)
+    return BufferedLogger(logger)
 
 
+def get_console() -> Console:
+    """Get the shared console instance."""
+    return _manager.get_console()
+
+
+def set_log_context(context: str) -> None:
+    """Set the logging context. All logs will show this context name."""
+    _manager.set_context(context)
+
+
+def clear_log_context() -> None:
+    """Clear the logging context, reverting to actual module names."""
+    _manager.clear_context()
+
+
+# Utility functions
 def get_today(sep: str = "", include_time: bool = False) -> str:
-    """
-    Get the current date, optionally including time in HHMMSS format.
-    """
+    """Get the current date, optionally including time in HHMMSS format."""
     now = datetime.today()
     date_part = now.strftime(f"%Y{sep}%m{sep}%d")
 
@@ -89,7 +221,6 @@ def get_today(sep: str = "", include_time: bool = False) -> str:
 
 
 def log_list(logger: Logger, log_messages: list[tuple[str, str]]) -> None:
-    """Log a list of collected messages.
-    Each element must be a log level followed by a message"""
+    """Log a list of collected messages."""
     for level, message in log_messages:
         getattr(logger, level)(message)
