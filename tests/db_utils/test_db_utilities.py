@@ -78,6 +78,27 @@ def write_geo_table() -> Generator[WriteTable]:
         db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
         db.connection.commit()
 
+@fixture
+def write_delete_table() -> Generator[WriteTable]:
+    """Create a temporary copy of test_delete with a random suffix,
+    yield the db connection and table name, then drop the table."""
+    suffix = uuid4().hex[:8]
+    tmp_table = f"test_delete_{suffix}"
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
+        db.connection.execute(
+            text(
+                f"CREATE TABLE {TEST_SCHEMA}.{tmp_table} "
+                f"(LIKE {TEST_SCHEMA}.test_delete INCLUDING ALL); "
+                f"INSERT INTO {TEST_SCHEMA}.{tmp_table} "
+                f"SELECT * FROM {TEST_SCHEMA}.test_delete;"
+            )
+        )
+        db.connection.commit()
+        yield db, tmp_table
+        db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
+        db.connection.commit()
 
 # ── Convenience Functions ─────────────────────────────────────────────────────
 
@@ -477,6 +498,37 @@ def test_no_password(monkeypatch: pytest.MonkeyPatch) -> None:
         with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA):
             pass
 
+@pytest.mark.parametrize("key_columns", [
+    ["id"],
+    ["id", "unique_field"],
+])
+def test_delete_records(write_delete_table: WriteTable, key_columns: list[str]) -> None:
+    """Test delete with multiple column filters combined"""
+    db, table_name = write_delete_table
+    result = db.get_data(table_name)
+    data = data_to_delete()
+    db.delete(table_name, data, key_columns=key_columns)
+    result = db.get_data(table_name)
+    expected = expected_delete()
+    assert_frame_equal(expected, result)
+
+
+def test_delete_key_not_in_data(write_delete_table: WriteTable) -> None:
+    """Test delete failure when key column(s) are not included in the provided data."""
+    db, table_name = write_delete_table
+    data = data_to_delete().drop(columns=["id"])
+    with pytest.raises(ValueError, match="key_columns"):
+        db.delete(table_name, data, key_columns=["id"])
+
+
+def test_delete_key_not_in_table(write_delete_table: WriteTable) -> None:
+    """Test delete failure when key column(s) do not exist in the database table."""
+    db, table_name = write_delete_table
+    data = data_to_delete()
+    data["nonexistent"] = "x"
+    with pytest.raises(ValueError, match="key_columns"):
+        db.update_or_append(table_name, data, key_columns=["nonexistent"])
+
 
 # ── Expected Data ─────────────────────────────────────────────────────────────
 
@@ -570,3 +622,66 @@ def expected_write_geo() -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     write_data["jsonb_field"] = write_data["jsonb_field"].apply(json.dumps)
 
     return (data, write_data)
+
+
+def expected_read_delete() -> pd.DataFrame:
+    """Returns all records before deletion (data_to_delete + expected_delete)."""
+    data1 = data_to_delete()
+    data2 = expected_delete()
+    combined = pd.concat([data1, data2], ignore_index=True)
+    return combined.sort_values("id").reset_index(drop=True)
+
+
+def expected_delete() -> pd.DataFrame:
+    data = pd.DataFrame(
+        {
+            "id": [
+                UUID("660e8400-e29b-41d4-a716-446655440004"),
+                UUID("660e8400-e29b-41d4-a716-446655440005"),
+            ],
+            "unique_field": [
+                UUID("000e0000-e29b-41d4-a000-446655440004"),
+                UUID("000e0000-e29b-41d4-a000-446655440005"),
+            ],
+            "integer_field": [40, 50],
+            "string_field": [
+                "US History",
+                "Parking Clerk"
+            ],
+            "jsonb_field": [
+                {"location": "Boston"},
+                {"location": "Boston"}
+            ],
+        }
+    )
+
+    return data.sort_values("id").reset_index(drop=True)
+
+
+def data_to_delete():
+    data = pd.DataFrame(
+        {
+            "id": [
+                UUID("660e8400-e29b-41d4-a716-446655440001"),
+                UUID("660e8400-e29b-41d4-a716-446655440002"),
+                UUID("660e8400-e29b-41d4-a716-446655440003")
+            ],
+            "unique_field": [
+                UUID("000e0000-e29b-41d4-a000-446655440001"),
+                UUID("000e0000-e29b-41d4-a000-446655440002"),
+                UUID("000e0000-e29b-41d4-a000-446655440003")
+            ],
+            "integer_field": [10, 20, 30],
+            "string_field": [
+                "City Hall",
+                "Rivers Edge",
+                "MIT"
+            ],
+            "jsonb_field": [
+                {"location": "Boston"},
+                {"location": "Medford"},
+                {"location": "Cambridge"}
+            ],
+        }
+    )
+    return data.sort_values("id").reset_index(drop=True)
