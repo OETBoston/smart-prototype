@@ -7,7 +7,7 @@ import geopandas as gpd
 import pandas as pd
 from psycopg2.errors import InvalidTextRepresentation
 from sqlalchemy import Connection, Engine, Inspector, Row, create_engine, \
-    inspect, text, delete, Table, MetaData
+    inspect, text, delete, Table, MetaData, and_, or_
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import DataError, ProgrammingError
 
@@ -339,12 +339,16 @@ class SmartCurbDB:
         )
 
         # Build conditions dynamically
-        conditions = []
-        for col in key_columns:
-            for _, row_data in data.iterrows():
-                conditions.append(table_obj.c[col] == row_data[col])
-        del_stmt = delete(table_obj).where(*conditions)
+        row_conditions = []
+        for _, row_data in data.iterrows():
+            # Create AND condition for all key columns in this row
+            row_condition = and_(
+                *[table_obj.c[col] == row_data[col] for col in key_columns]
+            )
+            row_conditions.append(row_condition)
 
+        # Combine all row conditions with OR
+        del_stmt = delete(table_obj).where(or_(*row_conditions))
 
         # Update the database in a transaction
         with self.engine.begin() as tx_connection:
