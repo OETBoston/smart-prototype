@@ -527,7 +527,23 @@ def test_delete_key_not_in_table(write_delete_table: WriteTable) -> None:
     data = data_to_delete()
     data["nonexistent"] = "x"
     with pytest.raises(ValueError, match="key_columns"):
-        db.update_or_append(table_name, data, key_columns=["nonexistent"])
+        db.delete(table_name, data, key_columns=["nonexistent"])
+
+
+def test_delete_no_data(write_delete_table: WriteTable) -> None:
+    """Test delete failure when no data is provided."""
+    db, table_name = write_delete_table
+    data = pd.DataFrame(
+        columns=[
+            "id",
+            "unique_field",
+            "integer_field",
+            "string_field",
+            "jsonb_field"
+        ]
+    )
+    with pytest.raises(ValueError, match="No data provided for deletion."):
+        db.delete(table_name, data, key_columns=["id"])
 
 
 # ── Expected Data ─────────────────────────────────────────────────────────────

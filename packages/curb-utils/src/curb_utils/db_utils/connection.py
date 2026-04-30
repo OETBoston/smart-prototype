@@ -331,33 +331,37 @@ class SmartCurbDB:
         assert self.engine is not None
         assert self.connection is not None
 
-        table_obj =  Table(
-            table_name,
-            MetaData(),
-            autoload_with=self.engine,
-            schema=self.schema
-        )
+        if not data.empty:
 
-        # Build conditions dynamically
-        row_conditions = []
-        for _, row_data in data.iterrows():
-            # Create AND condition for all key columns in this row
-            row_condition = and_(
-                *[table_obj.c[col] == row_data[col] for col in key_columns]
+            table_obj = Table(
+                table_name,
+                MetaData(),
+                autoload_with=self.engine,
+                schema=self.schema
             )
-            row_conditions.append(row_condition)
 
-        # Combine all row conditions with OR
-        del_stmt = delete(table_obj).where(or_(*row_conditions))
+            # Build conditions dynamically
+            row_conditions = []
+            for _, row_data in data.iterrows():
+                # Create AND condition for all key columns in this row
+                row_condition = and_(
+                    *[table_obj.c[col] == row_data[col] for col in key_columns]
+                )
+                row_conditions.append(row_condition)
 
-        # Update the database in a transaction
-        with self.engine.begin() as tx_connection:
-            try:
-                tx_connection.execute(del_stmt)
-            except (DataError, ProgrammingError) as e:
-                raise InvalidInputError(
-                    "Failed to delete records from PostgreSQL (likely bad input)"
-                ) from e
+            # Combine all row conditions with OR
+            del_stmt = delete(table_obj).where(or_(*row_conditions))
+
+            # Update the database in a transaction
+            with self.engine.begin() as tx_connection:
+                try:
+                    tx_connection.execute(del_stmt)
+                except (DataError, ProgrammingError) as e:
+                    raise InvalidInputError(
+                        "Failed to delete records from PostgreSQL (likely bad input)"
+                    ) from e
+        else:
+            raise ValueError("No data provided for deletion.")
 
 
     def _check_data_to_modify(
