@@ -16,7 +16,6 @@ dependencies = [
     "psycopg2-binary>=2.9.11",
     "pydantic",
     "pydantic-settings",
-
     "python-dotenv>=1.2.1",
     "sqlalchemy>=2.0.45",
 ]
@@ -27,3 +26,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/curb_utils"]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.12.0",
+]

@@ -6,7 +6,20 @@ from uuid import uuid4
 import geopandas as gpd
 import pandas as pd
 from psycopg2.errors import InvalidTextRepresentation
-from sqlalchemy import Connection, Engine, Inspector, Row, create_engine, inspect, text
+from sqlalchemy import (
+    Connection,
+    Engine,
+    Inspector,
+    MetaData,
+    Row,
+    Table,
+    and_,
+    create_engine,
+    delete,
+    inspect,
+    or_,
+    text,
+)
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import DataError, ProgrammingError
 
@@ -168,7 +181,7 @@ class SmartCurbDB:
                     if_exists="append",
                     index=False,
                 )
-            except (DataError, ProgrammingError) as e:
+            except Exception as e:
                 raise InvalidInputError(
                     "Failed to write data to PostgreSQL (likely bad input)"
                 ) from e
@@ -205,54 +218,13 @@ class SmartCurbDB:
             ConnectionError: If the database connection is not open.
             InvalidInputError: If the data cannot be written to the database.
         """
-        if not isinstance(data, (pd.DataFrame, gpd.GeoDataFrame)):
-            raise ValueError(
-                "Data must be a pandas DataFrame or geopandas GeoDataFrame."
-            )
-
-        inspector = self._check_db_status(table_name)
-        # for type checker, guaranteed by _check_db_status
+        table_columns = self._check_data_to_modify(table_name, data, key_columns)
+        # for type checker, guaranteed by _check_db_status inside _check_data_to_modify
         assert self.engine is not None
         assert self.connection is not None
 
-        key_columns_list = list(key_columns)
-
-        # Validate key_columns exist in data
-        missing_from_data = [col for col in key_columns_list if col not in data.columns]
-        if missing_from_data:
-            raise ValueError(
-                f"key_columns {missing_from_data} are not present in the provided data."
-            )
-
-        # Validate key_columns exist in the table
-        table_columns = {
-            col["name"] for col in inspector.get_columns(table_name, schema=self.schema)
-        }
-        missing_from_table = [
-            col for col in key_columns_list if col not in table_columns
-        ]
-        if missing_from_table:
-            raise ValueError(
-                f"key_columns {missing_from_table} do not "
-                + f"exist in table '{table_name}'."
-            )
-
-        # Validate key_columns match a UNIQUE or PRIMARY KEY constraint
-        pk = inspector.get_pk_constraint(table_name, schema=self.schema)
-        pk_cols = set(pk.get("constrained_columns", []))
-        unique_constraints = inspector.get_unique_constraints(
-            table_name, schema=self.schema
-        )
-        unique_col_sets = [set(uc["column_names"]) for uc in unique_constraints]
-        key_col_set = set(key_columns_list)
-
-        if key_col_set != pk_cols and key_col_set not in unique_col_sets:
-            raise ValueError(
-                f"key_columns {key_columns_list} do not match any UNIQUE or PRIMARY KEY"
-                f" constraint on table '{table_name}'."
-            )
-
         # Determine columns to update (all data columns that are not key columns)
+        key_col_set = set(key_columns)
         non_key_columns = [col for col in data.columns if col not in key_col_set]
         if not non_key_columns:
             raise ValueError(
@@ -303,7 +275,7 @@ class SmartCurbDB:
             # Build the upsert SQL
             data_columns = list(data.columns)
             quoted_cols = [f'"{col}"' for col in data_columns]
-            quoted_keys = [f'"{col}"' for col in key_columns_list]
+            quoted_keys = [f'"{col}"' for col in key_columns]
             quoted_non_keys = [f'"{col}"' for col in non_key_columns]
 
             cols_clause = ", ".join(quoted_cols)
@@ -329,6 +301,147 @@ class SmartCurbDB:
 
             # Drop the staging table
             tx_connection.execute(text(f"DROP TABLE {self.schema}.{staging_table};"))
+
+    def delete(
+        self,
+        table_name: str,
+        data: pd.DataFrame | gpd.GeoDataFrame,
+        key_columns: Sequence[str],
+    ) -> None:
+        """WARNING: Do not use this method with untrusted inputs.
+
+        Deletes existing records from the specified table.
+
+        For each row in data, if a record matching key_columns exists it is
+        deleted from the database. If no matching record exists the row is
+        ignored.
+
+        The dataframe must contain columns matching the unique key. If other
+        columns are present in the dataframe, they are ignored.
+
+        key_columns must correspond to a UNIQUE or PRIMARY KEY constraint on the table.
+
+        Args:
+            table_name (str): Name of the table to delete from.
+            data (pd.DataFrame | gpd.GeoDataFrame): Dataview containing records to
+                delete.
+            key_columns (Sequence[str]): Column(s) used to match existing records.
+                Must correspond to a UNIQUE or PRIMARY KEY constraint on the table.
+
+        Raises:
+            ValueError: If data is not a DataFrame or GeoDataFrame.
+            ValueError: If key_columns are not present in data or the table.
+            ValueError: If key_columns do not match a UNIQUE or PRIMARY KEY constraint.
+            ValueError: If the specified table does not exist.
+            ConnectionError: If the database connection is not open.
+            InvalidInputError: If records cannot be deleted from the database.
+
+        """
+
+        self._check_data_to_modify(table_name, data, key_columns)
+        # for type checker, guaranteed by _check_db_status inside _check_data_to_modify
+        assert self.engine is not None
+        assert self.connection is not None
+
+        if data.empty:
+            raise ValueError("No data provided for deletion.")
+
+        table_obj = Table(
+            table_name,
+            MetaData(),
+            autoload_with=self.engine,
+            schema=self.schema
+        )
+
+        # Build conditions dynamically
+        row_conditions = []
+        for _, row_data in data.iterrows():
+            # Create AND condition for all key columns in this row
+            row_condition = and_(
+                *[table_obj.c[col] == row_data[col] for col in key_columns]
+            )
+            row_conditions.append(row_condition)
+
+        # Combine all row conditions with OR
+        del_stmt = delete(table_obj).where(or_(*row_conditions))
+
+        # Update the database in a transaction
+        with self.engine.begin() as tx_connection:
+            try:
+                tx_connection.execute(del_stmt)
+            except (DataError, ProgrammingError) as e:
+                raise InvalidInputError(
+                    "Failed to delete records from PostgreSQL (likely bad input)"
+                ) from e
+
+    def _check_data_to_modify(
+        self,
+        table_name: str,
+        data: pd.DataFrame | gpd.GeoDataFrame,
+        key_columns: Sequence[str],
+    ) -> set[str]:
+        """Internal function to validate data for primary key requirements
+
+        Args:
+            table_name (str): Name of the table that must be present and valid.
+            data (pd.DataFrame | gpd.GeoDataFrame): dataframe that must contain the
+                required information.
+            key_columns (Sequence[str]): Column(s) used to match existing records.
+
+        Raises:
+            ValueError: If data is not a DataFrame or GeoDataFrame.
+            ValueError: If key_columns are not present in data or the table.
+            ValueError: If key_columns do not match a UNIQUE or PRIMARY KEY constraint.
+            ValueError: If the specified table does not exist.
+
+        Returns:
+            table_columns (set[str]): Set of columns in the table
+        """
+
+        if not isinstance(data, (pd.DataFrame, gpd.GeoDataFrame)):
+            raise ValueError(
+                "Data must be a pandas DataFrame or geopandas GeoDataFrame."
+            )
+
+        inspector = self._check_db_status(table_name)
+
+        # Validate key_columns exist in data
+        key_columns_list = list(key_columns)
+        missing_from_data = [col for col in key_columns_list if col not in data.columns]
+        if missing_from_data:
+            raise ValueError(
+                f"key_columns {missing_from_data} are not present in the provided data."
+            )
+
+        # Validate key_columns exist in the table
+        table_columns = {
+            col["name"] for col in inspector.get_columns(table_name, schema=self.schema)
+        }
+        missing_from_table = [
+            col for col in key_columns_list if col not in table_columns
+        ]
+        if missing_from_table:
+            raise ValueError(
+                f"key_columns {missing_from_table} do not "
+                + f"exist in table '{table_name}'."
+            )
+
+        # Validate key_columns match a UNIQUE or PRIMARY KEY constraint
+        pk = inspector.get_pk_constraint(table_name, schema=self.schema)
+        pk_cols = set(pk.get("constrained_columns", []))
+        unique_constraints = inspector.get_unique_constraints(
+            table_name, schema=self.schema
+        )
+        unique_col_sets = [set(uc["column_names"]) for uc in unique_constraints]
+        key_col_set = set(key_columns_list)
+
+        if key_col_set != pk_cols and key_col_set not in unique_col_sets:
+            raise ValueError(
+                f"key_columns {key_columns_list} do not match any UNIQUE or PRIMARY KEY"
+                f" constraint on table '{table_name}'."
+            )
+
+        return table_columns
 
     @overload
     def get_data(

@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS test_data.test_read;
 DROP TABLE IF EXISTS test_data.test_read_geo;
 DROP TABLE IF EXISTS test_data.test_write;
 DROP TABLE IF EXISTS test_data.test_write_geo;
+DROP TABLE IF EXISTS test_data.test_delete;
 
 
 -- Create test_read in test_data schema
@@ -66,3 +67,22 @@ CREATE TABLE IF NOT EXISTS test_data.test_write_geo (
 
 -- Create spatial index on geometry column for test_write_geo
 CREATE INDEX IF NOT EXISTS idx_test_write_geo_geometry ON test_data.test_write_geo USING GIST (geometry);
+
+
+-- Create test_delete table (empty)
+CREATE TABLE IF NOT EXISTS test_data.test_delete (
+    id UUID PRIMARY KEY,
+    unique_field UUID NOT NULL,
+    integer_field INTEGER NOT NULL,
+    string_field VARCHAR(255) NOT NULL,
+    jsonb_field JSONB,
+     UNIQUE(id, unique_field)
+);
+
+-- Insert sample data into test_delete
+INSERT INTO test_data.test_delete (id, unique_field, integer_field, string_field, jsonb_field) VALUES
+    ('660e8400-e29b-41d4-a716-446655440001', '000e0000-e29b-41d4-a000-446655440001', 10, 'City Hall', '{"location": "Boston"}'),
+    ('660e8400-e29b-41d4-a716-446655440002', '000e0000-e29b-41d4-a000-446655440002', 20, 'Rivers Edge', '{"location": "Medford"}'),
+    ('660e8400-e29b-41d4-a716-446655440003', '000e0000-e29b-41d4-a000-446655440003', 30, 'MIT', '{"location": "Cambridge"}'),
+    ('660e8400-e29b-41d4-a716-446655440004', '000e0000-e29b-41d4-a000-446655440004', 40, 'US History', '{"location": "Boston"}'),
+    ('660e8400-e29b-41d4-a716-446655440005', '000e0000-e29b-41d4-a000-446655440005', 50, 'Parking Clerk', '{"location": "Boston"}');
