@@ -607,7 +607,6 @@ version = "0.1.0"
 source = { editable = "packages/curb-segmenter" }
 dependencies = [
     { name = "curb-utils" },
-    { name = "dummylog" },
     { name = "folium" },
     { name = "geopandas" },
     { name = "mapclassify" },
@@ -621,7 +620,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "curb-utils", editable = "packages/curb-utils" },
-    { name = "dummylog", specifier = ">=0.0.4" },
     { name = "folium", specifier = ">=0.20.0" },
     { name = "geopandas", specifier = ">=1.1.1" },
     { name = "mapclassify", specifier = ">=2.10.0" },
