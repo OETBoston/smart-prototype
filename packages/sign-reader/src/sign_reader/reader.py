@@ -3,7 +3,7 @@
 import time
 from logging import Logger
 
-from curb_utils.ai_client import GeminiOptions, call_gemini_client
+from curb_utils.ai_client import GeminiOptions, call_gemini_client_aio
 from curb_utils.logging import log_list
 from google import genai
 from pydantic import ValidationError
@@ -54,7 +54,7 @@ async def get_image_policy(
 
     while attempts <= max_retries:
         # 1. Generate content with the current 'contents' history
-        response = await call_gemini_client(
+        response = await call_gemini_client_aio(
             client=client,
             system_instruction=system_instruction,
             contents=contents,

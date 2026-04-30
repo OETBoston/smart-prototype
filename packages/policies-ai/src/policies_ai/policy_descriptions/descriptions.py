@@ -1,7 +1,7 @@
 import asyncio
 from pathlib import Path
 
-from curb_utils.ai_client.clients import call_gemini_client, init_gemini_client
+from curb_utils.ai_client.clients import call_gemini_client_aio, init_gemini_client
 from curb_utils.ai_client.config import GeminiOptions
 from curb_utils.io_tools import load_from_txt
 from google import genai
@@ -68,7 +68,7 @@ async def generate_description(
             )
         ]
 
-        response = await call_gemini_client(
+        response = await call_gemini_client_aio(
             client=client,
             system_instruction=system_instruction,
             contents=contents,
