@@ -15,7 +15,6 @@ in `config.yaml`.
 
 # Packages
 # ==============================================================================
-import logging
 import uuid
 import warnings
 from collections import defaultdict
@@ -106,7 +105,7 @@ def keep_tuple_item(series: pd.Series, position: str = "first") -> pd.Series:
     return series.map(lambda x: x[ix] if isinstance(x, tuple) else x)
 
 
-def raise_if_tuple(series: pd.Series, column_name: str = None):
+def raise_if_tuple(series: pd.Series, column_name: str | None = None) -> None:
     """
     Checks if a Pandas Series contains tuple values and raises a ValueError if found.
 
@@ -224,7 +223,6 @@ def clean_curb_geometries(
     curb_lines: gpd.GeoDataFrame,
     min_curb_len_ft: float = 2.0,
     eps_fraction: float = 1e-6,
-    verbose: bool = True,
 ) -> gpd.GeoDataFrame:
     """
     Clean and preprocess curb LineStrings for the segmentation process.
@@ -241,7 +239,6 @@ def clean_curb_geometries(
         curb_lines (GeoDataFrame): Input curb geometries with "geometry" column (LineString or MultiLineString).
         min_curb_len_ft (float): Minimum curb length (feet) to keep (default: 2.0).
         eps_fraction (float): Small tolerance for floating point precision (default: 1e-6).
-        verbose (bool): Whether to log QA summary (default: True).
 
     Returns:
         curbs_clean (gpd.GeoDataFrame): Cleaned curb geometries.
@@ -307,22 +304,16 @@ def clean_curb_geometries(
     ]
 
     # QA Summary
-    log_level = logging.INFO if verbose else logging.DEBUG
-    logger.log(log_level, "=== Curb Cleaning Summary ===")
-    logger.log(log_level, f"Input features:         {total_before:,}")
-    logger.log(log_level, f"Invalid/empty dropped:  {invalid_count:,}")
-    logger.log(
-        log_level,
+    logger.debug("=== Curb Cleaning Summary ===")
+    logger.debug(f"Input features:         {total_before:,}")
+    logger.debug(f"Invalid/empty dropped:  {invalid_count:,}")
+    logger.debug(
         f"Short segments dropped: {len(short_segments):,} (< {min_curb_len_ft} ft)",
     )
-
-    # always log info, even if not verbose
+    # log info is intentional here
     logger.info(f"Final valid curbs:      {len(curbs_clean):,}")
-
-    logger.log(
-        log_level, f"Average length (ft):    {curbs_clean['curb_length_ft'].mean():.2f}"
-    )
-    logger.log(log_level, "==============================")
+    logger.debug(f"Average length (ft):    {curbs_clean['curb_length_ft'].mean():.2f}")
+    logger.debug("==============================")
 
     return curbs_clean[columns_to_keep]
 
@@ -468,7 +459,6 @@ def calculate_fractions_for_fh_buffer_zones(
     points_id_col: str,
     curb_id_col: str,
     buffer_distance_ft: float,
-    verbose: bool = False,
 ) -> tuple[dict[int | str, list[float]], pd.DataFrame]:
     """
     For each curb:
@@ -539,10 +529,7 @@ def calculate_fractions_for_fh_buffer_zones(
 
         # Skip if invalid data
         if curb_length <= 0 or point_fraction < 0 or point_fraction > 1:
-            if verbose:
-                print(
-                    f"Warning: Skipping point {point[points_id_col]} with invalid data"
-                )
+            logger.debug(f"Skipping point {point[points_id_col]} with invalid data")
             continue
 
         # Compute buffer-edge fractions
@@ -638,17 +625,11 @@ def calculate_fractions_for_fh_buffer_zones(
 
         fractions_dict[curb_id] = sorted(final_fracs)
 
-    # Logging / verbose summary
-    log_level = logging.INFO if verbose else logging.DEBUG
-    logger.log(log_level, f"Completed: {stats['points_processed']:,} points processed")
-    logger.log(
-        log_level, f"Completed: {len(fractions_dict):,} curbs with fraction sets"
-    )
-    logger.log(
-        log_level, f"Completed: {stats['curbs_reused']:,} curbs reused multiple times"
-    )
-    logger.log(
-        log_level,
+    # Logging / debug summary
+    logger.debug(f"Completed: {stats['points_processed']:,} points processed")
+    logger.debug(f"Completed: {len(fractions_dict):,} curbs with fraction sets")
+    logger.debug(f"Completed: {stats['curbs_reused']:,} curbs reused multiple times")
+    logger.debug(
         "Completed: Average "
         f"{sum(len(f) for f in fractions_dict.values()) / max(len(fractions_dict), 1):.1f} "
         "fractions/curb",
@@ -710,7 +691,6 @@ def create_curb_segments_with_fh_point_buffer(
     seg_prefix: str,
     point_id_cols: list,
     min_segment_len_ft: float = 1.0,
-    verbose: bool = False,
 ) -> gpd.GeoDataFrame | None:
     """
     Create curb segments using fractions for point buffer boundaries.
@@ -724,7 +704,6 @@ def create_curb_segments_with_fh_point_buffer(
         seg_prefix (str): Prefix string for segment name.
         point_id_cols (list): List of points_id_cols to be brought to final df.
         min_segment_len_ft (float, optional): Minimum length of curb segments.
-        verbose (bool, optional): Verbose flag.
 
     Returns:
         A geopandas GeoDataFrame containing the curb segments.
@@ -836,7 +815,7 @@ def create_curb_segments_with_fh_point_buffer(
     point_assignments_df = pd.DataFrame(point_assignments)
 
     # Print statistics
-    log_segment_process(stats, verbose)
+    log_segment_process(stats)
 
     # Validation
     pt_df_len = len(point_assignments_df)
@@ -958,7 +937,6 @@ def run_segmentation_by_fire_hydrants(
     asset_dict: dict[str, gpd.GeoDataFrame],
     clean_curbs: gpd.GeoDataFrame,
     segment_id_cols: list,
-    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by fire hydrants.
@@ -968,7 +946,6 @@ def run_segmentation_by_fire_hydrants(
         asset_dict (dict[str, gpd.GeoDataFrame]): Dictionary of asset data.
         clean_curbs (gpd.GeoDataFrame): Cleaned curb GeoDataFrame.
         segment_id_cols (list): List of points_id_cols to be brought to the final df.
-        verbose (bool): Verbose flag.
 
     Returns:
         curb_segmentation (gpd.GeoDataFrame):
@@ -1005,7 +982,6 @@ def run_segmentation_by_fire_hydrants(
         points_id_col=point_id_col,
         curb_id_col=curb_id_col,
         buffer_distance_ft=buffer_distance_ft,
-        verbose=verbose,
     )
 
     # Create curb segments
@@ -1018,7 +994,6 @@ def run_segmentation_by_fire_hydrants(
         seg_prefix="FS",
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
-        verbose=verbose,
     )
 
     if curb_segments is None or curb_segments.empty:
@@ -1075,7 +1050,6 @@ def run_segmentation_by_parking_signs(
     asset_dict: dict[str, gpd.GeoDataFrame],
     clean_curbs: gpd.GeoDataFrame,
     segment_id_cols: list,
-    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by parking signs.
@@ -1086,7 +1060,6 @@ def run_segmentation_by_parking_signs(
         clean_curbs (gpd.GeoDataFrame): Cleaned curb GeoDataFrame,
             previously segmented by fire hydrants.
         segment_id_cols (list): List of points_id_cols to be brought to the final df.
-        verbose (bool): Verbose flag.
 
     Returns:
         curb_segmentation (gpd.GeoDataFrame):
@@ -1121,7 +1094,6 @@ def run_segmentation_by_parking_signs(
         seg_prefix="PS",
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
-        verbose=verbose,
     )
 
     # Final checks
@@ -1139,7 +1111,6 @@ def create_curb_segments_with_parking_asset(
     seg_prefix: str,
     point_id_cols: list,
     min_segment_len_ft: float = 1.0,
-    verbose: bool = False,
 ) -> gpd.GeoDataFrame | None:
     """
     Create curb segments using fractions for parking signs points and parking meter points.
@@ -1153,7 +1124,6 @@ def create_curb_segments_with_parking_asset(
         seg_prefix (str): Prefix string for segment name.
         point_id_cols (list): List of points_id_cols to be brought to final df.
         min_segment_len_ft (float, optional): Minimum length of curb segments.
-        verbose (bool, optional): Verbose flag.
 
     Returns:
         A geopandas GeoDataFrame containing the curb segments by parking signs (and fire hydrants).
@@ -1237,7 +1207,6 @@ def create_curb_segments_with_parking_asset(
         curb_id_col,
         seg_prefix,
         stats,
-        verbose,
     )
 
     logger.info(
@@ -1252,7 +1221,6 @@ def run_segmentation_by_bus_stops(
     asset_dict: dict[str, gpd.GeoDataFrame],
     clean_curbs: gpd.GeoDataFrame,
     segment_id_cols: list,
-    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by bus stops.
@@ -1262,7 +1230,6 @@ def run_segmentation_by_bus_stops(
         asset_dict (dict[str, gpd.GeoDataFrame]): Dictionary of asset data.
         clean_curbs (gpd.GeoDataFrame): Cleaned curb GeoDataFrame.
         segment_id_cols (list): List of points_id_cols to be brought to the final df.
-        verbose (bool): Verbose flag.
 
     Returns:
         curb_segmentation (gpd.GeoDataFrame):
@@ -1301,7 +1268,6 @@ def run_segmentation_by_bus_stops(
         seg_prefix="BS",
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
-        verbose=verbose,
     )
 
     # Final checks
@@ -1393,7 +1359,6 @@ def create_curb_segments_with_bus_stops(
     seg_prefix: str,
     point_id_cols: list,
     min_segment_len_ft: float = 1.0,
-    verbose: bool = False,
 ) -> gpd.GeoDataFrame | None:
     """
     Create curb segments using fractions for bus stops.
@@ -1407,7 +1372,6 @@ def create_curb_segments_with_bus_stops(
         seg_prefix (str): Prefix string for segment name.
         point_id_cols (list): List of points_id_cols to be brought to final df.
         min_segment_len_ft (float, optional): Minimum length of curb segments.
-        verbose (bool, optional): Verbose flag.
 
     Returns:
         A geopandas GeoDataFrame containing the curb segments by bus stops.
@@ -1500,7 +1464,6 @@ def create_curb_segments_with_bus_stops(
         curb_id_col,
         seg_prefix,
         stats,
-        verbose,
     )
 
     logger.info(f"Total segments after segmentation by bus stop: {len(segments_gdf):,}")
@@ -1513,7 +1476,6 @@ def run_segmentation_by_parking_meters(
     asset_dict: dict[str, gpd.GeoDataFrame],
     clean_curbs: gpd.GeoDataFrame,
     segment_id_cols: list,
-    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by parking meters.
@@ -1524,7 +1486,6 @@ def run_segmentation_by_parking_meters(
         clean_curbs (gpd.GeoDataFrame): Cleaned curb GeoDataFrame,
             previously segmented by parking signs, fire hydrants, and bus stops.
         segment_id_cols (list): List of points_id_cols to be brought to the final df.
-        verbose (bool): Verbose flag.
 
     Returns:
         curb_segmentation (gpd.GeoDataFrame):
@@ -1559,7 +1520,6 @@ def run_segmentation_by_parking_meters(
         seg_prefix="PM",
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
-        verbose=verbose,
     )
     return curb_segments
 
@@ -1616,7 +1576,6 @@ def make_curb_gdf(
     curb_id_col: str,
     seg_prefix: str,
     stats: dict,
-    verbose=False,
 ) -> gpd.GeoDataFrame | None:
     """
     Makes a GeoDataFrame from a list of curb segments.
@@ -1630,7 +1589,6 @@ def make_curb_gdf(
         curb_id_col (str): Column name of curb ID.
         seg_prefix (str): Prefix string for segment name.
         stats (dict): Log of statistics as curbs are processed.
-        verbose (bool, optional): Verbose flag.
 
     Returns:
         gpd.GeoDataFrame | None: GeoDataFrame of curb segments (if any)
@@ -1652,7 +1610,7 @@ def make_curb_gdf(
         )
 
     # Print statistics
-    log_segment_process(stats, verbose)
+    log_segment_process(stats)
 
     # Merge point information to segments
     if len(segments_gdf) > 0:
@@ -1678,7 +1636,7 @@ def make_curb_gdf(
         return None
 
 
-def log_segment_process(stats: dict[str, int], verbose: bool) -> None:
+def log_segment_process(stats: dict[str, int]) -> None:
     """
     Logs statistics related to the output of curb segmentation.
 
@@ -1686,15 +1644,13 @@ def log_segment_process(stats: dict[str, int], verbose: bool) -> None:
         stats (dict[str, int]): Dictionary of stats related to processing of data.
     """
 
-    log_level = logging.INFO if verbose else logging.DEBUG
     logger = get_logger(__name__)
     curbs_processed = stats["curbs_processed"]
     total_segments = stats["total_segments_created"]
     # filtered_segments = stats['segments_filtered_out']
-    logger.log(log_level, f"Curbs processed: {curbs_processed:,}")
-    logger.log(log_level, f"Segments created: {total_segments:,}")
-    logger.log(
-        log_level,
+    logger.debug(f"Curbs processed: {curbs_processed:,}")
+    logger.debug(f"Segments created: {total_segments:,}")
+    logger.debug(
         f"Average segments/curb: {total_segments / max(1, curbs_processed):.1f}",
     )
 
