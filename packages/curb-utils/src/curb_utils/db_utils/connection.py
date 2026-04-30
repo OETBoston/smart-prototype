@@ -4,10 +4,10 @@ from typing import Any, Sequence, overload
 from uuid import uuid4
 
 import geopandas as gpd
-import jinja2
 import pandas as pd
 from psycopg2.errors import InvalidTextRepresentation
-from sqlalchemy import Connection, Engine, Inspector, Row, create_engine, inspect, text
+from sqlalchemy import Connection, Engine, Inspector, Row, create_engine, \
+    inspect, text, delete, Table, MetaData
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import DataError, ProgrammingError
 
@@ -331,32 +331,25 @@ class SmartCurbDB:
         assert self.engine is not None
         assert self.connection is not None
 
-        # Build DELETE sql query
-        template_str = """
-        DELETE FROM {{schema}}.{{table_name}}
-        WHERE {% for row in data.itertuples() %}
-        ( 
-            {% for col in key_columns %}
-            "{{col}}" = '{{row[col]}}'
-            {% if not loop.last %} AND {% endif %}
-            {% endfor%}
+        table_obj =  Table(
+            table_name,
+            MetaData(),
+            autoload_with=self.engine,
+            schema=self.schema
         )
-        {% if not loop.last %} OR {% endif %}
-        {% endfor %}
-        """
-        env = jinja2.Environment()
-        template = env.from_string(template_str)
-        rendered_sql = template.render(
-            schema=self.schema,
-            table_name=table_name,
-            data=data,
-            key_columns=key_columns
-        )
+
+        # Build conditions dynamically
+        conditions = []
+        for col in key_columns:
+            for _, row_data in data.iterrows():
+                conditions.append(table_obj.c[col] == row_data[col])
+        del_stmt = delete(table_obj).where(*conditions)
+
 
         # Update the database in a transaction
         with self.engine.begin() as tx_connection:
             try:
-                tx_connection.execute(text(rendered_sql))
+                tx_connection.execute(del_stmt)
             except (DataError, ProgrammingError) as e:
                 raise InvalidInputError(
                     "Failed to delete records from PostgreSQL (likely bad input)"
