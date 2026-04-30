@@ -20,6 +20,7 @@ set before running the script.
 import warnings
 
 from curb_utils.io_tools import load_from_yaml
+from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
 import curb_segmenter.curb_segmentation as cs
@@ -28,10 +29,10 @@ from curb_segmenter import io_utils
 warnings.filterwarnings("ignore")
 
 
-def main():
+def main() -> None:
     # Session settings
     load_dotenv()
-    logger = cs.get_logger()
+    logger = get_logger(__name__)
     logger.info("Running Curb Segmentation Pipeline...")
 
     # Read config
@@ -61,8 +62,6 @@ def main():
         curb_lines=curbs,
         min_curb_len_ft=config["min_curb_len_ft"],
         eps_fraction=float(config["eps_fraction"]),
-        logger_obj=logger,
-        verbose=True,
     )
 
     # Run segmentation by bus stops
@@ -71,8 +70,6 @@ def main():
         asset_dict=asset_dict,
         clean_curbs=clean_curbs_gdf,
         segment_id_cols=segment_id_cols,
-        logger_obj=logger,
-        verbose=True,
     )
 
     # Run segmentation by fire hydrants
@@ -81,8 +78,6 @@ def main():
         asset_dict=asset_dict,
         clean_curbs=curb_segments_by_bs,
         segment_id_cols=segment_id_cols,
-        logger_obj=logger,
-        verbose=True,
     )
 
     # Run segmentation by parking signs
@@ -91,8 +86,6 @@ def main():
         asset_dict=asset_dict,
         clean_curbs=curb_segments_by_fh,
         segment_id_cols=segment_id_cols,
-        logger_obj=logger,
-        verbose=True,
     )
     # Run segmentation by parking meters
     curb_segments_by_pm = cs.run_segmentation_by_parking_meters(
@@ -100,8 +93,6 @@ def main():
         asset_dict=asset_dict,
         clean_curbs=curb_segments_by_ps,
         segment_id_cols=segment_id_cols,
-        logger_obj=logger,
-        verbose=True,
     )
 
     # Format and create a GeoDataFrame consistent with the `curb_segments` table schema
@@ -114,7 +105,6 @@ def main():
         gdf=curb_segments,
         length_threshold=config["tiny_seg_threshold_ft"],
         asset_dict=asset_dict,
-        logger_obj=logger,
     )
 
     # Write curb segments to database
