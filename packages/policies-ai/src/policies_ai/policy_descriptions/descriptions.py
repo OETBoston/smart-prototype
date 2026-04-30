@@ -1,7 +1,11 @@
 import asyncio
+import logging
 from pathlib import Path
 
-from curb_utils.ai_client.clients import call_gemini_client_aio, init_gemini_client
+from curb_utils.ai_client.clients import (
+    call_gemini_client_aio,
+    init_gemini_client,
+)
 from curb_utils.ai_client.config import GeminiOptions
 from curb_utils.io_tools import load_from_txt
 from google import genai
@@ -34,6 +38,7 @@ def add_json_to_prompt(prompt: str, policy_json: str) -> str:
 async def generate_description(
     client: genai.Client,
     sem: asyncio.Semaphore,
+    logger: logging.Logger,
     prompt: str = default_prompt,
     system_instruction=default_instruction,
     model_opts: GeminiOptions | None = None,
@@ -72,6 +77,7 @@ async def generate_description(
             client=client,
             system_instruction=system_instruction,
             contents=contents,
+            logger=logger,
             response_schema=None,
             response_mime_type="text/plain",
             model_opts=model_opts,
@@ -85,6 +91,11 @@ async def generate_description(
 
 async def run_examples(api_key) -> None:
     """Provides basic example for running the description"""
+
+    # create logger (required by call_gemini_client_aio).
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
+
     from time import perf_counter
 
     def read_policy_example(path) -> str:
@@ -96,12 +107,12 @@ async def run_examples(api_key) -> None:
 
     async def process_example(policy_file: Path) -> str:
         sem = asyncio.Semaphore(50)
-        print(f"Processing {policy_file}...")
+        logger.info(f"Processing {policy_file}...")
         policy_json = read_policy_example(policy_file)
         outfile = policy_file.with_suffix(".RESULT.txt")
         prompt = add_json_to_prompt(default_prompt, policy_json)
         description = await generate_description(
-            client, sem, prompt, model_opts=None, api_key=api_key
+            client, sem, logger, prompt, model_opts=None, api_key=api_key
         )
         with open(outfile, "w+") as f:
             f.write(description)
@@ -123,6 +134,10 @@ async def run_examples(api_key) -> None:
 
 if __name__ == "__main__":
     import os
+
+    from dotenv import load_dotenv
+
+    load_dotenv()
 
     api_key = os.environ["GEMINI_API_KEY"]
     asyncio.run(run_examples(api_key))

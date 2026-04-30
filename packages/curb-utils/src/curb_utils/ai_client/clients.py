@@ -53,8 +53,8 @@ def _setup_gemini_call_configs(
 ) -> tuple[GeminiOptions, GenerateContentConfig]:
     """
     Internal helper function to set up Gemini call configs, including handling defaults
-    for GeminiOptions wrapper and constructing the GenerateContentConfig to be passed
-    to call_gemini_client or call_gemini_client_aio.
+    for GeminiOptions wrapper and constructing the GenerateContentConfig to be passed.
+    Used by call_gemini_client and call_gemini_client_aio.
     """
 
     # Use the defaults if model_opts are not provided
