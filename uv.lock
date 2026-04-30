@@ -16,6 +16,7 @@ members = [
     "curb-segmenter",
     "curb-utils",
     "policies-ai",
+    "policy-applier",
     "sign-reader",
     "smart-prototype",
 ]
@@ -2214,6 +2215,11 @@ dependencies = [
 requires-dist = [{ name = "google-genai", specifier = ">=1.69.0" }]
 
 [[package]]
+name = "policy-applier"
+version = "0.1.0"
+source = { editable = "packages/policy-applier" }
+
+[[package]]
 name = "pre-commit"
 version = "4.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3240,6 +3246,7 @@ dependencies = [
     { name = "curb-segmenter" },
     { name = "curb-utils" },
     { name = "policies-ai" },
+    { name = "policy-applier" },
     { name = "sign-reader" },
 ]
 
@@ -3257,6 +3264,7 @@ requires-dist = [
     { name = "curb-segmenter", editable = "packages/curb-segmenter" },
     { name = "curb-utils", editable = "packages/curb-utils" },
     { name = "policies-ai", editable = "packages/policies-ai" },
+    { name = "policy-applier", editable = "packages/policy-applier" },
     { name = "sign-reader", editable = "packages/sign-reader" },
 ]
 
