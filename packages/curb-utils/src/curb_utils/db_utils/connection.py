@@ -6,8 +6,20 @@ from uuid import uuid4
 import geopandas as gpd
 import pandas as pd
 from psycopg2.errors import InvalidTextRepresentation
-from sqlalchemy import Connection, Engine, Inspector, Row, create_engine, \
-    inspect, text, delete, Table, MetaData, and_, or_
+from sqlalchemy import (
+    Connection,
+    Engine,
+    Inspector,
+    MetaData,
+    Row,
+    Table,
+    and_,
+    create_engine,
+    delete,
+    inspect,
+    or_,
+    text,
+)
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import DataError, ProgrammingError
 
@@ -331,38 +343,36 @@ class SmartCurbDB:
         assert self.engine is not None
         assert self.connection is not None
 
-        if not data.empty:
-
-            table_obj = Table(
-                table_name,
-                MetaData(),
-                autoload_with=self.engine,
-                schema=self.schema
-            )
-
-            # Build conditions dynamically
-            row_conditions = []
-            for _, row_data in data.iterrows():
-                # Create AND condition for all key columns in this row
-                row_condition = and_(
-                    *[table_obj.c[col] == row_data[col] for col in key_columns]
-                )
-                row_conditions.append(row_condition)
-
-            # Combine all row conditions with OR
-            del_stmt = delete(table_obj).where(or_(*row_conditions))
-
-            # Update the database in a transaction
-            with self.engine.begin() as tx_connection:
-                try:
-                    tx_connection.execute(del_stmt)
-                except (DataError, ProgrammingError) as e:
-                    raise InvalidInputError(
-                        "Failed to delete records from PostgreSQL (likely bad input)"
-                    ) from e
-        else:
+        if data.empty:
             raise ValueError("No data provided for deletion.")
 
+        table_obj = Table(
+            table_name,
+            MetaData(),
+            autoload_with=self.engine,
+            schema=self.schema
+        )
+
+        # Build conditions dynamically
+        row_conditions = []
+        for _, row_data in data.iterrows():
+            # Create AND condition for all key columns in this row
+            row_condition = and_(
+                *[table_obj.c[col] == row_data[col] for col in key_columns]
+            )
+            row_conditions.append(row_condition)
+
+        # Combine all row conditions with OR
+        del_stmt = delete(table_obj).where(or_(*row_conditions))
+
+        # Update the database in a transaction
+        with self.engine.begin() as tx_connection:
+            try:
+                tx_connection.execute(del_stmt)
+            except (DataError, ProgrammingError) as e:
+                raise InvalidInputError(
+                    "Failed to delete records from PostgreSQL (likely bad input)"
+                ) from e
 
     def _check_data_to_modify(
         self,
