@@ -1,9 +1,12 @@
+import logging
+import math
+
 import geopandas as gpd
 import pandas as pd
 from shapely import Point
 from utils import filter_by_column_values, filter_by_geo
 
-logger = logger.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def load_caretegraph_signs(base_path: str, config: dict) -> pd.DataFrame:
@@ -31,7 +34,10 @@ def preprocess_cartegraph_signs(
         & (signs_df["mutcd_code_field"].notnull())
     ]
     signs_df["geometry"] = pd.Series(
-        [Point(xy) for xy in zip(sign_df["longitude"], signs_df["latitude"])],
+        [
+            Point(xy)
+            for xy in zip(signs_df["longitude"], signs_df["latitude"], strict=True)
+        ],
         index=signs_df.index,
     )
 
@@ -52,15 +58,13 @@ def preprocess_cartegraph_signs(
     # TODO: Should this be first? - I think I see why not.
 
     # filter for duplicates by keeping the most recently modified record
-    no_dupes = parking_df.sort_values(
+    signs_df = signs_df.sort_values(
         ["cg_last_modified_field", "attachment_cg_last_modified_field"], ascending=False
     ).drop_duplicates(subset=config["sign_id_col"], keep="first")
-    logger.info("Removed duplicates: %d unique signs", len(no_dupes))
+    logger.info("Removed duplicates: %d unique signs", len(signs_df))
 
     # make gdf
-    signs_gdf = gpd.GeoDataFrame(
-        valid_signs, geometry="geometry", crs=config["input_crs"]
-    )
+    signs_gdf = gpd.GeoDataFrame(signs_df, geometry="geometry", crs=config["input_crs"])
     if signs_gdf.crs != config["output_crs"]:
         signs_gdf = signs_gdf.to_crs(config["output_crs"])
 
@@ -90,7 +94,7 @@ def preprocess_cartegraph_signs(
             config["neighborhoods"],
         )
 
-    # group nearby signs together by truncating lat/long to the nearest grouping distance
+    # Reduce geometric precision to better group nearby signs together.
     grouping_distance = config["grouping_distance_ft"]
     signs_gdf["truncated_geometry"] = (
         signs_gdf["geometry"]
