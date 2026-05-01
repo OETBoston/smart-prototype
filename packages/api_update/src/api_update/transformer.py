@@ -7,7 +7,6 @@ Contains modular functions for curb data acquisition, processing, and export.
 import ast
 import asyncio
 import json
-import logging
 import os
 import uuid
 from typing import cast
@@ -20,11 +19,10 @@ from api_update.utils import (
     get_policy_signatures,
 )
 from api_update.utils_geo import consolidate_curb_segments
+from curb_utils.logging import get_logger
 from shapely import wkb
 
-logging.getLogger("google_genai").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def extract_unique_policies(
