@@ -1,3 +1,5 @@
+"""Module for updating the public_cds schema and initializing
+public_cds_next for the next update."""
 from sqlalchemy import text
 from curb_utils.db_utils import SmartCurbDB
 from curb_utils.logging import get_logger
