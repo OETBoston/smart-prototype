@@ -12,38 +12,6 @@ there is 1 backup.
 
 ---
 
-## Setup
-
-Clone the repository and install dependencies:
-
-```bash
-cd smart-prototype/packages/sign-loader
-uv sync
-```
-
-This will:
-* Create a virtual environment
-* Install all dependencies defined in `pyproject.toml`
-* Install the `curb-utils` workspace package
-
----
-### Environment Variables (`.env`)
-The entry point of this process (`main.py`) loads environment variables using `python-dotenv`:
-```python
-from dotenv import load_dotenv
-load_dotenv()
-```
-Create a local `.env` file (not committed) for database connection settings used by your `smart_curb_db` layer 
-(exact variables depend on your implementation).
-Use this template:
-```text
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=your_username
-DB_PASSWORD=your_password
-```
----
-
 ## Core Structure
 ```text
 .
@@ -72,10 +40,9 @@ flowchart TD
 Parameters are specified in `config.yaml`. These are configurable but unlikely
 to change unless there's a database migration.
 
-| Parameter         | Description                                                          |
-|-------------------|----------------------------------------------------------------------|
-| `database`        | Name of database to connect to                                       |
-| `schema`          | Name of schema -- required by SmartDB connection but not really used |
+| Parameter         | Description                        |
+|-------------------|------------------------------------|
+| `database`        | Name of target database            |
 
 ## Usage 
 

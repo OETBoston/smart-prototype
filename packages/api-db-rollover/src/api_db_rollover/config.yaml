@@ -1,3 +1,2 @@
 # PostgreSQL database settings
 dbname: "cds"
-schema: "public"
