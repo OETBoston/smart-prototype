@@ -11,7 +11,12 @@ from policy_applier.db_utils import (
     append_policy_handling_jobs,
     read_policy_applier_tables,
 )
-from policy_applier.handler_utils import Direction, generate_event_log, run_policy_pass
+from policy_applier.handler_utils import (
+    PARKING_ANYTIME_POLICY,
+    Direction,
+    generate_event_log,
+    run_policy_pass,
+)
 
 load_dotenv()
 
@@ -226,6 +231,7 @@ def process_segment_policies(
     df_sign_policies: pd.DataFrame,
     df_meter_policies: pd.DataFrame,
     df_nonsign_features: pd.DataFrame,
+    blanket_allowance: bool = False,
 ) -> pd.DataFrame | None:
     """Process all blockfaces to determine curb policies.
 
@@ -280,6 +286,10 @@ def process_segment_policies(
     # Format Final Output
     if all_blockface_results:
         df_final = pd.DataFrame(all_blockface_results)
+        if blanket_allowance:
+            df_final["policy_list"] = df_final["policy_list"].apply(
+                lambda x: x + [PARKING_ANYTIME_POLICY]
+            )
         df_final["policy_list"] = df_final["policy_list"].apply(json.dumps)
         return df_final
 
@@ -315,6 +325,7 @@ def policy_applier(config: PolicyApplierConfig) -> None:
         df_sign_policies=df_sign_policies,
         df_meter_policies=df_meter_policies,
         df_nonsign_features=df_nonsign_features,
+        blanket_allowance=blanket_allowance,
     )
 
     # Write to database
