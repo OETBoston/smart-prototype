@@ -8,23 +8,15 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
-import dummylog
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 from curb_utils.db_utils import SmartCurbDB
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 
-
 # Functions
 # ==============================================================================
-def get_logger() -> Any:
-    """
-    Return a logger instance.
-    """
-    return dummylog.DummyLog(log_name=f"curb-generation-{get_today()}").logger
 
 
 def get_today(sep: str = "", include_time: bool = False) -> str:

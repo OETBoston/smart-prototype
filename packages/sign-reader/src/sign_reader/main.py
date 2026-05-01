@@ -10,13 +10,12 @@ Author:
 
 import asyncio
 import uuid
-from logging import Logger
 from pathlib import Path
 
 from curb_utils.ai_client import GeminiOptions, init_gemini_client
 from curb_utils.db_utils import append_job
 from curb_utils.io_tools import load_from_txt, load_from_yaml
-from curb_utils.logging import get_today, setup_logger
+from curb_utils.logging import get_console, get_logger
 from dotenv import load_dotenv
 from google import genai
 from rich.progress import Progress, TaskID, TextColumn, TimeElapsedColumn
@@ -82,8 +81,7 @@ def unusable_image() -> ImageExtended:
 
 
 async def main() -> None:
-    log_file = f"logs/sign-reader-{get_today()}.log"
-    logger, console = setup_logger(__name__, log_file=log_file)
+    logger = get_logger(__name__)
     logger.info("Running Sign Reader Task...")
 
     # Define external files
@@ -153,7 +151,7 @@ async def main() -> None:
             TextColumn("[progress.description]{task.description}"),
             TimeElapsedColumn(),
             ConditionalBar(),
-            console=console,
+            console=get_console(),
         ) as progress:
             loop_task = progress.add_task(
                 f"Processing {len(images_list)} Images",
@@ -174,7 +172,6 @@ async def main() -> None:
                             job_id=job_id,
                             debug_mode=config.debug_mode,
                             output_dir=output_dir,
-                            logger=logger,
                             records_policies=records_policies,
                             batch_size=config.batch_size,
                             progress=progress,
@@ -203,7 +200,6 @@ async def process_image(
     job_id: uuid.UUID,
     debug_mode: bool,
     output_dir: Path,
-    logger: Logger,
     records_policies: list,
     batch_size: int,
     progress: Progress,
@@ -214,6 +210,7 @@ async def process_image(
 ) -> None:
     async with sem:
         # Log image start
+        logger = get_logger(__name__)
         info = f"Processing Sign ID: {sign_id}"
         info_extended = f"{info} | URI: {image_uri}"
         logger.info(info_extended)
@@ -227,7 +224,6 @@ async def process_image(
             user_prompt=user_prompt,
             image_uri=image_uri,
             sign_id=sign_id,
-            logger=logger,
             progress=progress,
             task=task,
             pre_model_opts=pre_model_opts,
@@ -243,7 +239,6 @@ async def process_image(
         sign_id=sign_id,
         output_dir=output_dir,
         debug_mode=debug_mode,
-        logger=logger,
         progress=progress,
         task=task,
         batch_size=batch_size,
@@ -259,7 +254,6 @@ async def evaluate_image(
     user_prompt: str,
     image_uri: str,
     sign_id: uuid.UUID,
-    logger: Logger,
     progress: Progress,
     task: TaskID,
     pre_model_opts: GeminiOptions | None = None,
@@ -267,6 +261,7 @@ async def evaluate_image(
     max_retries: int = 3,
 ) -> Image | None:
     # Fetch the image
+    logger = get_logger(__name__)
     try:
         progress.update(task, description=f"Fetching Sign ID: {sign_id}")
         image_bytes = get_image(image_uri)
@@ -282,7 +277,6 @@ async def evaluate_image(
             system_instruction=pre_system_instruction,
             image_bytes=image_bytes,
             image_uri=image_uri,
-            logger=logger,
             model_opts=pre_model_opts,
             check_multiple=False,
         )
@@ -306,7 +300,6 @@ async def evaluate_image(
             model_opts=model_opts,
             image_bytes=image_bytes,
             image_uri=image_uri,
-            logger=logger,
             max_retries=max_retries,
         )
     except Exception as e:
@@ -328,11 +321,11 @@ def write_image(
     sign_id: uuid.UUID,
     output_dir: Path,
     debug_mode: bool,
-    logger: Logger,
     progress: Progress,
     task: TaskID,
     batch_size: int,
 ) -> None:
+    logger = get_logger(__name__)
     # Turn None into unusable image
     image_or_unusable = parsed_image or unusable_image()
 

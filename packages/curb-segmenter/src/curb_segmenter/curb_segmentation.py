@@ -15,17 +15,16 @@ in `config.yaml`.
 
 # Packages
 # ==============================================================================
-import logging
 import uuid
 import warnings
 from collections import defaultdict
 from datetime import datetime, timezone
 
-import dummylog
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyproj
+from curb_utils.logging import get_logger
 from rtree import index
 from shapely.geometry import LineString
 from shapely.geometry.base import BaseGeometry
@@ -36,25 +35,6 @@ warnings.filterwarnings("ignore")
 
 # Functions
 # ==============================================================================
-def get_today(sep: str = "", include_time: bool = False) -> str:
-    """
-    Get the current date, optionally including time in HHMMSS format.
-    """
-    now = datetime.today()
-    date_part = now.strftime(f"%Y{sep}%m{sep}%d")
-
-    if include_time:
-        time_part = now.strftime("%H%M%S")
-        return f"{date_part}-{time_part}"
-
-    return date_part
-
-
-def get_logger():
-    """
-    Return a logger instance.
-    """
-    return dummylog.DummyLog(log_name=f"curb-segmentation-{get_today()}").logger
 
 
 def check_and_set_crs(gdf: gpd.GeoDataFrame, proj_crs: str) -> gpd.GeoDataFrame:
@@ -125,7 +105,7 @@ def keep_tuple_item(series: pd.Series, position: str = "first") -> pd.Series:
     return series.map(lambda x: x[ix] if isinstance(x, tuple) else x)
 
 
-def raise_if_tuple(series: pd.Series, column_name: str = None):
+def raise_if_tuple(series: pd.Series, column_name: str | None = None) -> None:
     """
     Checks if a Pandas Series contains tuple values and raises a ValueError if found.
 
@@ -243,8 +223,6 @@ def clean_curb_geometries(
     curb_lines: gpd.GeoDataFrame,
     min_curb_len_ft: float = 2.0,
     eps_fraction: float = 1e-6,
-    logger_obj: logging.Logger = None,
-    verbose: bool = True,
 ) -> gpd.GeoDataFrame:
     """
     Clean and preprocess curb LineStrings for the segmentation process.
@@ -261,12 +239,12 @@ def clean_curb_geometries(
         curb_lines (GeoDataFrame): Input curb geometries with "geometry" column (LineString or MultiLineString).
         min_curb_len_ft (float): Minimum curb length (feet) to keep (default: 2.0).
         eps_fraction (float): Small tolerance for floating point precision (default: 1e-6).
-        logger_obj (logging.Logger): Logger object (default: None).
-        verbose (bool): Whether to log QA summary (default: True).
 
     Returns:
         curbs_clean (gpd.GeoDataFrame): Cleaned curb geometries.
     """
+
+    logger = get_logger(__name__)
 
     curbs_clean = curb_lines.copy()
     total_before = len(curbs_clean)
@@ -290,10 +268,9 @@ def clean_curb_geometries(
 
     # Check if curb IDs are duplicated
     if curbs_clean["blockface_id"].duplicated().any():
-        if logger_obj:
-            logger_obj.info(
-                "'blockface_id' column has duplicate IDs. Removing duplicate IDs..."
-            )
+        logger.info(
+            "'blockface_id' column has duplicate IDs. Removing duplicate IDs..."
+        )
         curbs_clean = curbs_clean.drop_duplicates(subset=["blockface_id"], keep="first")
 
     # Check if any geometry is not a LineString
@@ -327,24 +304,16 @@ def clean_curb_geometries(
     ]
 
     # QA Summary
-    if verbose:
-        if logger_obj:
-            logger_obj.info("=== Curb Cleaning Summary ===")
-            logger_obj.info(f"Input features:         {total_before:,}")
-            logger_obj.info(f"Invalid/empty dropped:  {invalid_count:,}")
-            logger_obj.info(
-                f"Short segments dropped: {len(short_segments):,} (< {min_curb_len_ft} ft)"
-            )
-            logger_obj.info(f"Final valid curbs:      {len(curbs_clean):,}")
-            logger_obj.info(
-                f"Average length (ft):    {curbs_clean['curb_length_ft'].mean():.2f}"
-            )
-            logger_obj.info("==============================")
-        else:
-            raise ValueError("Logger object is required for verbose=True.")
-
-    if logger_obj and not verbose:
-        logger_obj.info(f"Final valid curbs: {len(curbs_clean):,}")
+    logger.debug("=== Curb Cleaning Summary ===")
+    logger.debug(f"Input features:         {total_before:,}")
+    logger.debug(f"Invalid/empty dropped:  {invalid_count:,}")
+    logger.debug(
+        f"Short segments dropped: {len(short_segments):,} (< {min_curb_len_ft} ft)",
+    )
+    # log info is intentional here
+    logger.info(f"Final valid curbs:      {len(curbs_clean):,}")
+    logger.debug(f"Average length (ft):    {curbs_clean['curb_length_ft'].mean():.2f}")
+    logger.debug("==============================")
 
     return curbs_clean[columns_to_keep]
 
@@ -354,7 +323,6 @@ def snap_points_to_curbs(
     points_id_col: str,
     curbs_clean: gpd.GeoDataFrame,
     curb_id_col: str,
-    logger_obj: logging.Logger = None,
     snap_tolerance_ft: float = 25,
     proj_crs: str = "epsg:2249",
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
@@ -366,7 +334,6 @@ def snap_points_to_curbs(
         points_id_col (str): Column name of point ID.
         curbs_clean (GeoDataFrame): Clean curbs.
         curb_id_col (str): Column name of curb ID.
-        logger_obj (logging.Logger): Logger object (default: None).
         snap_tolerance_ft (float): Maximum snapping tolerance in feet.
         proj_crs (CRS): Projection CRS.
 
@@ -376,13 +343,14 @@ def snap_points_to_curbs(
             that could not be snapped.
     """
 
+    logger = get_logger(__name__)
+
     # Check CRS
     points_clean = check_and_set_crs(points_clean, proj_crs)
     curbs_clean = check_and_set_crs(curbs_clean, proj_crs)
 
     # Build spatial index for curbs
-    if logger_obj:
-        logger_obj.info("Building spatial index for curbs...")
+    logger.info("Building spatial index for curbs...")
     curb_idx = index.Index()
     for pos, (_, curb) in enumerate(curbs_clean.iterrows()):
         curb_idx.insert(pos, curb.geometry.bounds)
@@ -391,8 +359,7 @@ def snap_points_to_curbs(
     snapped_data = []
     unsnapped_ids = []
 
-    if logger_obj:
-        logger_obj.info(f"Snapping {len(points_clean):,} points to curbs...")
+    logger.info(f"Snapping {len(points_clean):,} points to curbs...")
 
     for _, point_row in points_clean.iterrows():
         point_geom = point_row["geometry"]
@@ -479,9 +446,8 @@ def snap_points_to_curbs(
 
     unsnapped_points_df = points_clean[points_clean[points_id_col].isin(unsnapped_ids)]
 
-    if logger_obj:
-        logger_obj.info(f"Snapped points: {len(projected_points_df):,}")
-        logger_obj.info(f"Unsnapped points: {len(unsnapped_ids):,}")
+    logger.info(f"Snapped points: {len(projected_points_df):,}")
+    logger.info(f"Unsnapped points: {len(unsnapped_ids):,}")
 
     return projected_points_df.reset_index(drop=True), unsnapped_points_df.reset_index(
         drop=True
@@ -493,8 +459,6 @@ def calculate_fractions_for_fh_buffer_zones(
     points_id_col: str,
     curb_id_col: str,
     buffer_distance_ft: float,
-    logger_obj: logging.Logger = None,
-    verbose: bool = False,
 ) -> tuple[dict[int | str, list[float]], pd.DataFrame]:
     """
     For each curb:
@@ -521,10 +485,10 @@ def calculate_fractions_for_fh_buffer_zones(
         fractions_dict: {curb_id: sorted list of fractions}
         fractions_df: DataFrame with columns [curb_id_col, "fractions", "num_fractions"]
     """
-    if logger_obj:
-        logger_obj.info(
-            "Calculating fractions for buffer zones (with multi-cluster overlap envelopes)..."
-        )
+    logger = get_logger(__name__)
+    logger.info(
+        "Calculating fractions for buffer zones (with multi-cluster overlap envelopes)...",
+    )
 
     # Validate inputs
     if buffer_distance_ft <= 0:
@@ -547,8 +511,8 @@ def calculate_fractions_for_fh_buffer_zones(
         (projected_points["projected_fraction"] < 0)
         | (projected_points["projected_fraction"] > 1)
     ]
-    if len(invalid_fractions) > 0 and logger_obj:
-        logger_obj.warning(
+    if len(invalid_fractions) > 0:
+        logger.warning(
             f"Warning: {len(invalid_fractions):,} points have fraction outside [0,1] range."
         )
         raise ValueError("Invalid fractions found.")
@@ -565,10 +529,7 @@ def calculate_fractions_for_fh_buffer_zones(
 
         # Skip if invalid data
         if curb_length <= 0 or point_fraction < 0 or point_fraction > 1:
-            if verbose:
-                print(
-                    f"Warning: Skipping point {point[points_id_col]} with invalid data"
-                )
+            logger.debug(f"Skipping point {point[points_id_col]} with invalid data")
             continue
 
         # Compute buffer-edge fractions
@@ -664,25 +625,15 @@ def calculate_fractions_for_fh_buffer_zones(
 
         fractions_dict[curb_id] = sorted(final_fracs)
 
-    # Logging / verbose summary
-    if verbose:
-        if logger_obj:
-            logger_obj.info(
-                f"Completed: {stats['points_processed']:,} points processed"
-            )
-            logger_obj.info(
-                f"Completed: {len(fractions_dict):,} curbs with fraction sets"
-            )
-            logger_obj.info(
-                f"Completed: {stats['curbs_reused']:,} curbs reused multiple times"
-            )
-            logger_obj.info(
-                "Completed: Average "
-                f"{sum(len(f) for f in fractions_dict.values()) / max(len(fractions_dict), 1):.1f} "
-                "fractions/curb"
-            )
-        else:
-            raise ValueError("Logger object is required for verbose=True.")
+    # Logging / debug summary
+    logger.debug(f"Completed: {stats['points_processed']:,} points processed")
+    logger.debug(f"Completed: {len(fractions_dict):,} curbs with fraction sets")
+    logger.debug(f"Completed: {stats['curbs_reused']:,} curbs reused multiple times")
+    logger.debug(
+        "Completed: Average "
+        f"{sum(len(f) for f in fractions_dict.values()) / max(len(fractions_dict), 1):.1f} "
+        "fractions/curb",
+    )
 
     # Convert to DataFrame
     fractions_df = pd.DataFrame(
@@ -740,8 +691,6 @@ def create_curb_segments_with_fh_point_buffer(
     seg_prefix: str,
     point_id_cols: list,
     min_segment_len_ft: float = 1.0,
-    logger_obj: logging.Logger = None,
-    verbose: bool = False,
 ) -> gpd.GeoDataFrame | None:
     """
     Create curb segments using fractions for point buffer boundaries.
@@ -755,12 +704,11 @@ def create_curb_segments_with_fh_point_buffer(
         seg_prefix (str): Prefix string for segment name.
         point_id_cols (list): List of points_id_cols to be brought to final df.
         min_segment_len_ft (float, optional): Minimum length of curb segments.
-        logger_obj (logging.Logger, optional): Logger object.
-        verbose (bool, optional): Verbose flag.
 
     Returns:
         A geopandas GeoDataFrame containing the curb segments.
     """
+    logger = get_logger(__name__)
 
     # Filter curbs to only those in fraction_dict
     selected_curb_ids = list(fraction_dict.keys())
@@ -768,10 +716,7 @@ def create_curb_segments_with_fh_point_buffer(
         curbs_clean[curb_id_col].isin(selected_curb_ids)
     ].copy()
 
-    if logger_obj:
-        logger_obj.info(
-            f"Processing {len(selected_curbs):,} curbs with fraction sets..."
-        )
+    logger.info(f"Processing {len(selected_curbs):,} curbs with fraction sets...")
 
     segments_data = []
     point_assignments = []
@@ -870,20 +815,18 @@ def create_curb_segments_with_fh_point_buffer(
     point_assignments_df = pd.DataFrame(point_assignments)
 
     # Print statistics
-    if verbose:
-        log_segment_process_verbose(stats, logger_obj)
+    log_segment_process(stats)
 
     # Validation
     pt_df_len = len(point_assignments_df)
-    if logger_obj:
-        if pt_df_len > 0:
-            unique_point_assignments = len(point_assignments_df[points_id_col].unique())
-            if unique_point_assignments != pt_df_len:
-                logger_obj.info(
-                    f"VALIDATION ISSUE: {pt_df_len - unique_point_assignments} duplicate point assignments!"
-                )
-            else:
-                logger_obj.info("All points assigned to exactly one segment")
+    if pt_df_len > 0:
+        unique_point_assignments = len(point_assignments_df[points_id_col].unique())
+        if unique_point_assignments != pt_df_len:
+            logger.info(
+                f"VALIDATION ISSUE: {pt_df_len - unique_point_assignments} duplicate point assignments!"
+            )
+        else:
+            logger.info("All points assigned to exactly one segment")
 
     # Merge point information to segments
     point_id_cols.append(points_id_col)
@@ -911,7 +854,6 @@ def create_curb_segments_with_fh_point_buffer(
             curb_id_col=curb_id_col,
             points_id_col=points_id_col,
             seg_prefix=seg_prefix,
-            logger_obj=logger_obj,
         )
         # Collapse fh_id values into a list whenever all other fields are identical.
         # This applies to the cases where fire hydrant buffer zones overlap.
@@ -924,10 +866,9 @@ def create_curb_segments_with_fh_point_buffer(
             segments_gdf[points_id_col], "first"
         )
 
-        if logger_obj:
-            logger_obj.info(
-                f"Total segments after segmentation by fire hydrant: {len(segments_gdf):,}"
-            )
+        logger.info(
+            f"Total segments after segmentation by fire hydrant: {len(segments_gdf):,}"
+        )
         return segments_gdf
     else:
         return None
@@ -939,7 +880,6 @@ def add_curbs_not_segmented_by_point(
     curb_id_col: str,
     points_id_col: str,
     seg_prefix: str,
-    logger_obj: logging.Logger = None,
 ) -> gpd.GeoDataFrame:
     """
     Add the curbs that are not segmented to create a comprehensive curb segment dataset.
@@ -951,24 +891,23 @@ def add_curbs_not_segmented_by_point(
         curb_id_col (str): Column name of curb ID.
         points_id_col (str): Column name of point ID.
         seg_prefix (str): Prefix of curb segment ID.
-        logger_obj (logging.Logger): Logger object.
 
     Returns:
         A geopandas GeoDataFrame containing the all curb segments (segmented and whole).
 
     """
+    logger = get_logger(__name__)
 
     # Create new columns for the curbs that are not segmented
     curbs_not_segmented = curbs_clean[
         ~curbs_clean[curb_id_col].isin(curb_segments[curb_id_col].unique())
     ].copy()
 
-    if logger_obj:
-        if len(curbs_not_segmented) > 0:
-            logger_obj.info(
-                f"{len(curbs_not_segmented):,} curbs were not segmented. "
-                f"Each of them were added as a single segment..."
-            )
+    if len(curbs_not_segmented) > 0:
+        logger.info(
+            f"{len(curbs_not_segmented):,} curbs were not segmented. "
+            f"Each of them were added as a single segment..."
+        )
 
     if "segment_length_ft" not in curbs_not_segmented.columns:
         curbs_not_segmented["segment_length_ft"] = curbs_not_segmented[
@@ -998,8 +937,6 @@ def run_segmentation_by_fire_hydrants(
     asset_dict: dict[str, gpd.GeoDataFrame],
     clean_curbs: gpd.GeoDataFrame,
     segment_id_cols: list,
-    logger_obj: logging.Logger,
-    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by fire hydrants.
@@ -1009,13 +946,12 @@ def run_segmentation_by_fire_hydrants(
         asset_dict (dict[str, gpd.GeoDataFrame]): Dictionary of asset data.
         clean_curbs (gpd.GeoDataFrame): Cleaned curb GeoDataFrame.
         segment_id_cols (list): List of points_id_cols to be brought to the final df.
-        logger_obj (logging.Logger): Logger object.
-        verbose (bool): Verbose flag.
 
     Returns:
         curb_segmentation (gpd.GeoDataFrame):
             Cleaned curb segments after segmentation by fire hydrants
     """
+    logger = get_logger(__name__)
     asset_type = "fire_hydrant"
     point_id_col = configuration["assets"]["nonsign_assets"]["fire_hydrant"][
         "new_id_col"
@@ -1025,10 +961,7 @@ def run_segmentation_by_fire_hydrants(
         "buffer_distance_ft"
     ]
 
-    if logger_obj:
-        logger_obj.info(
-            f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}..."
-        )
+    logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
     # Get the fire hydrants file
     fh = asset_dict[asset_type].copy()
@@ -1039,7 +972,6 @@ def run_segmentation_by_fire_hydrants(
         points_id_col=point_id_col,
         curbs_clean=clean_curbs,
         curb_id_col=curb_id_col,
-        logger_obj=logger_obj,
         snap_tolerance_ft=configuration["snap_tolerance_ft"],
         proj_crs=configuration["proj_crs"],
     )
@@ -1050,8 +982,6 @@ def run_segmentation_by_fire_hydrants(
         points_id_col=point_id_col,
         curb_id_col=curb_id_col,
         buffer_distance_ft=buffer_distance_ft,
-        logger_obj=logger_obj,
-        verbose=verbose,
     )
 
     # Create curb segments
@@ -1064,15 +994,10 @@ def run_segmentation_by_fire_hydrants(
         seg_prefix="FS",
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
-        logger_obj=logger_obj,
-        verbose=verbose,
     )
 
     if curb_segments is None or curb_segments.empty:
-        if logger_obj:
-            logger_obj.info(
-                "No curb segments were created; returning empty GeoDataFrame."
-            )
+        logger.info("No curb segments were created; returning empty GeoDataFrame.")
         return gpd.GeoDataFrame(
             columns=[
                 f"parent_{curb_id_col}",
@@ -1125,8 +1050,6 @@ def run_segmentation_by_parking_signs(
     asset_dict: dict[str, gpd.GeoDataFrame],
     clean_curbs: gpd.GeoDataFrame,
     segment_id_cols: list,
-    logger_obj: logging.Logger,
-    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by parking signs.
@@ -1137,21 +1060,17 @@ def run_segmentation_by_parking_signs(
         clean_curbs (gpd.GeoDataFrame): Cleaned curb GeoDataFrame,
             previously segmented by fire hydrants.
         segment_id_cols (list): List of points_id_cols to be brought to the final df.
-        logger_obj (logging.Logger): Logger object.
-        verbose (bool): Verbose flag.
 
     Returns:
         curb_segmentation (gpd.GeoDataFrame):
             Cleaned curb segments after segmentation by parking signs
     """
+    logger = get_logger(__name__)
     asset_type = "parking_sign"
     point_id_col = configuration["assets"]["sign_assets"]["parking_sign"]["new_id_col"]
     curb_id_col = "blockface_id"
 
-    if logger_obj:
-        logger_obj.info(
-            f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}..."
-        )
+    logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
     # Get the parking signs file
     ps = asset_dict[asset_type].copy()
@@ -1162,7 +1081,6 @@ def run_segmentation_by_parking_signs(
         points_id_col=point_id_col,
         curbs_clean=clean_curbs,
         curb_id_col=curb_id_col,
-        logger_obj=logger_obj,
         snap_tolerance_ft=configuration["snap_tolerance_ft"],
         proj_crs=configuration["proj_crs"],
     )
@@ -1176,8 +1094,6 @@ def run_segmentation_by_parking_signs(
         seg_prefix="PS",
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
-        logger_obj=logger_obj,
-        verbose=verbose,
     )
 
     # Final checks
@@ -1195,8 +1111,6 @@ def create_curb_segments_with_parking_asset(
     seg_prefix: str,
     point_id_cols: list,
     min_segment_len_ft: float = 1.0,
-    logger_obj: logging.Logger = None,
-    verbose: bool = False,
 ) -> gpd.GeoDataFrame | None:
     """
     Create curb segments using fractions for parking signs points and parking meter points.
@@ -1210,19 +1124,15 @@ def create_curb_segments_with_parking_asset(
         seg_prefix (str): Prefix string for segment name.
         point_id_cols (list): List of points_id_cols to be brought to final df.
         min_segment_len_ft (float, optional): Minimum length of curb segments.
-        logger_obj (logging.Logger, optional): Logger object.
-        verbose (bool, optional): Verbose flag.
 
     Returns:
         A geopandas GeoDataFrame containing the curb segments by parking signs (and fire hydrants).
     """
+    logger = get_logger(__name__)
     # Filter curbs to only those in fraction_df
     selected_curb_ids = list(fraction_df[curb_id_col])
     selected_curbs = curbs_clean[curbs_clean[curb_id_col].isin(selected_curb_ids)]
-    if logger_obj:
-        logger_obj.info(
-            f"Processing {len(selected_curbs):,} curbs with fraction sets..."
-        )
+    logger.info(f"Processing {len(selected_curbs):,} curbs with fraction sets...")
 
     segments_data = []
 
@@ -1297,14 +1207,11 @@ def create_curb_segments_with_parking_asset(
         curb_id_col,
         seg_prefix,
         stats,
-        logger_obj,
-        verbose,
     )
 
-    if logger_obj:
-        logger_obj.info(
-            f"Total segments after segmentation by parking asset: {len(segments_gdf):,}"
-        )
+    logger.info(
+        f"Total segments after segmentation by parking asset: {len(segments_gdf):,}"
+    )
 
     return segments_gdf
 
@@ -1314,8 +1221,6 @@ def run_segmentation_by_bus_stops(
     asset_dict: dict[str, gpd.GeoDataFrame],
     clean_curbs: gpd.GeoDataFrame,
     segment_id_cols: list,
-    logger_obj: logging.Logger,
-    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by bus stops.
@@ -1325,21 +1230,17 @@ def run_segmentation_by_bus_stops(
         asset_dict (dict[str, gpd.GeoDataFrame]): Dictionary of asset data.
         clean_curbs (gpd.GeoDataFrame): Cleaned curb GeoDataFrame.
         segment_id_cols (list): List of points_id_cols to be brought to the final df.
-        logger_obj (logging.Logger): Logger object.
-        verbose (bool): Verbose flag.
 
     Returns:
         curb_segmentation (gpd.GeoDataFrame):
             Cleaned curb segments after segmentation by fire hydrants.
     """
+    logger = get_logger(__name__)
     asset_type = "bus_stop"
     point_id_col = configuration["assets"]["nonsign_assets"]["bus_stop"]["new_id_col"]
     curb_id_col = "blockface_id"
 
-    if logger_obj:
-        logger_obj.info(
-            f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}..."
-        )
+    logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
     # Get the bus stops file
     bs = asset_dict[asset_type].copy()
@@ -1350,7 +1251,6 @@ def run_segmentation_by_bus_stops(
         points_id_col=point_id_col,
         curbs_clean=clean_curbs,
         curb_id_col=curb_id_col,
-        logger_obj=logger_obj,
         snap_tolerance_ft=configuration["snap_tolerance_ft"],
         proj_crs=configuration["proj_crs"],
     )
@@ -1368,8 +1268,6 @@ def run_segmentation_by_bus_stops(
         seg_prefix="BS",
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
-        logger_obj=logger_obj,
-        verbose=verbose,
     )
 
     # Final checks
@@ -1461,8 +1359,6 @@ def create_curb_segments_with_bus_stops(
     seg_prefix: str,
     point_id_cols: list,
     min_segment_len_ft: float = 1.0,
-    logger_obj: logging.Logger = None,
-    verbose: bool = False,
 ) -> gpd.GeoDataFrame | None:
     """
     Create curb segments using fractions for bus stops.
@@ -1476,20 +1372,16 @@ def create_curb_segments_with_bus_stops(
         seg_prefix (str): Prefix string for segment name.
         point_id_cols (list): List of points_id_cols to be brought to final df.
         min_segment_len_ft (float, optional): Minimum length of curb segments.
-        logger_obj (logging.Logger, optional): Logger object.
-        verbose (bool, optional): Verbose flag.
 
     Returns:
         A geopandas GeoDataFrame containing the curb segments by bus stops.
     """
+    logger = get_logger(__name__)
 
     # Filter curbs to only those in fraction_df
     selected_curb_ids = list(fraction_df[curb_id_col])
     selected_curbs = curbs_clean[curbs_clean[curb_id_col].isin(selected_curb_ids)]
-    if logger_obj:
-        logger_obj.info(
-            f"Processing {len(selected_curbs):,} curbs with fraction sets..."
-        )
+    logger.info(f"Processing {len(selected_curbs):,} curbs with fraction sets...")
 
     segments_data = []
 
@@ -1572,14 +1464,9 @@ def create_curb_segments_with_bus_stops(
         curb_id_col,
         seg_prefix,
         stats,
-        logger_obj,
-        verbose,
     )
 
-    if logger_obj:
-        logger_obj.info(
-            f"Total segments after segmentation by bus stop: {len(segments_gdf):,}"
-        )
+    logger.info(f"Total segments after segmentation by bus stop: {len(segments_gdf):,}")
 
     return segments_gdf
 
@@ -1589,8 +1476,6 @@ def run_segmentation_by_parking_meters(
     asset_dict: dict[str, gpd.GeoDataFrame],
     clean_curbs: gpd.GeoDataFrame,
     segment_id_cols: list,
-    logger_obj: logging.Logger,
-    verbose: bool,
 ) -> gpd.GeoDataFrame:
     """
     Wrapper function to run segmentation by parking meters.
@@ -1601,21 +1486,17 @@ def run_segmentation_by_parking_meters(
         clean_curbs (gpd.GeoDataFrame): Cleaned curb GeoDataFrame,
             previously segmented by parking signs, fire hydrants, and bus stops.
         segment_id_cols (list): List of points_id_cols to be brought to the final df.
-        logger_obj (logging.Logger): Logger object.
-        verbose (bool): Verbose flag.
 
     Returns:
         curb_segmentation (gpd.GeoDataFrame):
             Cleaned curb segments after segmentation by parking meters
     """
+    logger = get_logger(__name__)
     asset_type = "meter_policies"
     point_id_col = configuration["assets"]["parking_meters"][asset_type]["new_id_col"]
     curb_id_col = "blockface_id"
 
-    if logger_obj:
-        logger_obj.info(
-            f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}..."
-        )
+    logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
     # Get the parking meters file
     pm = asset_dict[asset_type].copy()
@@ -1626,7 +1507,6 @@ def run_segmentation_by_parking_meters(
         points_id_col=point_id_col,
         curbs_clean=clean_curbs,
         curb_id_col=curb_id_col,
-        logger_obj=logger_obj,
         snap_tolerance_ft=configuration["snap_tolerance_ft"],
         proj_crs=configuration["proj_crs"],
     )
@@ -1640,8 +1520,6 @@ def run_segmentation_by_parking_meters(
         seg_prefix="PM",
         point_id_cols=segment_id_cols,
         min_segment_len_ft=configuration["min_segment_len_ft"],
-        logger_obj=logger_obj,
-        verbose=verbose,
     )
     return curb_segments
 
@@ -1698,8 +1576,6 @@ def make_curb_gdf(
     curb_id_col: str,
     seg_prefix: str,
     stats: dict,
-    logger_obj: logging.Logger = None,
-    verbose=False,
 ) -> gpd.GeoDataFrame | None:
     """
     Makes a GeoDataFrame from a list of curb segments.
@@ -1713,8 +1589,6 @@ def make_curb_gdf(
         curb_id_col (str): Column name of curb ID.
         seg_prefix (str): Prefix string for segment name.
         stats (dict): Log of statistics as curbs are processed.
-        logger_obj (logging.Logger, optional): Logger object.
-        verbose (bool, optional): Verbose flag.
 
     Returns:
         gpd.GeoDataFrame | None: GeoDataFrame of curb segments (if any)
@@ -1736,8 +1610,7 @@ def make_curb_gdf(
         )
 
     # Print statistics
-    if verbose:
-        log_segment_process_verbose(stats, logger_obj)
+    log_segment_process(stats)
 
     # Merge point information to segments
     if len(segments_gdf) > 0:
@@ -1750,7 +1623,6 @@ def make_curb_gdf(
             curb_id_col=curb_id_col,
             points_id_col=points_id_col,
             seg_prefix=seg_prefix,
-            logger_obj=logger_obj,
         )
 
         seperator = ":"
@@ -1764,31 +1636,23 @@ def make_curb_gdf(
         return None
 
 
-def log_segment_process_verbose(
-    stats: dict[str, int],
-    logger_obj: logging.Logger = None,
-) -> None:
+def log_segment_process(stats: dict[str, int]) -> None:
     """
     Logs statistics related to the output of curb segmentation.
 
     Args:
         stats (dict[str, int]): Dictionary of stats related to processing of data.
-        logger_obj (logging.Logger, optional): Logger object.
-
-    Raises:
-        ValueError: Raises error if no logger object passed.
     """
-    if logger_obj:
-        curbs_processed = stats["curbs_processed"]
-        total_segments = stats["total_segments_created"]
-        # filtered_segments = stats['segments_filtered_out']
-        logger_obj.info(f"Curbs processed: {curbs_processed:,}")
-        logger_obj.info(f"Segments created: {total_segments:,}")
-        logger_obj.info(
-            f"Average segments/curb: {total_segments / max(1, curbs_processed):.1f}"
-        )
-    else:
-        raise ValueError("Logger object is required for verbose=True.")
+
+    logger = get_logger(__name__)
+    curbs_processed = stats["curbs_processed"]
+    total_segments = stats["total_segments_created"]
+    # filtered_segments = stats['segments_filtered_out']
+    logger.debug(f"Curbs processed: {curbs_processed:,}")
+    logger.debug(f"Segments created: {total_segments:,}")
+    logger.debug(
+        f"Average segments/curb: {total_segments / max(1, curbs_processed):.1f}",
+    )
 
 
 def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -2317,7 +2181,6 @@ def merge_tiny_curb_segments(
     length_threshold: float = 3.0,
     preserve_extra_columns: bool = True,
     asset_dict: dict | None = None,
-    logger_obj: logging.Logger | None = None,
 ) -> gpd.GeoDataFrame:
     """
     Merge short curb segments within each blockface.
@@ -2360,17 +2223,16 @@ def merge_tiny_curb_segments(
             in merging are carried from the first row in each merged group,
             except geometry which is merged.
         asset_dict (dict | None): Dictionary with asset locations.
-        logger_obj (logging.Logger | None): Logger instance.
 
     Returns:
         gpd.GeoDataFrame: One row per merged segment. If `gdf`
             is a GeoDataFrame, merged geometry is also returned.
 
     """
-    if logger_obj is not None:
-        logger_obj.info(
-            f"Starting merge of tiny segments with threshold {length_threshold} ft ..."
-        )
+    logger = get_logger(__name__)
+    logger.info(
+        f"Starting merge of tiny segments with threshold {length_threshold} ft ..."
+    )
 
     gdf = add_upstream_downstream_assets(gdf, asset_dict)
 
@@ -2507,9 +2369,8 @@ def merge_tiny_curb_segments(
 
     out = _adjust_merge_group_locations_assets(out)
 
-    if logger_obj is not None:
-        logger_obj.info(f"Tiny segments under {length_threshold} ft were merged")
-        logger_obj.info(f"Final segments: {len(out):,}")
+    logger.info(f"Tiny segments under {length_threshold} ft were merged")
+    logger.info(f"Final segments: {len(out):,}")
 
     return _remove_none_from_location_lists(out)
 
