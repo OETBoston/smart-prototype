@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 def load_cartegraph_signs(base_path: str, config: dict) -> pd.DataFrame:
     """Load signs data from Cartegraph export, which is expected to be in a csv file."""
-    signs_df = pd.read_csv(f"{base_path}{config['signs_path']}")
-    logger.info("Loaded signs from %s", f"{base_path}{config['signs_path']}")
+    signs_df = pd.read_csv(f"{base_path}/{config['signs_path']}")
+    logger.info("Loaded signs from %s", f"{config['signs_path']}")
     return signs_df
 
 
