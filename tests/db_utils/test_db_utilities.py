@@ -57,6 +57,31 @@ def write_table() -> Generator[WriteTable]:
 
 
 @fixture
+def write_table_closed() -> Generator[str]:
+    """Create a temporary copy of test_write with a random suffix,
+    closes the connection and yeilds the table name.
+
+    Attempts to re-open the connection delete the table on completion.
+    """
+    suffix = uuid4().hex[:8]
+    tmp_table = f"test_write_{suffix}"
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
+        db.connection.execute(
+            text(
+                f"CREATE TABLE {TEST_SCHEMA}.{tmp_table} "
+                f"(LIKE {TEST_SCHEMA}.test_write INCLUDING ALL)"
+            )
+        )
+    yield tmp_table
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
+        db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
+
+
+@fixture
 def write_geo_table() -> Generator[WriteTable]:
     """Create a temporary copy of test_write_geo with a random suffix,
     yield the db connection and table name, then drop the table."""
@@ -72,6 +97,31 @@ def write_geo_table() -> Generator[WriteTable]:
             )
         )
         yield db, tmp_table
+        db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
+
+
+@fixture
+def write_geo_table_closed() -> Generator[str]:
+    """Create a temporary copy of test_write with_geo a random suffix,
+    closes the connection and yeilds the table name.
+
+    Attempts to re-open the connection delete the table on completion.
+    """
+    suffix = uuid4().hex[:8]
+    tmp_table = f"test_write_geo_{suffix}"
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
+        db.connection.execute(
+            text(
+                f"CREATE TABLE {TEST_SCHEMA}.{tmp_table} "
+                f"(LIKE {TEST_SCHEMA}.test_write_geo INCLUDING ALL)"
+            )
+        )
+    yield tmp_table
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
         db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
 
 
@@ -534,6 +584,44 @@ def test_delete_no_data(write_delete_table: WriteTable) -> None:
     )
     with pytest.raises(ValueError, match="No data provided for deletion."):
         db.delete(table_name, data, key_columns=["id"])
+
+
+def test_failed_transaction(write_table_closed: str) -> None:
+    """Veify that a failed transaction is properly rolled back"""
+
+    data, write_data = expected_write()
+    with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
+        # Run a good followed by a failed transaction
+        db.append_data(write_table_closed, write_data)
+
+        # This should fail since records already exist
+        with pytest.raises(InvalidInputError):
+            db.append_data(write_table_closed, write_data)
+
+    with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
+        # The dataframe shoudl be empty
+        mt = db.get_data(write_table_closed)
+
+    assert len(mt) == 0
+
+
+def test_failed_geo_transaction(write_geo_table_closed: str) -> None:
+    """Veify that a failed geo transaction is properly rolled back"""
+
+    data, write_data = expected_write()
+    with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
+        # Run a good followed by a failed transaction
+        db.append_data(write_geo_table_closed, write_data)
+
+        # This should fail since records already exist
+        with pytest.raises(InvalidInputError):
+            db.append_data(write_geo_table_closed, write_data)
+
+    with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
+        # The dataframe shoudl be empty
+        mt = db.get_data(write_geo_table_closed, geom_col="geometry")
+
+    assert len(mt) == 0
 
 
 # ── Expected Data ─────────────────────────────────────────────────────────────
