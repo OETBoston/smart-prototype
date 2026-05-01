@@ -30,12 +30,26 @@ def setup_logging() -> logging.Logger:
     return logger
 
 
-def filter_by_geo() -> gpd.GeoDataFrame:
+def filter_by_geo(
+        df: gpd.GeoDataFrame,
+        config: dict
+) -> gpd.GeoDataFrame:
     """Geospatial filter. Currently only supports filtering for points within polygon.
     Useful for developing geographic subsets of data.
     """
-    # TODO: Implement geospatial filtering function
-    return gpd.GeoDataFrame()  # placeholder
+    neighborhoods_gdf = gpd.read_file(
+            config["geo_filters"]["path"],
+            crs=config["geo_filters"]["crs"],
+        )[["name", "geometry"]]
+    spec_neighborhood = neighborhoods_gdf[
+        neighborhoods_gdf["name"].isin(config["geo_filters"]["subset_values"])
+    ]
+    if spec_neighborhood.crs != config["output_crs"]:
+        spec_neighborhood = spec_neighborhood.to_crs(config["output_crs"])
+    df = gpd.sjoin(
+        df, spec_neighborhood, predicate="within", how="inner"
+    )
+    return df
 
 
 def filter_by_column_values(

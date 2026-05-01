@@ -18,7 +18,6 @@ def load_cartegraph_signs(base_path: str, config: dict) -> pd.DataFrame:
 
 def preprocess_cartegraph_signs(
     signs_df: pd.DataFrame,
-    neighborhoods_gdf: gpd.GeoDataFrame,  # TODO: Move out of signature -> filter_by_geo
     config: dict,
 ) -> gpd.GeoDataFrame:
     """Preprocess signs data by filtering for parking signs,
@@ -67,31 +66,15 @@ def preprocess_cartegraph_signs(
     if signs_gdf.crs != config["output_crs"]:
         signs_gdf = signs_gdf.to_crs(config["output_crs"])
 
-    # TODO:
-    #   Build out geospatial filter function above.
-    #   Apply geospatial filter instead.
-    #   Update config with geo_filters key:
-    #       path to gis data
-    #       subset_column (e.g. "neighborhood")
-    #       subset_values (e.g. list of neighborhoods to keep)
-    #
 
     # placeholder just to keep the import from being unused.
-    filter_by_geo()
-    if config["neighborhoods"]:
-        spec_neighborhood = neighborhoods_gdf[
-            neighborhoods_gdf["name"].isin(config["neighborhoods"])
-        ]
-        if spec_neighborhood.crs != config["output_crs"]:
-            spec_neighborhood = spec_neighborhood.to_crs(config["output_crs"])
-        signs_gdf = gpd.sjoin(
-            signs_gdf, spec_neighborhood, predicate="within", how="inner"
-        )
+    if config.get("geo_filters"):
+        signs_gdf = filter_by_geo(signs_gdf, config)
         logger.info(
-            "Filtered by neighborhoods: %d valid signs in %s neighborhoods",
+            "Applied neighborhoods filter: %d signs remaining",
             len(signs_gdf),
-            config["neighborhoods"],
         )
+
 
     # Reduce geometric precision to better group nearby signs together.
     grouping_distance = config["grouping_distance_ft"]
@@ -108,10 +91,6 @@ def preprocess_cartegraph_signs(
             )
         )
         .to_crs(config["output_crs"])
-    )
-
-    signs_gdf["sign_removed_date"] = signs_gdf["cg_last_modified_field"].where(
-        signs_gdf["asset_status_field"] == "Removed"
     )
 
     date_cols = ["entry_date_field", "cg_last_modified_field"]
