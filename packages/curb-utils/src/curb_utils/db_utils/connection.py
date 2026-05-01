@@ -89,18 +89,20 @@ class SmartCurbDB:
             raise ValueError("Missing required db connection environment variables")
 
     def __enter__(self) -> "SmartCurbDB":
-        self.connect()
+        self._connect()
         return self
 
     def __exit__(
         self,
-        _exc_type: type[BaseException] | None,
-        _exc_val: BaseException | None,
-        _exc_tb: TracebackType | None,
-    ) -> None:
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool | None:
+        rv = self._transaction.__exit__(exc_type, exc_val, exc_tb)
         self.close()
+        return rv
 
-    def connect(self) -> None:
+    def _connect(self) -> None:
         """WARNING: Do not use this method with untrusted inputs.
 
         Establishes a connection to the PostgreSQL database.
@@ -118,17 +120,14 @@ class SmartCurbDB:
             database=self.dbname,
         )
         self.engine = create_engine(url)
-        self.connection = self.engine.connect()
+        self._transaction = self.engine.begin()
+        self.connection = self._transaction.__enter__()
 
         # Set the search path to the specified schema
         self.connection.execute(text(f"SET search_path TO {self.schema}, public"))
-        self.connection.commit()
 
     def close(self) -> None:
         """Closes the database connection and disposes of the engine."""
-        if self.connection:
-            self.connection.close()
-            self.connection = None
         if self.engine:
             self.engine.dispose()
             self.engine = None
@@ -159,12 +158,13 @@ class SmartCurbDB:
         self._check_db_status(table_name)
         # for type checker, guaranteed by _check_db_status
         assert self.engine is not None
+        assert self.connection is not None
 
         if isinstance(data, gpd.GeoDataFrame):
             # Write GeoDataFrame
             try:
                 data.to_postgis(
-                    table_name, self.engine, schema=self.schema, if_exists="append"
+                    table_name, self.connection, schema=self.schema, if_exists="append"
                 )
 
             except InvalidTextRepresentation as e:
@@ -176,7 +176,7 @@ class SmartCurbDB:
             try:
                 data.to_sql(
                     table_name,
-                    self.engine,
+                    self.connection,
                     schema=self.schema,
                     if_exists="append",
                     index=False,
@@ -239,68 +239,65 @@ class SmartCurbDB:
             )
 
         # Update the database in a transaction
-        with self.engine.begin() as tx_connection:
-            staging_table = self._create_empty_table_copy(table_name, tx_connection)
+        staging_table = self._create_empty_table_copy(table_name, self.connection)
 
-            # Append to the temporary table, no schema for a temporary table
-            if isinstance(data, gpd.GeoDataFrame):
-                try:
-                    data.to_postgis(
-                        staging_table,
-                        tx_connection,
-                        schema=self.schema,
-                        if_exists="append",
-                        index=False,
-                    )
-                except InvalidTextRepresentation as e:
-                    raise InvalidInputError(
-                        "Failed to write data to PostGIS temporary table "
-                        + "(likely bad input)"
-                    ) from e
-            else:
-                try:
-                    data.to_sql(
-                        staging_table,
-                        tx_connection,
-                        schema=self.schema,
-                        if_exists="append",
-                        index=False,
-                    )
-                except (DataError, ProgrammingError) as e:
-                    raise InvalidInputError(
-                        "Failed to write data to PostgreSQL temporary table "
-                        + "(likely bad input)"
-                    ) from e
-
-            # Build the upsert SQL
-            data_columns = list(data.columns)
-            quoted_cols = [f'"{col}"' for col in data_columns]
-            quoted_keys = [f'"{col}"' for col in key_columns]
-            quoted_non_keys = [f'"{col}"' for col in non_key_columns]
-
-            cols_clause = ", ".join(quoted_cols)
-            conflict_clause = ", ".join(quoted_keys)
-            update_clause = ", ".join(
-                f"{col} = EXCLUDED.{col}" for col in quoted_non_keys
-            )
-
-            upsert_sql = (
-                f"INSERT INTO {self.schema}.{table_name} ({cols_clause}) "
-                f"SELECT {cols_clause} FROM {self.schema}.{staging_table} "
-                f"ON CONFLICT ({conflict_clause}) "
-                f"DO UPDATE SET {update_clause}"
-            )
-
-            # Execute the upsert SQL
+        # Append to the temporary table, no schema for a temporary table
+        if isinstance(data, gpd.GeoDataFrame):
             try:
-                tx_connection.execute(text(upsert_sql))
+                data.to_postgis(
+                    staging_table,
+                    self.connection,
+                    schema=self.schema,
+                    if_exists="append",
+                    index=False,
+                )
+            except InvalidTextRepresentation as e:
+                raise InvalidInputError(
+                    "Failed to write data to PostGIS temporary table "
+                    + "(likely bad input)"
+                ) from e
+        else:
+            try:
+                data.to_sql(
+                    staging_table,
+                    self.connection,
+                    schema=self.schema,
+                    if_exists="append",
+                    index=False,
+                )
             except (DataError, ProgrammingError) as e:
                 raise InvalidInputError(
-                    "Failed to upsert data to PostgreSQL (likely bad input)"
+                    "Failed to write data to PostgreSQL temporary table "
+                    + "(likely bad input)"
                 ) from e
 
-            # Drop the staging table
-            tx_connection.execute(text(f"DROP TABLE {self.schema}.{staging_table};"))
+        # Build the upsert SQL
+        data_columns = list(data.columns)
+        quoted_cols = [f'"{col}"' for col in data_columns]
+        quoted_keys = [f'"{col}"' for col in key_columns]
+        quoted_non_keys = [f'"{col}"' for col in non_key_columns]
+
+        cols_clause = ", ".join(quoted_cols)
+        conflict_clause = ", ".join(quoted_keys)
+        update_clause = ", ".join(f"{col} = EXCLUDED.{col}" for col in quoted_non_keys)
+
+        upsert_sql = (
+            f"INSERT INTO {self.schema}.{table_name} ({cols_clause}) "
+            f"SELECT {cols_clause} FROM {self.schema}.{staging_table} "
+            f"ON CONFLICT ({conflict_clause}) "
+            f"DO UPDATE SET {update_clause}"
+        )
+
+        # Execute the upsert SQL
+        try:
+            self.connection.execute(text(upsert_sql))
+        except (DataError, ProgrammingError) as e:
+            raise InvalidInputError(
+                "Failed to upsert data to PostgreSQL (likely bad input)"
+            ) from e
+
+        # Drop the staging table
+        self.connection.execute(text(f"DROP TABLE {self.schema}.{staging_table};"))
 
     def delete(
         self,
@@ -347,10 +344,7 @@ class SmartCurbDB:
             raise ValueError("No data provided for deletion.")
 
         table_obj = Table(
-            table_name,
-            MetaData(),
-            autoload_with=self.engine,
-            schema=self.schema
+            table_name, MetaData(), autoload_with=self.connection, schema=self.schema
         )
 
         # Build conditions dynamically
@@ -366,13 +360,12 @@ class SmartCurbDB:
         del_stmt = delete(table_obj).where(or_(*row_conditions))
 
         # Update the database in a transaction
-        with self.engine.begin() as tx_connection:
-            try:
-                tx_connection.execute(del_stmt)
-            except (DataError, ProgrammingError) as e:
-                raise InvalidInputError(
-                    "Failed to delete records from PostgreSQL (likely bad input)"
-                ) from e
+        try:
+            self.connection.execute(del_stmt)
+        except (DataError, ProgrammingError) as e:
+            raise InvalidInputError(
+                "Failed to delete records from PostgreSQL (likely bad input)"
+            ) from e
 
     def _check_data_to_modify(
         self,
@@ -579,12 +572,9 @@ class SmartCurbDB:
         try:
             self.connection.execute(text(update_sql), {"value": value})
         except Exception as e:
-            self.connection.rollback()
             raise InvalidInputError(
                 "Failed to write data to PostgreSQL (likely bad input)"
             ) from e
-
-        self.connection.commit()
 
     def _check_db_status(self, table_name: str) -> Inspector:
         """WARNING: Do not use this method with untrusted inputs.
@@ -609,7 +599,7 @@ class SmartCurbDB:
             )
 
         # Make sure the table exists, provide ValueError if not
-        inspector = inspect(self.engine)
+        inspector = inspect(self.connection)
         inspector: Inspector
         if not inspector.has_table(table_name, schema=self.schema):
             raise ValueError(
