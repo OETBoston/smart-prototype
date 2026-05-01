@@ -23,8 +23,9 @@ debug_mode: False
 
 signs_path: "data/boston-cartegraph.csv"
 input_crs: "EPSG:4326"
+# TODO: should be set via geo_filters block below
 neighborhoods_path: "data/boston_neighborhood_boundaries/Boston_Neighborhood_Boundaries.shp"
-neightborhoods_crs: "EPSG:4326"
+neighborhoods_crs: "EPSG:4326"
 
 # Columns in the input data
 sign_id_col: "oid"
@@ -43,26 +44,15 @@ column_filters:
   - column: "mutcd_code_field"
     values: ["P-", "MS-", "PB-", "S-", "AC-", "T-", "TS-", "TC-", "R7-107a", "R7-4", "R7-21"]
     mode: "starts_with"
-  - 
-
+   
 neighborhoods:
   - Charlestown
 
-parking_mutcd_codes:
-  - "P-"
-  - "MS-"
-  - "PB-"
-  - "S-"
-  - "AC-"
-  - "T-"
-  - "TS-"
-  - "TC-"
-  - "R7-107a"
-  - "R7-4"
-  - "R7-21"
+# TODO: make this work with utils.filter_by_geo
+geo_filters:
+  - path: "data/boston-neighborhoods.geojson"
+    subset_column: "name"
+    subset_values: ["Charlestown"]
 
-status_filters:
-  - "Missing"
-  - "Proposed"
 
 grouping_distance_ft: 5
