@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A project to organize Boston's Curb data"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["curb-utils", "policies-ai", "blockface-creator", "curb-segmenter", "sign-reader", "policy-applier"]
+dependencies = ["api_update", "curb-utils", "policies-ai", "blockface-creator", "curb-segmenter", "sign-reader", "policy-applier"]
 
 [dependency-groups]
 dev = [
@@ -23,6 +23,7 @@ addopts = "-m 'not integration'"
 
 
 [tool.uv.sources]
+api_update = { workspace = true}
 curb-utils = { workspace = true}
 policies-ai = {workspace = true}
 blockface-creator = {workspace = true}
