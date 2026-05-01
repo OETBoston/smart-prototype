@@ -98,8 +98,10 @@ class SmartCurbDB:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> bool | None:
-        rv = self._transaction.__exit__(exc_type, exc_val, exc_tb)
-        self._close()
+        try:
+            rv = self._transaction.__exit__(exc_type, exc_val, exc_tb)
+        finally:
+            self._close()
         return rv
 
     def _connect(self) -> None:
@@ -594,8 +596,7 @@ class SmartCurbDB:
 
         if self.engine is None or self.connection is None:
             raise ConnectionError(
-                "Database connection is not open. Use within a context manager or call "
-                "connect()."
+                "Database connection is not open. Use within a context manager."
             )
 
         # Make sure the table exists, provide ValueError if not

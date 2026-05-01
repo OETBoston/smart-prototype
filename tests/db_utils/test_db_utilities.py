@@ -59,9 +59,9 @@ def write_table() -> Generator[WriteTable]:
 @fixture
 def write_table_closed() -> Generator[str]:
     """Create a temporary copy of test_write with a random suffix,
-    closes the connection and yeilds the table name.
+    closes the connection and yields the table name.
 
-    Attempts to re-open the connection delete the table on completion.
+    Attempts to re-open the connection and delete the table on completion.
     """
     suffix = uuid4().hex[:8]
     tmp_table = f"test_write_{suffix}"
@@ -103,9 +103,9 @@ def write_geo_table() -> Generator[WriteTable]:
 @fixture
 def write_geo_table_closed() -> Generator[str]:
     """Create a temporary copy of test_write with_geo a random suffix,
-    closes the connection and yeilds the table name.
+    closes the connection and yields the table name.
 
-    Attempts to re-open the connection delete the table on completion.
+    Attempts to re-open the connection and delete the table on completion.
     """
     suffix = uuid4().hex[:8]
     tmp_table = f"test_write_geo_{suffix}"
@@ -587,19 +587,19 @@ def test_delete_no_data(write_delete_table: WriteTable) -> None:
 
 
 def test_failed_transaction(write_table_closed: str) -> None:
-    """Veify that a failed transaction is properly rolled back"""
+    """Verify that a failed transaction is properly rolled back"""
 
-    data, write_data = expected_write()
-    with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
-        # Run a good followed by a failed transaction
-        db.append_data(write_table_closed, write_data)
+    _data, write_data = expected_write()
+    with pytest.raises(InvalidInputError):
+        with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+            # Run a good followed by a failed transaction
+            db.append_data(write_table_closed, write_data)
 
-        # This should fail since records already exist
-        with pytest.raises(InvalidInputError):
+            # This should fail since records already exist
             db.append_data(write_table_closed, write_data)
 
     with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
-        # The dataframe shoudl be empty
+        # The dataframe should be empty
         mt = db.get_data(write_table_closed)
 
     assert len(mt) == 0
@@ -608,17 +608,17 @@ def test_failed_transaction(write_table_closed: str) -> None:
 def test_failed_geo_transaction(write_geo_table_closed: str) -> None:
     """Veify that a failed geo transaction is properly rolled back"""
 
-    data, write_data = expected_write()
-    with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
-        # Run a good followed by a failed transaction
-        db.append_data(write_geo_table_closed, write_data)
+    _data, write_data = expected_write()
+    with pytest.raises(InvalidInputError):
+        with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
+            # Run a good followed by a failed transaction
+            db.append_data(write_geo_table_closed, write_data)
 
-        # This should fail since records already exist
-        with pytest.raises(InvalidInputError):
+            # This should fail since records already exist
             db.append_data(write_geo_table_closed, write_data)
 
     with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
-        # The dataframe shoudl be empty
+        # The dataframe should be empty
         mt = db.get_data(write_geo_table_closed, geom_col="geometry")
 
     assert len(mt) == 0
