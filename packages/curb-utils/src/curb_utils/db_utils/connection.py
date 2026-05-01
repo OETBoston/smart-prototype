@@ -99,7 +99,7 @@ class SmartCurbDB:
         exc_tb: TracebackType | None,
     ) -> bool | None:
         rv = self._transaction.__exit__(exc_type, exc_val, exc_tb)
-        self.close()
+        self._close()
         return rv
 
     def _connect(self) -> None:
@@ -126,7 +126,7 @@ class SmartCurbDB:
         # Set the search path to the specified schema
         self.connection.execute(text(f"SET search_path TO {self.schema}, public"))
 
-    def close(self) -> None:
+    def _close(self) -> None:
         """Closes the database connection and disposes of the engine."""
         if self.engine:
             self.engine.dispose()
