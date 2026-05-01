@@ -6,6 +6,7 @@ Run the curb generation algorithm using roadway centerline dataset.
 import warnings
 
 from curb_utils.io_tools import load_from_yaml
+from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
 from blockface_creator import curb_generation as cg
@@ -13,7 +14,7 @@ from blockface_creator import curb_generation as cg
 # Session settings
 load_dotenv()
 warnings.filterwarnings("ignore")
-logger = cg.get_logger()
+logger = get_logger(__name__)
 logger.info("Running curb generation process...")
 
 if __name__ == "__main__":
