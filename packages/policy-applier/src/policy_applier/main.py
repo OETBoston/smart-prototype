@@ -11,6 +11,7 @@ from policy_applier.db_utils import (
     read_policy_applier_tables,
 )
 from policy_applier.handler_utils import Direction, generate_event_log, run_policy_pass
+from policy_applier.handler_utils import PARKING_ANYTIME_POLICY
 from policy_applier.io_utils.arguments import parse_args
 
 load_dotenv()
@@ -226,6 +227,7 @@ def process_segment_policies(
     df_sign_policies: pd.DataFrame,
     df_meter_policies: pd.DataFrame,
     df_nonsign_features: pd.DataFrame,
+    blanket_allowance: bool = False
 ) -> pd.DataFrame | None:
     """Process all blockfaces to determine curb policies.
 
@@ -280,6 +282,9 @@ def process_segment_policies(
     # Format Final Output
     if all_blockface_results:
         df_final = pd.DataFrame(all_blockface_results)
+        if blanket_allowance:
+            df_final['policy_list'] = df_final['policy_list'].apply(
+                lambda x: x + [PARKING_ANYTIME_POLICY])
         df_final["policy_list"] = df_final["policy_list"].apply(json.dumps)
         return df_final
 
@@ -287,7 +292,11 @@ def process_segment_policies(
     return None
 
 
-def main(job_id: str, schema: str, write_to_csv: bool = False) -> None:
+def main(
+        job_id: str,
+        schema: str,
+        write_to_csv: bool = False,
+        blanket_allowance: bool = False) -> None:
     """Main execution block to fetch, process, and propagate curb policies.
 
     Args:
@@ -295,6 +304,7 @@ def main(job_id: str, schema: str, write_to_csv: bool = False) -> None:
         schema (str): Database schema for reading/writing data.
         write_to_csv (bool, optional): Optionally, write outputs to a CSV for debugging.
             Defaults to False.
+        blanket_allowance (bool, optional): If True, append a blanket parking allowance
     """
     # Data Ingestion
     (
@@ -314,6 +324,7 @@ def main(job_id: str, schema: str, write_to_csv: bool = False) -> None:
         df_sign_policies=df_sign_policies,
         df_meter_policies=df_meter_policies,
         df_nonsign_features=df_nonsign_features,
+        blanket_allowance=blanket_allowance
     )
 
     # Write to database
@@ -334,5 +345,9 @@ if __name__ == "__main__":
     schema = args.schema
     # not in argparser, but will want to add to config.
     write_to_csv = False
+    blanket_allowance = False
 
-    main(job_id=job_id, schema=schema, write_to_csv=write_to_csv)
+    main(job_id=job_id,
+         schema=schema,
+         write_to_csv=write_to_csv,
+         blanket_allowance=blanket_allowance)

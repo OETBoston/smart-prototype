@@ -7,3 +7,8 @@ BUS_STOP_POLICY = {
     "rules": [{"activity": "no stopping", "purposes": ["bus_stop"]}],
     "priority": 1,
 }
+
+PARKING_ANYTIME_POLICY = {
+    "rules": [{"activity": "parking"}],
+    "priority": 93,
+}
