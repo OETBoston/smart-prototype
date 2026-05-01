@@ -9,7 +9,7 @@ from utils import filter_by_column_values, filter_by_geo
 logger = logging.getLogger(__name__)
 
 
-def load_caretegraph_signs(base_path: str, config: dict) -> pd.DataFrame:
+def load_cartegraph_signs(base_path: str, config: dict) -> pd.DataFrame:
     """Load signs data from Cartegraph export, which is expected to be in a csv file."""
     signs_df = pd.read_csv(f"{base_path}{config['signs_path']}")
     logger.info("Loaded signs from %s", f"{base_path}{config['signs_path']}")
@@ -18,8 +18,7 @@ def load_caretegraph_signs(base_path: str, config: dict) -> pd.DataFrame:
 
 def preprocess_cartegraph_signs(
     signs_df: pd.DataFrame,
-    base_path: str,
-    neighborhoods_gdf: gpd.GeoDataFrame,
+    neighborhoods_gdf: gpd.GeoDataFrame,  # TODO: Move out of signature -> filter_by_geo
     config: dict,
 ) -> gpd.GeoDataFrame:
     """Preprocess signs data by filtering for parking signs,
