@@ -38,7 +38,7 @@ output_crs: "EPSG:4326"
 
 # Cartegraph-related Filters
 column_filters:
-  - column: "status"
+  - column: "asset_status_field"
     values: ["Missing", "Proposed"]
     mode: "drop"
   - column: "mutcd_code_field"
