@@ -1,11 +1,14 @@
 # API DB Rollover
 
-
 This code is used to replace the live data in `public_cds` with <b>validated</b>
-data in `public_cds_next`. To do this it first renames the current `public_cds`
-schema to `public_cds_previous`, so there is 1 backup. Then, it renames
-`public_cds_next` to `public_cds`, grants permissions to `public_cds` to the 
-"cds-api" user. Finally, it creates the `public_cds_next` schema and tables.
+data in `public_cds_next`. To do this it:
+1. Drops `public_cds_previous` schema and subsequent tables.
+2. Renames the current `public_cds` schema to `public_cds_previous`, so
+there is 1 backup.
+3. Renames `public_cds_next` to `public_cds`.
+4. Grants permissions to `public_cds` to the "cds-api" user.
+5. Creates the `public_cds_next` schema and tables.
+6. Commits these changes once, so if any of the above fail, all changes are rolled back.
 
 ---
 
