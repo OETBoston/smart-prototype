@@ -1,8 +1,7 @@
 import json
-import logging
 import pandas as pd
 import asyncio
-from pathlib import Path
+from curb_utils.logging import get_logger_aio
 
 from policies_ai.policy_descriptions.descriptions import (
     add_json_to_prompt,
@@ -10,11 +9,6 @@ from policies_ai.policy_descriptions.descriptions import (
     generate_description,
     init_gemini_client,
 )
-
-
-logging.getLogger("google_genai").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
 
 
 def normalize_list_of_dicts(data_list) -> list[dict]:
@@ -122,6 +116,7 @@ async def get_policy_descriptions(
     """
 
     sem = asyncio.Semaphore(50)
+    logger = get_logger_aio(__name__)
 
     async def process_example(policy_json: str) -> str:
         policy_str = json.dumps(policy_json) if not isinstance(policy_json, str) else policy_json
@@ -139,13 +134,3 @@ async def get_policy_descriptions(
                 for policy in policies_df['policy_json']
             ]
         return [t.result() for t in tasks]
-
-
-    descriptions = []
-    logger.info("Initializing Gemini client...")
-    with init_gemini_client(os.getenv("GEMINI_API_KEY")) as client:
-        for idx, json_str in enumerate(policies_df['policy_json']):
-            logger.info("Generating description for policy %d/%d", idx + 1, len(policies_df))
-            prompt = add_json_to_prompt(default_prompt, json_str)
-            descriptions.append(generate_description(client, prompt, model_opts=None))
-    return descriptions

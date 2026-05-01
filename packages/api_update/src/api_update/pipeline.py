@@ -1,7 +1,7 @@
-import logging
 from pathlib import Path
 
 from curb_utils.io_tools import load_from_yaml
+from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
 # Internal imports
@@ -13,10 +13,7 @@ from transformer import transform_policy_updates
 load_dotenv()
 
 # Logging Configuration
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Constants/Config
 OUTPUT_DIR = Path(__file__).parents[2] / "output"

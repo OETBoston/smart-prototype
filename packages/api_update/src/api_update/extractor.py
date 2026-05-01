@@ -1,9 +1,8 @@
-import logging
-
 import pandas as pd
 from curb_utils.db_utils import SmartCurbDB
+from curb_utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def read_db_tables(
