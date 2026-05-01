@@ -1,6 +1,7 @@
 """ 
 Main module for the API DB Rollover process.
 """
+from pathlib import Path
 from dotenv import load_dotenv
 from curb_utils.io_tools import load_from_yaml, load_from_txt
 from curb_utils.logging import get_logger
@@ -10,15 +11,10 @@ import update_schemas
 def main() -> None:
     """Main function to execute the database rollover process."""
     logger = get_logger(__name__)
-    config = load_from_yaml(
-        "packages/api-db-rollover/src/api_db_rollover/config.yaml"
-    )
-    update_sql = load_from_txt(
-        "packages/api-db-rollover/src/api_db_rollover/sql/update_public_cds.sql"
-    )
-    init_sql = load_from_txt(
-        "packages/api-db-rollover/src/api_db_rollover/sql/init_db.sql"
-    )
+    local_path = Path(__file__).resolve().parent
+    config = load_from_yaml(local_path / "config.yaml")
+    update_sql = load_from_txt(local_path / "sql/update_public_cds.sql" )
+    init_sql = load_from_txt(local_path / "sql/init_db.sql" )
     logger.info("Config and SQL files loaded successfully.")
     logger.info(
         "Starting database rollover process on database: %s",
