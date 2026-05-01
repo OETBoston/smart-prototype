@@ -3,7 +3,6 @@
 import asyncio
 import time
 from enum import Enum
-from logging import Logger
 from pathlib import Path
 from typing import Annotated, Any, TypeGuard
 
@@ -13,7 +12,7 @@ from curb_utils.ai_client import (
     init_gemini_client,
 )
 from curb_utils.io_tools import load_from_txt
-from curb_utils.logging import log_list
+from curb_utils.logging import get_logger_aio
 from dotenv import load_dotenv
 from google import genai
 from pydantic import BaseModel, Field
@@ -53,12 +52,11 @@ async def pre_test_image(
     system_instruction: str,
     image_bytes: bytes,
     image_uri: str,
-    logger: Logger,
     model_opts: GeminiOptions | None = None,
     check_multiple: bool = False,
 ) -> tuple[bool, str]:
-    log_messages = []
-    log_messages.append(("debug", f"Pre-testing {image_uri}"))
+    logger = get_logger_aio(__name__)
+    logger.debug(f"Pre-testing {image_uri}")
     prompts = (
         PromptInfo(
             prompt="Answer with yes or no: Does this image contain "
@@ -112,7 +110,7 @@ async def pre_test_image(
             )
         ]
 
-        log_messages.append(("debug", prompt_obj.prompt))
+        logger.debug(prompt_obj.prompt)
         start = time.perf_counter()
 
         mime = "application/json" if prompt_obj.response_schema else "text/plain"
@@ -121,7 +119,6 @@ async def pre_test_image(
             client=client,
             system_instruction=system_instruction,
             contents=contents,
-            logger=logger,
             response_schema=prompt_obj.response_schema,
             response_mime_type=mime,
             model_opts=model_opts,
@@ -135,37 +132,27 @@ async def pre_test_image(
         else:
             result = response.text
 
-        log_messages.append(("debug", result))
+        if result:
+            logger.debug(result)
+
         if response.usage_metadata is not None:
-            log_messages.append(
-                ("debug", f"Used {response.usage_metadata.total_token_count} tokens.")
-            )
-        log_messages.append(
-            ("debug", f"Done in {time.perf_counter() - start:.2f} seconds.")
-        )
+            logger.debug((f"Used {response.usage_metadata.total_token_count} tokens."))
+        logger.debug(f"Done in {time.perf_counter() - start:.2f} seconds.")
 
         if not result:
-            log_list(logger, log_messages)
             return (False, "LLM did not produce a valid response")
         if result != prompt_obj.acceptable_response:
-            log_messages.append(("debug", f"Image rejected: {prompt_obj.error_text}"))
-            log_list(logger, log_messages)
+            logger.debug(f"Image rejected: {prompt_obj.error_text}")
             return (False, prompt_obj.error_text)
 
     # Indicate success if we're still here
 
-    log_messages.append(("debug", "Image accepted."))
-
-    log_list(logger, log_messages)
+    logger.debug("Image accepted.")
     return (True, "")
 
 
 if __name__ == "__main__":
-    from curb_utils.logging import setup_logger
-
     load_dotenv()
-    logger, console = setup_logger(__name__)
-    logger.setLevel("DEBUG")
     # Instructions file
     local_path = Path(__file__).resolve().parent
     instruction_file = local_path / "instructions/preprocess_instruction.txt"
@@ -203,7 +190,6 @@ if __name__ == "__main__":
             system_instruction=system_instruction,
             image_bytes=image_bytes,
             image_uri=str(test_image),
-            logger=logger,
             model_opts=settings,
         )
     )

@@ -1,7 +1,6 @@
 import asyncio
 import os
 import random
-from logging import Logger
 from time import sleep
 from typing import Type
 
@@ -10,6 +9,7 @@ from google.genai.types import GenerateContentConfig, GenerateContentResponse
 from pydantic import BaseModel
 
 from curb_utils.ai_client.config import GeminiOptions
+from curb_utils.logging import get_logger
 
 
 def init_gemini_client(api_key: str | None = None) -> genai.Client:
@@ -78,7 +78,8 @@ def _setup_gemini_call_configs(
     return (model_opts, config_gemini)
 
 
-def _get_mock_pause(logger: Logger) -> int:
+def _get_mock_pause() -> int:
+    logger = get_logger(__name__)
     logger.debug("Mocking AI")
     MIN_PAUSE = 1
     MAX_PAUSE = 5
@@ -89,7 +90,6 @@ async def call_gemini_client_aio(
     client: genai.Client,
     system_instruction: str,
     contents: genai.types.ContentListUnionDict,
-    logger: Logger,
     response_schema: Type[BaseModel] | None = None,
     response_mime_type: str = "text/plain",
     model_opts: GeminiOptions | None = None,
@@ -123,7 +123,7 @@ async def call_gemini_client_aio(
     if model_opts.mock_ai:
         # When running a mock AI client, simply pause
         # for a moment and then return an empty content response
-        pause = _get_mock_pause(logger)
+        pause = _get_mock_pause()
         await asyncio.sleep(pause)
         return GenerateContentResponse()
 
@@ -138,7 +138,6 @@ def call_gemini_client(
     client: genai.Client,
     system_instruction: str,
     contents: genai.types.ContentListUnionDict,
-    logger: Logger,
     response_schema: Type[BaseModel] | None = None,
     response_mime_type: str = "text/plain",
     model_opts: GeminiOptions | None = None,
@@ -172,7 +171,7 @@ def call_gemini_client(
     if model_opts.mock_ai:
         # When running a mock AI client, simply pause
         # for a moment and then return an empty content response
-        pause = _get_mock_pause(logger)
+        pause = _get_mock_pause()
         sleep(pause)
         return GenerateContentResponse()
 

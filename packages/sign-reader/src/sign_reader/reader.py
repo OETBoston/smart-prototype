@@ -1,10 +1,9 @@
 """Gemini content generation and structured image reading logic."""
 
 import time
-from logging import Logger
 
 from curb_utils.ai_client import GeminiOptions, call_gemini_client_aio
-from curb_utils.logging import log_list
+from curb_utils.logging import get_logger_aio
 from google import genai
 from pydantic import ValidationError
 
@@ -17,7 +16,6 @@ async def get_image_policy(
     user_prompt: str,
     image_bytes: bytes,
     image_uri: str,
-    logger: Logger,
     model_opts: GeminiOptions | None = None,
     max_retries: int = 3,
 ) -> Image | None:
@@ -37,9 +35,9 @@ async def get_image_policy(
         Image: Parsed structured response mapped to Image schema.
     """
 
-    log_messages = []
+    logger = get_logger_aio(__name__)
     start = time.perf_counter()
-    log_messages.append(("info", f"Reading {image_uri}"))
+    logger.info(f"Reading {image_uri}")
 
     contents: genai.types.ContentListUnionDict = [
         genai.types.Content(
@@ -58,7 +56,6 @@ async def get_image_policy(
             client=client,
             system_instruction=system_instruction,
             contents=contents,
-            logger=logger,
             response_schema=Image,
             response_mime_type="application/json",
             model_opts=model_opts,
@@ -70,12 +67,9 @@ async def get_image_policy(
 
         if response.parsed is not None:
             if attempts > 0:
-                log_messages.append(
-                    (
-                        "info",
-                        f"Fixed JSON output for Image {image_uri} "
-                        f"after {attempts} attempt(s).",
-                    )
+                logger.info(
+                    f"Fixed JSON output for Image {image_uri} "
+                    f"after {attempts} attempt(s).",
                 )
 
             result = response.parsed
@@ -83,29 +77,22 @@ async def get_image_policy(
                 raise TypeError("Incorrect data type provided by the AI model.")
 
             elapsed = time.perf_counter() - start
-            log_messages.append(("info", f"Processed {image_uri}."))
-            log_messages.append(("info", f"Elapsed Time: {elapsed:.2f} seconds."))
-            log_list(logger, log_messages)
+            logger.info(f"Processed {image_uri}.")
+            logger.info(f"Elapsed Time: {elapsed:.2f} seconds.")
             return result
 
         else:
             attempts += 1
             if attempts > max_retries:
-                log_messages.append(
-                    (
-                        "warning",
-                        f"Max retries reached for validating JSON output "
-                        f"for image {image_uri} after {max_retries}. Returning None.",
-                    )
+                logger.warning(
+                    f"Max retries reached for validating JSON output "
+                    f"for image {image_uri} after {max_retries}. Returning None.",
                 )
-                log_list(logger, log_messages)
                 return None
-            log_messages.append(
-                (
-                    "info",
-                    f"Failed to validate JSON output for Image {image_uri}. "
-                    f"Attempt {attempts}/{max_retries}.",
-                )
+
+            logger.info(
+                f"Failed to validate JSON output for Image {image_uri}. "
+                f"Attempt {attempts}/{max_retries}.",
             )
 
             # 3. Extract the raw text Gemini sent to echo it back in the conversation
@@ -117,14 +104,10 @@ async def get_image_policy(
             ):
                 # Unlikely resut - if the response can't be parsed
 
-                log_messages.append(
-                    (
-                        "warning",
-                        f"Unable to parse response details to retry analysis "
-                        f"of image {image_uri}. Returning None.",
-                    )
+                logger.warning(
+                    f"Unable to parse response details to retry analysis "
+                    f"of image {image_uri}. Returning None.",
                 )
-                log_list(logger, log_messages)
                 return None
 
             bad_response_text = response.candidates[0].content.parts[0].text
@@ -160,5 +143,4 @@ async def get_image_policy(
                 )
                 contents.append(genai.types.Part.from_text(text=feedback))
 
-    log_list(logger, log_messages)
     return None
