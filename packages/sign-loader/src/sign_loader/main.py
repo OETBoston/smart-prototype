@@ -205,11 +205,6 @@ def main() -> None:
         # Read in config & files
         logger.info("Loading configuration and input files...")
         config = load_config(f"{base_path}/config.yaml")
-        # TODO: this file is optional
-        neighborhoods_gdf = gpd.read_file(
-            f"{base_path}/{config['neighborhoods_path']}",
-            crs=config["neighborhoods_crs"],
-        )[["name", "geometry"]]
         logger.info(
             "Loaded neighborhoods from %s", f"{base_path}{config['neighborhoods_path']}"
         )
@@ -220,7 +215,6 @@ def main() -> None:
 
             signs_gdf = preprocess_cartegraph_signs(
                 signs_df=cartegraph_df,
-                neighborhoods_gdf=neighborhoods_gdf,
                 config=config,
             )
         else:

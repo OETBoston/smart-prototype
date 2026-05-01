@@ -43,12 +43,12 @@ column_filters:
     mode: "starts_with"
 
 
-# TODO: make this work with utils.filter_by_geo
 geo_filters:
-    path: "./packages/sign-loader/data/boston-neighborhoods.geojson"
-    crs: "EPSG:4326"
-    subset_column: "name"
-    subset_values: ["Charlestown"]
+  path: "./packages/sign-loader/data/boston-neighborhoods.geojson"
+  crs: "EPSG:4326"
+  subset_column: "name"
+  subset_values: ["Charlestown"]
 
-
-grouping_distance_ft: 5
+grouping_parameters:
+  grouping_distance_ft: 5
+  grouping_crs: "EPSG:2249"

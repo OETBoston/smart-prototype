@@ -25,7 +25,7 @@ def preprocess_cartegraph_signs(
 
     logger.info("Starting preprocessing with %d total signs", len(signs_df))
 
-    # filter out signs with missing lat/long
+    # Filter out signs with missing lat/long
     signs_df = signs_df[
         (signs_df["longitude"].notnull())
         & signs_df["latitude"].notnull()
@@ -38,6 +38,13 @@ def preprocess_cartegraph_signs(
         ],
         index=signs_df.index,
     )
+
+    # Filter for duplicates by keeping the most recently modified record
+    signs_df = signs_df.sort_values(
+        ["cg_last_modified_field", "attachment_cg_last_modified_field"],
+        ascending=False
+    ).drop_duplicates(subset=config["sign_id_col"], keep="first")
+    logger.info("Removed duplicates: %d unique signs", len(signs_df))
 
     for column_filter in config["column_filters"]:
         signs_df = filter_by_column_values(
@@ -53,21 +60,12 @@ def preprocess_cartegraph_signs(
             len(signs_df),
         )
 
-    # TODO: Should this be first? - I think I see why not.
-
-    # filter for duplicates by keeping the most recently modified record
-    signs_df = signs_df.sort_values(
-        ["cg_last_modified_field", "attachment_cg_last_modified_field"], ascending=False
-    ).drop_duplicates(subset=config["sign_id_col"], keep="first")
-    logger.info("Removed duplicates: %d unique signs", len(signs_df))
-
-    # make gdf
+    # Make gdf
     signs_gdf = gpd.GeoDataFrame(signs_df, geometry="geometry", crs=config["input_crs"])
     if signs_gdf.crs != config["output_crs"]:
         signs_gdf = signs_gdf.to_crs(config["output_crs"])
 
-
-    # placeholder just to keep the import from being unused.
+    # Filter for geographic subset if specified in config
     if config.get("geo_filters"):
         signs_gdf = filter_by_geo(signs_gdf, config)
         logger.info(
@@ -75,15 +73,12 @@ def preprocess_cartegraph_signs(
             len(signs_gdf),
         )
 
-
     # Reduce geometric precision to better group nearby signs together.
-    grouping_distance = config["grouping_distance_ft"]
+    grouping_distance = config["grouping_parameters"]["grouping_distance_ft"]
+    grouping_crs = config["grouping_parameters"]["grouping_crs"]
     signs_gdf["truncated_geometry"] = (
         signs_gdf["geometry"]
-        # TODO: This is currently hardcoded for EPSG:2249
-        #    (Massachusetts State Plane Mainland), which is in feet.
-        #    We should ideally make this a config option.
-        .to_crs("epsg:2249")
+        .to_crs(grouping_crs)
         .apply(
             lambda p: Point(
                 math.floor(p.x / grouping_distance) * grouping_distance,
