@@ -1,0 +1,61 @@
+import datetime
+import logging
+import os
+from typing import Any
+
+import geopandas as gpd
+import pandas as pd
+
+
+def setup_logging() -> logging.Logger:
+    """Configure logging to write to both console and file."""
+    os.makedirs("logs", exist_ok=True)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # File handler
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_handler = logging.FileHandler(f"logs/cartegraph_loader_{timestamp}.log")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    return logger
+
+
+def filter_by_geo() -> gpd.GeoDataFrame:
+    """Geospatial filter. Currently only supports filtering for points within polygon.
+    Useful for developing geographic subsets of data.
+    """
+    # TODO: Implement geospatial filtering function
+    return gpd.GeoDataFrame()  # placeholder
+
+
+def filter_by_column_values(
+    df: pd.DataFrame | gpd.GeoDataFrame, column: str, values: list[Any], mode: str
+) -> pd.DataFrame | gpd.GeoDataFrame:
+    """Filter a dataframe based column values. Supported modes include:
+    "drop": drop rows where column value is in values list.
+    "keep": keep only rows where column value is in values list.
+    "starts_with": keep rows where column value starts
+        with any value in values list.
+    """
+    if values is None or len(values) == 0:
+        raise ValueError("Values list cannot be empty for column filtering.")
+    if mode == "drop":
+        df = df[~df[column].isin(values)]
+    elif mode == "keep":
+        df = df[df[column].isin(values)]
+    elif mode == "starts_with":
+        pattern = "|".join(f"{value.lower()}" for value in values)
+        df = df[df[column].str.lower().str.match(pattern, na=False)]
+    else:
+        raise NotImplementedError(f"Unsupported column filter mode: {mode}")
+    return df

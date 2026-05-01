@@ -36,6 +36,15 @@ geometry_col: None
 output_crs: "EPSG:4326"
 
 # Cartegraph-related Filters
+column_filters:
+  - column: "status"
+    values: ["Missing", "Proposed"]
+    mode: "drop"
+  - column: "mutcd_code_field"
+    values: ["P-", "MS-", "PB-", "S-", "AC-", "T-", "TS-", "TC-", "R7-107a", "R7-4", "R7-21"]
+    mode: "starts_with"
+  - 
+
 neighborhoods:
   - Charlestown
 
