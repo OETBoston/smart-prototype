@@ -15,7 +15,6 @@ set before running the script.
 """
 
 import datetime
-import logging
 import uuid
 
 import geopandas as gpd
@@ -23,8 +22,8 @@ import pandas as pd
 from cg import load_cartegraph_signs, preprocess_cartegraph_signs
 from curb_utils.db_utils import SmartCurbDB
 from curb_utils.io_tools import load_config
+from curb_utils.logging import get_logger
 from dotenv import load_dotenv
-from utils import setup_logging
 
 
 def add_columns_for_tbls(df: pd.DataFrame, col_lst: list) -> pd.DataFrame:
@@ -36,10 +35,10 @@ def add_columns_for_tbls(df: pd.DataFrame, col_lst: list) -> pd.DataFrame:
 
 
 def format_sign_tbls(
-    signs_gdf: gpd.GeoDataFrame, config: dict, logger: logging.Logger
-) -> dict:
+    signs_gdf: gpd.GeoDataFrame, config: dict) -> dict:
     """Format signs geodataframe into tables for asset_jobs, data_sources,
     asset_locations, signs, and images."""
+    logger = get_logger(__name__)
     logger.info("Formatting %d signs into database tables", len(signs_gdf))
     base_signs = signs_gdf.copy()
 
@@ -181,7 +180,7 @@ def upload_sign_tbls(
     logger.info(
         "Starting upload to database %s.%s (debug_mode=%s)", dbname, schema, debug_mode
     )
-    load_dotenv()
+
     with SmartCurbDB(dbname=dbname, schema=schema) as db:
         for tbl_name, df in upload_dict.items():
             if not bool(debug_mode):
@@ -249,4 +248,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    load_dotenv()
+    logger = get_logger(__name__)
+    logger.info("Running Sign Loader Pipeline Process...")
     main()

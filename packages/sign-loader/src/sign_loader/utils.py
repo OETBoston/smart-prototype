@@ -1,33 +1,9 @@
 import datetime
-import logging
 import os
 from typing import Any
 
 import geopandas as gpd
 import pandas as pd
-
-
-def setup_logging() -> logging.Logger:
-    """Configure logging to write to both console and file."""
-    os.makedirs("logs", exist_ok=True)
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
-    # Console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-    # File handler
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_handler = logging.FileHandler(f"logs/cartegraph_loader_{timestamp}.log")
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    return logger
 
 
 def filter_by_geo(

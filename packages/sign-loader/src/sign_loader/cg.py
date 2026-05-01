@@ -1,12 +1,12 @@
-import logging
 import math
 
 import geopandas as gpd
 import pandas as pd
 from shapely import Point
 from utils import filter_by_column_values, filter_by_geo
+from curb_utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def load_cartegraph_signs(base_path: str, config: dict) -> pd.DataFrame:
