@@ -52,10 +52,33 @@ def write_table() -> Generator[WriteTable]:
                 f"(LIKE {TEST_SCHEMA}.test_write INCLUDING ALL)"
             )
         )
-        db.connection.commit()
         yield db, tmp_table
         db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
-        db.connection.commit()
+
+
+@fixture
+def write_table_closed() -> Generator[str]:
+    """Create a temporary copy of test_write with a random suffix,
+    closes the connection and yields the table name.
+
+    Attempts to re-open the connection and delete the table on completion.
+    """
+    suffix = uuid4().hex[:8]
+    tmp_table = f"test_write_{suffix}"
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
+        db.connection.execute(
+            text(
+                f"CREATE TABLE {TEST_SCHEMA}.{tmp_table} "
+                f"(LIKE {TEST_SCHEMA}.test_write INCLUDING ALL)"
+            )
+        )
+    yield tmp_table
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
+        db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
 
 
 @fixture
@@ -73,10 +96,34 @@ def write_geo_table() -> Generator[WriteTable]:
                 f"(LIKE {TEST_SCHEMA}.test_write_geo INCLUDING ALL)"
             )
         )
-        db.connection.commit()
         yield db, tmp_table
         db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
-        db.connection.commit()
+
+
+@fixture
+def write_geo_table_closed() -> Generator[str]:
+    """Create a temporary copy of test_write with_geo a random suffix,
+    closes the connection and yields the table name.
+
+    Attempts to re-open the connection and delete the table on completion.
+    """
+    suffix = uuid4().hex[:8]
+    tmp_table = f"test_write_geo_{suffix}"
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
+        db.connection.execute(
+            text(
+                f"CREATE TABLE {TEST_SCHEMA}.{tmp_table} "
+                f"(LIKE {TEST_SCHEMA}.test_write_geo INCLUDING ALL)"
+            )
+        )
+    yield tmp_table
+
+    with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+        assert db.connection is not None
+        db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
+
 
 @fixture
 def write_delete_table() -> Generator[WriteTable]:
@@ -95,10 +142,9 @@ def write_delete_table() -> Generator[WriteTable]:
                 f"SELECT * FROM {TEST_SCHEMA}.test_delete;"
             )
         )
-        db.connection.commit()
         yield db, tmp_table
         db.connection.execute(text(f"DROP TABLE IF EXISTS {TEST_SCHEMA}.{tmp_table}"))
-        db.connection.commit()
+
 
 # ── Convenience Functions ─────────────────────────────────────────────────────
 
@@ -271,8 +317,6 @@ def test_update_value_int_as_string(write_table: WriteTable) -> None:
             value="Not a String",
         )
 
-    assert db.connection and not db.connection.in_transaction()
-
 
 def test_update_value_multiple_rows(write_table: WriteTable) -> None:
     db, table_name = write_table
@@ -382,8 +426,6 @@ def test_update_value_geo_int_as_string(write_geo_table: WriteTable) -> None:
             column="integer_field",
             value="Not a String",
         )
-
-    assert db.connection and not db.connection.in_transaction()
 
 
 def test_update_or_append_inserts_new(write_table: WriteTable) -> None:
@@ -498,10 +540,14 @@ def test_no_password(monkeypatch: pytest.MonkeyPatch) -> None:
         with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA):
             pass
 
-@pytest.mark.parametrize("key_columns", [
-    ["id"],
-    ["id", "unique_field"],
-])
+
+@pytest.mark.parametrize(
+    "key_columns",
+    [
+        ["id"],
+        ["id", "unique_field"],
+    ],
+)
 def test_delete_records(write_delete_table: WriteTable, key_columns: list[str]) -> None:
     """Test delete with multiple column filters combined"""
     db, table_name = write_delete_table
@@ -534,16 +580,48 @@ def test_delete_no_data(write_delete_table: WriteTable) -> None:
     """Test delete failure when no data is provided."""
     db, table_name = write_delete_table
     data = pd.DataFrame(
-        columns=[
-            "id",
-            "unique_field",
-            "integer_field",
-            "string_field",
-            "jsonb_field"
-        ]
+        columns=["id", "unique_field", "integer_field", "string_field", "jsonb_field"]
     )
     with pytest.raises(ValueError, match="No data provided for deletion."):
         db.delete(table_name, data, key_columns=["id"])
+
+
+def test_failed_transaction(write_table_closed: str) -> None:
+    """Verify that a failed transaction is properly rolled back"""
+
+    _data, write_data = expected_write()
+    with pytest.raises(InvalidInputError):
+        with SmartCurbDB(dbname=TEST_DB, schema=TEST_SCHEMA) as db:
+            # Run a good followed by a failed transaction
+            db.append_data(write_table_closed, write_data)
+
+            # This should fail since records already exist
+            db.append_data(write_table_closed, write_data)
+
+    with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
+        # The dataframe should be empty
+        mt = db.get_data(write_table_closed)
+
+    assert len(mt) == 0
+
+
+def test_failed_geo_transaction(write_geo_table_closed: str) -> None:
+    """Veify that a failed geo transaction is properly rolled back"""
+
+    _data, write_data = expected_write()
+    with pytest.raises(InvalidInputError):
+        with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
+            # Run a good followed by a failed transaction
+            db.append_data(write_geo_table_closed, write_data)
+
+            # This should fail since records already exist
+            db.append_data(write_geo_table_closed, write_data)
+
+    with SmartCurbDB(TEST_DB, TEST_SCHEMA) as db:
+        # The dataframe should be empty
+        mt = db.get_data(write_geo_table_closed, geom_col="geometry")
+
+    assert len(mt) == 0
 
 
 # ── Expected Data ─────────────────────────────────────────────────────────────
@@ -660,43 +738,33 @@ def expected_delete() -> pd.DataFrame:
                 UUID("000e0000-e29b-41d4-a000-446655440005"),
             ],
             "integer_field": [40, 50],
-            "string_field": [
-                "US History",
-                "Parking Clerk"
-            ],
-            "jsonb_field": [
-                {"location": "Boston"},
-                {"location": "Boston"}
-            ],
+            "string_field": ["US History", "Parking Clerk"],
+            "jsonb_field": [{"location": "Boston"}, {"location": "Boston"}],
         }
     )
 
     return data.sort_values("id").reset_index(drop=True)
 
 
-def data_to_delete():
+def data_to_delete() -> pd.DataFrame:
     data = pd.DataFrame(
         {
             "id": [
                 UUID("660e8400-e29b-41d4-a716-446655440001"),
                 UUID("660e8400-e29b-41d4-a716-446655440002"),
-                UUID("660e8400-e29b-41d4-a716-446655440003")
+                UUID("660e8400-e29b-41d4-a716-446655440003"),
             ],
             "unique_field": [
                 UUID("000e0000-e29b-41d4-a000-446655440001"),
                 UUID("000e0000-e29b-41d4-a000-446655440002"),
-                UUID("000e0000-e29b-41d4-a000-446655440003")
+                UUID("000e0000-e29b-41d4-a000-446655440003"),
             ],
             "integer_field": [10, 20, 30],
-            "string_field": [
-                "City Hall",
-                "Rivers Edge",
-                "MIT"
-            ],
+            "string_field": ["City Hall", "Rivers Edge", "MIT"],
             "jsonb_field": [
                 {"location": "Boston"},
                 {"location": "Medford"},
-                {"location": "Cambridge"}
+                {"location": "Cambridge"},
             ],
         }
     )
