@@ -113,14 +113,14 @@ def load_asset_gdfs_from_pg(
     asset_gdfs = {}
 
     # Loop through the nonsign asset types and load the GeoDataFrames
-    for asset, asset_cat in asset_dict.items():
+    for asset, asset_config in asset_dict.items():
         # Specify table names and column names based on an asset type
-        if asset == "sign_assets":
+        if asset == "parking_sign":
             table_name = "signs"
             native_id_col = "sign_id"
             native_location_id_col = "sign_location_id"
             select_cols = [native_id_col, native_location_id_col, "sign_removed_date"]
-        elif asset == "nonsign_assets":
+        elif asset_config["asset_type"] == "nonsign_asset":
             table_name = "nonsign_features"
             native_id_col = "feature_id"
             native_location_id_col = "feature_location"
@@ -136,57 +136,56 @@ def load_asset_gdfs_from_pg(
         else:
             raise ValueError(f"Invalid asset type: {asset}")
 
-        for asset_type, asset_spec in asset_cat.items():
-            with SmartCurbDB(dbname=dbname, schema=schema) as db:
-                assets = db.get_data(
-                    table_name=table_name,
-                    columns=select_cols,
-                    filter=f"feature_type = '{asset_type}'"
-                    if asset == "nonsign_assets"
-                    else None,
+        with SmartCurbDB(dbname=dbname, schema=schema) as db:
+            assets = db.get_data(
+                table_name=table_name,
+                columns=select_cols,
+                filter=f"feature_type = '{asset}'"
+                if asset_config["asset_type"] == "nonsign_asset"
+                else None,
+            )
+            if asset == "parking_meters":
+                assets = assets.melt(native_id_col)
+                native_location_id_col = "value"
+            assets = assets.rename(
+                columns={
+                    native_id_col: asset_config["new_id_col"],
+                    native_location_id_col: "location_id",
+                }
+            )
+            # Select active sign assets: "sign_removed_date" column is null for them
+            if asset == "parking_sign":
+                assets = assets[assets["sign_removed_date"].isna()].drop(
+                    columns=["sign_removed_date"]
                 )
-                if asset_type == "meter_policies":
-                    assets = assets.melt(native_id_col)
-                    native_location_id_col = "value"
-                assets = assets.rename(
-                    columns={
-                        native_id_col: asset_spec["new_id_col"],
-                        native_location_id_col: "location_id",
-                    }
-                )
-                # Select active sign assets: "sign_removed_date" column is null for them
-                if asset == "sign_assets":
-                    assets = assets[assets["sign_removed_date"].isna()].drop(
-                        columns=["sign_removed_date"]
-                    )
 
-                # Get asset location geometry
-                job_id = asset_spec["job_id"]
-                asset_locations = db.get_data(
-                    table_name="asset_locations",
-                    geom_col="location",
-                    columns=["asset_location_id", "location"],
-                    filter=f"job_id = '{job_id}'",
-                )
-                asset_locations = asset_locations.rename(
-                    columns={"asset_location_id": "location_id", "location": "geometry"}
-                )
-                # Check if curb dataset is already in GeoDataFrame
-                cs.confirm_gdf(asset_locations)
+            # Get asset location geometry
+            job_id = asset_config["job_id"]
+            asset_locations = db.get_data(
+                table_name="asset_locations",
+                geom_col="location",
+                columns=["asset_location_id", "location"],
+                filter=f"job_id = '{job_id}'",
+            )
+            asset_locations = asset_locations.rename(
+                columns={"asset_location_id": "location_id", "location": "geometry"}
+            )
+            # Check if curb dataset is already in GeoDataFrame
+            cs.confirm_gdf(asset_locations)
 
-                # Merge assets and asset locations and store GeoDataFrames in the collector dictionary
-                assets = assets.merge(asset_locations, on="location_id")
-                assets = cs.check_and_set_crs(
-                    gdf=gpd.GeoDataFrame(assets, geometry="geometry"),
-                    proj_crs=target_crs,
-                )
-                # Keep unique locations only. Consider location IDs as asset IDs.
-                assets = (
-                    assets.drop_duplicates(subset=["location_id"])
-                    .drop(columns=[asset_spec["new_id_col"]])
-                    .rename(columns={"location_id": asset_spec["new_id_col"]})
-                )
-                asset_gdfs[asset_type] = assets
+            # Merge assets and asset locations and store GeoDataFrames in the collector dictionary
+            assets = assets.merge(asset_locations, on="location_id")
+            assets = cs.check_and_set_crs(
+                gdf=gpd.GeoDataFrame(assets, geometry="geometry"),
+                proj_crs=target_crs,
+            )
+            # Keep unique locations only. Consider location IDs as asset IDs.
+            assets = (
+                assets.drop_duplicates(subset=["location_id"])
+                .drop(columns=[asset_config["new_id_col"]])
+                .rename(columns={"location_id": asset_config["new_id_col"]})
+            )
+            asset_gdfs[asset] = assets
     return asset_gdfs
 
 

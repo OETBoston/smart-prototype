@@ -33,9 +33,11 @@ assets:
   parking_sign:
     new_id_col: "ps_id"
     job_id: "a840e9d9-be25-4c32-9817-7131ebeee8d0"
+    asset_type: "sign_asset"
   bus_stop:
     new_id_col: "bs_id"
     job_id: "223c3644-f0cd-4d28-877b-8ffa056cc2fe"
+    asset_type: "nonsign_asset"
     stop_types:
       near_side:
         range: [ 0.7, 1.0 ]
@@ -53,9 +55,11 @@ assets:
     new_id_col: "fh_id"
     job_id: "e9e630af-2e20-4221-873a-890bb3477646"
     buffer_distance_ft: 10
+    asset_type: "nonsign_asset"
   parking_meters:
     new_id_col: "mp_id"
     job_id: "65fe0581-a94c-4d00-afb0-a12460ee898d"
+    asset_type: "parking_meter"
 
 # Process parameters
 curb_id_col: "blockface_id"

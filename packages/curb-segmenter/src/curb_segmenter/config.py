@@ -16,6 +16,7 @@ class AssetsConfig(BaseModel):
 
         new_id_col: str
         job_id: str
+        asset_type: Literal["sign_asset", "nonsign_asset", "parking_meter"]
 
     class FireHydrantConfig(AssetConfig):
         """Extended AssetConfig for fire hydrants"""

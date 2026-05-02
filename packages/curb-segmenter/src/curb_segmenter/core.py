@@ -102,7 +102,7 @@ def curb_segmenter(config: CurbSegmenterConfig) -> None:
     # Merge tiny segments
     curb_segments = cs.merge_tiny_curb_segments(
         gdf=curb_segments,
-        length_threshold=config["tiny_seg_threshold_ft"],
+        length_threshold=config.tiny_seg_threshold_ft,
         asset_dict=asset_dict,
     )
 

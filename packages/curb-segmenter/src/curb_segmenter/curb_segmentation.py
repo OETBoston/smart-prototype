@@ -953,13 +953,9 @@ def run_segmentation_by_fire_hydrants(
     """
     logger = get_logger(__name__)
     asset_type = "fire_hydrant"
-    point_id_col = configuration["assets"]["nonsign_assets"]["fire_hydrant"][
-        "new_id_col"
-    ]
+    point_id_col = configuration["assets"][asset_type]["new_id_col"]
     curb_id_col = "blockface_id"
-    buffer_distance_ft = configuration["assets"]["nonsign_assets"]["fire_hydrant"][
-        "buffer_distance_ft"
-    ]
+    buffer_distance_ft = configuration["assets"][asset_type]["buffer_distance_ft"]
 
     logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
@@ -1067,7 +1063,7 @@ def run_segmentation_by_parking_signs(
     """
     logger = get_logger(__name__)
     asset_type = "parking_sign"
-    point_id_col = configuration["assets"]["sign_assets"]["parking_sign"]["new_id_col"]
+    point_id_col = configuration["assets"][asset_type]["new_id_col"]
     curb_id_col = "blockface_id"
 
     logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
@@ -1237,7 +1233,7 @@ def run_segmentation_by_bus_stops(
     """
     logger = get_logger(__name__)
     asset_type = "bus_stop"
-    point_id_col = configuration["assets"]["nonsign_assets"]["bus_stop"]["new_id_col"]
+    point_id_col = configuration["assets"][asset_type]["new_id_col"]
     curb_id_col = "blockface_id"
 
     logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
@@ -1257,7 +1253,7 @@ def run_segmentation_by_bus_stops(
 
     snapped_bs_with_buffers = find_bus_stop_type(
         snapped_bs,
-        configuration["assets"]["nonsign_assets"]["bus_stop"],
+        configuration["assets"][asset_type],
     )
 
     curb_segments = create_curb_segments_with_bus_stops(
@@ -1492,8 +1488,8 @@ def run_segmentation_by_parking_meters(
             Cleaned curb segments after segmentation by parking meters
     """
     logger = get_logger(__name__)
-    asset_type = "meter_policies"
-    point_id_col = configuration["assets"]["parking_meters"][asset_type]["new_id_col"]
+    asset_type = "parking_meters"
+    point_id_col = configuration["assets"][asset_type]["new_id_col"]
     curb_id_col = "blockface_id"
 
     logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
