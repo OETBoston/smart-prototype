@@ -10,30 +10,30 @@ from curb_utils.io_tools import load_from_yaml
 from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
+from blockface_creator import BlockfaceCreatorConfig
 from blockface_creator import curb_generation as cg
 
 # Session settings
 load_dotenv()
 warnings.filterwarnings("ignore")
 logger = get_logger(__name__)
-logger.info("Running curb generation process...")
 
 
 def blockface_creator(config: BlockfaceCreatorConfig) -> None:
     # 0. Load configurations
-    logger.info("Running blockface-creator with DEBUG_MODE=%s...", config["debug_mode"])
+    logger.info("Running blockface-creator with DEBUG_MODE=%s...", config.debug_mode)
 
     # 1. Load the roadway centerline dataset
     roadway_shp = cg.read_roadways(
-        roadway_path=config["roadway_path"],
-        include_filters=config["include_filters"],
-        exclude_filters=config["exclude_filters"],
+        roadway_path=config.roadway_path,
+        include_filters=config.include_filters,
+        exclude_filters=config.exclude_filters,
     )
     logger.info("Roadway centerline dataset loaded.")
 
     # 2. Create curb geometry
     curb_data = cg.create_curbs(
-        roadway_shp=roadway_shp, ft_crs=config["ft_crs"], ft_diff=config["ft_diff"]
+        roadway_shp=roadway_shp, ft_crs=config.ft_crs, ft_diff=config.ft_diff
     )
     logger.info("Curb dataset created with %s curb lines.", f"{len(curb_data):,}")
 
@@ -41,18 +41,18 @@ def blockface_creator(config: BlockfaceCreatorConfig) -> None:
     blockface_job_id, blockface_job, curb_blockfaces, curb_data, timestamp = (
         cg.write_blockfaces_to_db(
             gdf=curb_data,
-            dbname=config["dbname"],
-            schema=config["schema"],
-            job_name=config["job_name"],
-            job_description=config["job_description"],
-            debug_mode=config["debug_mode"],
-            adjust_geom=config["adjust_geometry"],
+            dbname=config.db_name,
+            schema=config.db_schema,
+            job_name=config.job_name,
+            job_description=config.job_description,
+            debug_mode=config.debug_mode,
+            adjust_geom=config.adjust_geometry,
         )
     )
     logger.info(
         'Updated: "curb_blockfaces" table in "%s" database with "%s" schema.',
-        config["dbname"],
-        config["schema"],
+        config.db_name,
+        config.db_schema,
     )
 
     # 4. Save the output with UUIDs for QA/mapping
@@ -60,21 +60,21 @@ def blockface_creator(config: BlockfaceCreatorConfig) -> None:
         job_id=blockface_job_id,
         timestamp=timestamp,
         output_gdf=curb_data,
-        output_path=config["output_path"],
-        file_type=config["output_type"],
-        output_crs=config["output_crs"],
+        output_path=config.output_path,
+        file_type=config.output_type,
+        output_crs=config.output_crs,
     )
     logger.info(
         'Exported: "curb_blockfaces_job_id_%s_%s.%s" to "%s".',
         blockface_job_id,
         timestamp,
-        config["output_type"].lower(),
-        config["output_path"],
+        config.output_type.lower(),
+        config.output_path,
     )
 
 
 if __name__ == "__main__":
     local_path = Path(__file__).resolve().parent
     config_file = local_path / "config.yaml"
-    config = BlockfaceCreatorConfig(load_from_yaml(config_file))
+    config = BlockfaceCreatorConfig(**load_from_yaml(config_file))
     blockface_creator(config)
