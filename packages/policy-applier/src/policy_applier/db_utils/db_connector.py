@@ -8,12 +8,23 @@ from geopandas import GeoDataFrame
 from pandas import DataFrame
 
 
-def append_policy_handling_jobs(db_name: str, db_schema: str) -> str:
+def append_policy_handling_jobs(
+    db_name: str,
+    db_schema: str,
+    job_name: str | None = None,
+    job_description: str | None = None,
+) -> str:
     """Registers a new job in the database with contextual naming."""
     user = getpass.getuser()
     job_id = str(uuid.uuid4())
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
+
+    job_name = job_name or f"{timestamp} Policy Applier ({user})"
+    job_description = (
+        job_description
+        or f"Policy Applier session initiated by {user} at {now.isoformat()}"
+    )
 
     job_data = {
         "job_id": [job_id],

@@ -325,7 +325,10 @@ def policy_applier(config: PolicyApplierConfig) -> None:
             csv_file_path = config.csv_file_path or "curb_policy_output.csv"
             df_final.to_csv(csv_file_path, index=False)
         new_job_id = append_policy_handling_jobs(
-            db_name=config.db_name, db_schema=config.db_schema
+            db_name=config.db_name,
+            db_schema=config.db_schema,
+            job_name=config.job_name,
+            job_description=config.job_description,
         )
         append_curb_segment_policies(
             df_final,
