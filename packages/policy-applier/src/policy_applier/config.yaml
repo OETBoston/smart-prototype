@@ -1,0 +1,7 @@
+db_name: "cds"
+db_schema: "staging_next"
+job_name: "DELETE ME short job name"
+job_description: "DELETE ME short job description"
+curb_segmenter_job_id: "c9dc87c2-b318-488c-9c06-ef679923c3ff"
+write_to_csv: false
+csv_file_path: "curb_policy_output.csv"
