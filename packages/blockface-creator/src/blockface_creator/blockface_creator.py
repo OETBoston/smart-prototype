@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 logger.info("Running curb generation process...")
 
 
-def blockface_creator(config: BlockfaceConfig) -> None:
+def blockface_creator(config: BlockfaceCreatorConfig) -> None:
     # 0. Load configurations
     logger.info("Running blockface-creator with DEBUG_MODE=%s...", config["debug_mode"])
 
@@ -76,5 +76,5 @@ def blockface_creator(config: BlockfaceConfig) -> None:
 if __name__ == "__main__":
     local_path = Path(__file__).resolve().parent
     config_file = local_path / "config.yaml"
-    config = BlockfaceConfig(load_from_yaml(config_file))
+    config = BlockfaceCreatorConfig(load_from_yaml(config_file))
     blockface_creator(config)
