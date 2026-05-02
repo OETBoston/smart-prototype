@@ -1,5 +1,5 @@
 """
-Entry point for running blockface-creator as a module.
+Entry point for running policy-applier as a module.
 """
 
 from pathlib import Path
