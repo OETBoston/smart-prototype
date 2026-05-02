@@ -15,3 +15,4 @@ class PolicyApplierConfig(BaseModel):
 
     # Process parameters
     write_to_csv: bool = False
+    csv_file_path: str = "curb_policy_output.csv"

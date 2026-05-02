@@ -5,13 +5,13 @@ import pandas as pd
 from dotenv import load_dotenv
 from rich.progress import track
 
+from policy_applier.config import PolicyApplierConfig
 from policy_applier.db_utils import (
     append_curb_segment_policies,
     append_policy_handling_jobs,
     read_policy_applier_tables,
 )
 from policy_applier.handler_utils import Direction, generate_event_log, run_policy_pass
-from policy_applier.io_utils.arguments import parse_args
 
 load_dotenv()
 
@@ -287,14 +287,11 @@ def process_segment_policies(
     return None
 
 
-def main(job_id: str, schema: str, write_to_csv: bool = False) -> None:
+def policy_applier(config: PolicyApplierConfig) -> None:
     """Main execution block to fetch, process, and propagate curb policies.
 
     Args:
-        job_id (str): Job ID for Curb Segmenter data retrieval.
-        schema (str): Database schema for reading/writing data.
-        write_to_csv (bool, optional): Optionally, write outputs to a CSV for debugging.
-            Defaults to False.
+        config (PolicyApplierConfig): Configuration for the policy applier.
     """
     # Data Ingestion
     (
@@ -304,7 +301,11 @@ def main(job_id: str, schema: str, write_to_csv: bool = False) -> None:
         df_sign_policies,
         df_meter_policies,
         df_nonsign_features,
-    ) = read_policy_applier_tables(curb_segment_job_id=job_id, schema=schema)
+    ) = read_policy_applier_tables(
+        curb_segment_job_id=config.curb_segmenter_job_id,
+        db_name=config.db_name,
+        db_schema=config.db_schema,
+    )
 
     # Process policies
     df_final = process_segment_policies(
@@ -320,19 +321,15 @@ def main(job_id: str, schema: str, write_to_csv: bool = False) -> None:
     # TODO: df_final should not be None.
     if df_final is not None:
         # Optionally, write to csv file for debugging purposes
-        if write_to_csv:
-            df_final.to_csv("curb_policy_output.csv", index=False)
-        new_job_id = append_policy_handling_jobs(schema=schema)
-        append_curb_segment_policies(df_final, job_id=new_job_id, schema=schema)
-
-
-if __name__ == "__main__":
-    args = parse_args()
-    # curb segmenter job
-    job_id = args.job_id
-    # schema for read/write
-    schema = args.schema
-    # not in argparser, but will want to add to config.
-    write_to_csv = False
-
-    main(job_id=job_id, schema=schema, write_to_csv=write_to_csv)
+        if config.write_to_csv:
+            csv_file_path = config.csv_file_path or "curb_policy_output.csv"
+            df_final.to_csv(csv_file_path, index=False)
+        new_job_id = append_policy_handling_jobs(
+            db_name=config.db_name, db_schema=config.db_schema
+        )
+        append_curb_segment_policies(
+            df_final,
+            job_id=new_job_id,
+            db_name=config.db_name,
+            db_schema=config.db_schema,
+        )

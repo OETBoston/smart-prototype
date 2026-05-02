@@ -8,7 +8,7 @@ from geopandas import GeoDataFrame
 from pandas import DataFrame
 
 
-def append_policy_handling_jobs(schema: str) -> str:
+def append_policy_handling_jobs(db_name: str, db_schema: str) -> str:
     """Registers a new job in the database with contextual naming."""
     user = getpass.getuser()
     job_id = str(uuid.uuid4())
@@ -23,7 +23,7 @@ def append_policy_handling_jobs(schema: str) -> str:
         ],
     }
 
-    with SmartCurbDB(dbname="cds", schema=schema) as db:
+    with SmartCurbDB(dbname=db_name, schema=db_schema) as db:
         db.append_data("policy_handling_jobs", pd.DataFrame(job_data))
 
     return job_id
@@ -32,16 +32,17 @@ def append_policy_handling_jobs(schema: str) -> str:
 def append_curb_segment_policies(
     records_policies: pd.DataFrame,
     job_id: uuid.UUID | str,
-    schema: str,
+    db_name: str,
+    db_schema: str,
 ) -> None:
     """Appends curb segment policy records to the database."""
     records_policies["job_id"] = str(job_id)
-    with SmartCurbDB(dbname="cds", schema=schema) as db:
+    with SmartCurbDB(dbname=db_name, schema=db_schema) as db:
         db.append_data("curb_segment_policies", records_policies)
 
 
 def read_policy_applier_tables(
-    curb_segment_job_id: str, schema: str
+    curb_segment_job_id: str, db_name: str, db_schema: str
 ) -> tuple[
     GeoDataFrame,
     DataFrame,
@@ -55,7 +56,7 @@ def read_policy_applier_tables(
     if curb_segment_job_id:
         filter = f"job_id = '{curb_segment_job_id}'"
 
-    with SmartCurbDB(dbname="cds", schema=schema) as db:
+    with SmartCurbDB(dbname=db_name, schema=db_schema) as db:
         df_segments = db.get_data(
             "curb_segments",
             geom_col="geography",
