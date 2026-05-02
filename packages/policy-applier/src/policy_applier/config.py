@@ -7,6 +7,8 @@ class PolicyApplierConfig(BaseModel):
     # Postgres DB export settings
     db_name: str
     db_schema: str
+    job_name: str
+    job_description: str
 
     # Input data settings
     curb_segmenter_job_id: str
