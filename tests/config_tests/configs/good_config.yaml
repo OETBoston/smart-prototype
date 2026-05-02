@@ -1,5 +1,5 @@
 steps:
-  geometry_creation: 
+  blockface_creator: 
     path: "tests/config_tests/configs/empty_config.yaml"
     run: True
   curb_segmenter: 
