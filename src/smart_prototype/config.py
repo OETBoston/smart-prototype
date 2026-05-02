@@ -22,7 +22,7 @@ class Config(BaseModel):
 
     class Steps(BaseModel):
         model_config = {"extra": "forbid"}
-        geometry_creation: StepConfig
+        blockface_creator: StepConfig
         curb_segmenter: StepConfig
         sign_reader: StepConfig
         policy_applier: StepConfig

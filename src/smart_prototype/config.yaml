@@ -1,0 +1,13 @@
+steps:
+  blockface_creator: 
+    path: "packages/blockface-creator/src/blockface_creator/config.yaml"
+    run: True
+  curb_segmenter: 
+    path: "tests/config_tests/configs/empty_config.yaml"
+    run: False
+  sign_reader: 
+    path: "tests/config_tests/configs/empty_config.yaml"
+    run: False
+  policy_applier: 
+    path: "tests/config_tests/configs/empty_config.yaml"
+    run: False
