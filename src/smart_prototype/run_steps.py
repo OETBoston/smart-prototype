@@ -1,12 +1,9 @@
 import importlib
 
-from curb_utils.logging import get_logger
 from pydantic import BaseModel
 
 from smart_prototype.config import Config, StepConfig
 from smart_prototype.logs import log_step
-
-logger = get_logger(__name__)
 
 
 def run_steps(config: Config, step_configs: dict[str, type[BaseModel]]) -> None:

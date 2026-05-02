@@ -1,14 +1,11 @@
 from pathlib import Path
 
 from curb_utils.io_tools import load_from_yaml
-from curb_utils.logging import get_logger
 
 from smart_prototype.config import Config
 from smart_prototype.load_step_configs import load_step_configs
 from smart_prototype.logs import log_done, log_start
 from smart_prototype.run_steps import run_steps
-
-logger = get_logger(__name__)
 
 
 def main(config: Config) -> None:
