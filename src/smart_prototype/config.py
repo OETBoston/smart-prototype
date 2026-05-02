@@ -1,11 +1,7 @@
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator
-
-AllSteps = Literal[
-    "blockface-creator", "curb-segmenter", "sign-reader", "policy-applier"
-]
 
 
 def validate_path(path: str) -> str:
@@ -17,15 +13,18 @@ def validate_path(path: str) -> str:
 class StepConfig(BaseModel):
     """Configure whether a step should be run and where its config file is located."""
 
-    step_name: AllSteps
-    config_path: Annotated[str, BeforeValidator(validate_path)]
+    path: Annotated[str, BeforeValidator(validate_path)]
     run: bool
 
 
 class Config(BaseModel):
-    """Overall configureation for the pipeline"""
+    """Overall configuration for the pipeline"""
 
-    geometry_creation_cfg: StepConfig
-    curb_segmenter_cfg: StepConfig
-    sign_reader_cfg: StepConfig
-    policy_applier_cfg: StepConfig
+    class Steps(BaseModel):
+        model_config = {"extra": "forbid"}
+        geometry_creation: StepConfig
+        curb_segmenter: StepConfig
+        sign_reader: StepConfig
+        policy_applier: StepConfig
+
+    steps: Steps

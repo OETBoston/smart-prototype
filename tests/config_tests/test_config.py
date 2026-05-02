@@ -2,55 +2,25 @@ import os
 from pathlib import Path
 
 import pytest
+from curb_utils.io_tools import load_from_yaml
 from pydantic import ValidationError
 
 from smart_prototype.config import Config, StepConfig
 
 # may be of use later
-TEST_CONFIGS_DIR = Path(__file__).parent / "test_configs"
-
-
-@pytest.fixture
-def global_config_contents_valid(tmp_path) -> dict:
-    """Helper function to create a valid Config instance for testing"""
-    yaml_file = tmp_path / "config.yaml"
-    yaml_file.write_text("dummy config content")
-    cfg_contents = {
-        "geometry_creation_cfg": {
-            "step_name": "blockface-creator",
-            "config_path": str(yaml_file),
-            "run": True,
-        },
-        "curb_segmenter_cfg": {
-            "step_name": "curb-segmenter",
-            "config_path": str(yaml_file),
-            "run": True,
-        },
-        "sign_reader_cfg": {
-            "step_name": "sign-reader",
-            "config_path": str(yaml_file),
-            "run": True,
-        },
-        "policy_applier_cfg": {
-            "step_name": "policy-applier",
-            "config_path": str(yaml_file),
-            "run": True,
-        },
-    }
-    return cfg_contents
+TEST_CONFIGS_DIR = Path(__file__).parent / "configs"
 
 
 def test_step_config_valid_path(tmp_path) -> None:
     """Load a StepConfig without Error"""
     yaml_file = tmp_path / "config.yaml"
     yaml_file.write_text("dummy config content")
-    cfg_contents = {
-        "step_name": "blockface-creator",
-        "config_path": str(yaml_file),
+    config_contents = {
+        "path": str(yaml_file),
         "run": True,
     }
     try:
-        StepConfig(**cfg_contents)
+        StepConfig(**config_contents)
     except Exception as e:
         pytest.fail(f"StepConfig validation failed with error: {e}")
 
@@ -59,42 +29,43 @@ def test_step_config_valid_path(tmp_path) -> None:
 
 def test_step_config_invalid_path() -> None:
     """Load a StepConfig with an invalid path and expect a ValueError"""
-    cfg_contents = {
-        "step_name": "blockface-creator",
-        "config_path": "/non/existent/path/config.yaml",
+    config_contents = {
+        "path": "/non/existent/path/config.yaml",
         "run": True,
     }
     with pytest.raises(
         ValueError, match="Path /non/existent/path/config.yaml does not exist."
     ):
-        StepConfig(**cfg_contents)
+        StepConfig(**config_contents)
 
 
-def test_step_config_invalid_step_name(tmp_path) -> None:
-    """Load a StepConfig with an invalid step name and expect a ValueError"""
-    yaml_file = tmp_path / "config.yaml"
-    yaml_file.write_text("dummy config content")
-    cfg_contents = {
-        "step_name": "invalid-step-name",
-        "config_path": str(yaml_file),
-        "run": True,
-    }
-    with pytest.raises(ValidationError):
-        StepConfig(**cfg_contents)
-
-
-def test_global_config_valid(global_config_contents_valid) -> None:
+def test_global_config_valid() -> None:
     """Test loading a valid Config"""
-    cfg_contents = global_config_contents_valid
+    config_file = TEST_CONFIGS_DIR / "good_config.yaml"
+    config_contents = load_from_yaml(config_file)
     try:
-        Config(**cfg_contents)
+        Config(**config_contents)
     except Exception as e:
         pytest.fail(f"Config validation failed with error: {e}")
 
 
-def test_global_config_missing_required_step(global_config_contents_valid) -> None:
+def test_global_config_missing_required_step() -> None:
     """Test loading a Config missing a required step and expect a ValidationError"""
-    cfg_contents = global_config_contents_valid
-    del cfg_contents["curb_segmenter_cfg"]  # Remove a required step
+    config_file = TEST_CONFIGS_DIR / "good_config.yaml"
+    config_contents = load_from_yaml(config_file)
+    del config_contents["steps"]["curb_segmenter"]  # Remove a required step
     with pytest.raises(ValidationError):
-        Config(**cfg_contents)
+        Config(**config_contents)
+
+
+def test_global_config_extra_step() -> None:
+    """Test loading a Config missing a required step and expect a ValidationError"""
+    config_file = TEST_CONFIGS_DIR / "good_config.yaml"
+    config_contents = load_from_yaml(config_file)
+    # Add an extra step
+    config_contents["steps"]["extra_step"] = {
+        "path": str(TEST_CONFIGS_DIR / "empty_config.yaml"),
+        "run": True,
+    }
+    with pytest.raises(ValidationError):
+        Config(**config_contents)
