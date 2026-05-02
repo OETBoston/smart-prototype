@@ -4,9 +4,7 @@ Run the curb generation algorithm using roadway centerline dataset.
 
 # Packages
 import warnings
-from pathlib import Path
 
-from curb_utils.io_tools import load_from_yaml
 from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
@@ -71,10 +69,3 @@ def blockface_creator(config: BlockfaceCreatorConfig) -> None:
         config.output_type.lower(),
         config.output_path,
     )
-
-
-if __name__ == "__main__":
-    local_path = Path(__file__).resolve().parent
-    config_file = local_path / "config.yaml"
-    config = BlockfaceCreatorConfig(**load_from_yaml(config_file))
-    blockface_creator(config)
