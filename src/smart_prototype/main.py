@@ -5,6 +5,7 @@ from curb_utils.logging import get_logger
 
 from smart_prototype.config import Config
 from smart_prototype.load_step_configs import load_step_configs
+from smart_prototype.logs import log_done, log_start
 from smart_prototype.run_steps import run_steps
 
 logger = get_logger(__name__)
@@ -15,10 +16,14 @@ def main(config: Config) -> None:
     configuration options from config.yaml, which itself references
     configuration files for each step"""
 
+    log_start(config)
+
     # Load steps first so any load errors happen early
     step_configs = load_step_configs(config)
 
     run_steps(config, step_configs)
+
+    log_done()
 
 
 if __name__ == "__main__":
