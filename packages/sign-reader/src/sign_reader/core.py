@@ -14,7 +14,7 @@ from pathlib import Path
 
 from curb_utils.ai_client import GeminiOptions, init_gemini_client
 from curb_utils.db_utils import append_job
-from curb_utils.io_tools import load_from_txt, load_from_yaml
+from curb_utils.io_tools import load_from_txt
 from curb_utils.logging import get_console, get_logger
 from dotenv import load_dotenv
 from google import genai
@@ -40,28 +40,30 @@ from sign_reader.reader import get_image_policy
 from sign_reader.unusable import unusable_image
 
 load_dotenv()
+logger = get_logger(__name__)
 
 
-async def main() -> None:
-    logger = get_logger(__name__)
-    logger.info("Running Sign Reader Task...")
+def sign_reader(config: SignReaderConfig) -> None:
+    asyncio.run(main(config))
+
+
+async def main(config: SignReaderConfig) -> None:
+    logger.info("Running the Sign Reader")
+
+    # Update log level if debugging
+    if config.debug_mode:
+        logger.setLevel("DEBUG")
 
     # Define external files
     local_path = Path(__file__).resolve().parent
-    config_file = local_path / "config.yaml"
     instruction_file = local_path / "instructions/default_instruction.txt"
     pre_instruction_file = local_path / "instructions/preprocess_instruction.txt"
     user_prompt_file = local_path / "instructions/default_user_prompt.txt"
 
     # Load external data
-    config = SignReaderConfig(**load_from_yaml(config_file))
     system_instruction = load_from_txt(instruction_file)
     pre_system_instruction = load_from_txt(pre_instruction_file)
     user_prompt = load_from_txt(user_prompt_file)
-
-    # Update log level if debugging
-    if config.debug_mode:
-        logger.setLevel("DEBUG")
 
     # Gemini Settings
     model_opts = config.gemini_settings
@@ -332,7 +334,3 @@ def _end_task(progress: Progress, loop_task: TaskID, image_task: TaskID) -> None
     """Remove a task and increment the loop task by 0.5"""
     progress.remove_task(image_task)
     progress.advance(loop_task, 0.5)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
