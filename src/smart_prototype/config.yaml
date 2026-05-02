@@ -6,8 +6,8 @@ steps:
     path: "tests/config_tests/configs/empty_config.yaml"
     run: False
   sign_reader: 
-    path: "tests/config_tests/configs/empty_config.yaml"
-    run: False
+    path: "packages/sign-reader/src/sign_reader/config.yaml"
+    run: True
   policy_applier: 
     path: "tests/config_tests/configs/empty_config.yaml"
     run: False
