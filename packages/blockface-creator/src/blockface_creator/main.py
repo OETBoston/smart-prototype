@@ -4,6 +4,7 @@ Run the curb generation algorithm using roadway centerline dataset.
 
 # Packages
 import warnings
+from pathlib import Path
 
 from curb_utils.io_tools import load_from_yaml
 from curb_utils.logging import get_logger
@@ -17,14 +18,10 @@ warnings.filterwarnings("ignore")
 logger = get_logger(__name__)
 logger.info("Running curb generation process...")
 
-if __name__ == "__main__":
+
+def blockface_creator(config: BlockfaceConfig) -> None:
     # 0. Load configurations
-    config = load_from_yaml(
-        "packages/blockface-creator/src/blockface_creator/config.yaml"
-    )
-    logger.info(
-        "Configuration loaded. Running on DEBUG_MODE=%s...", config["debug_mode"]
-    )
+    logger.info("Running blockface-creator with DEBUG_MODE=%s...", config["debug_mode"])
 
     # 1. Load the roadway centerline dataset
     roadway_shp = cg.read_roadways(
@@ -74,3 +71,10 @@ if __name__ == "__main__":
         config["output_type"].lower(),
         config["output_path"],
     )
+
+
+if __name__ == "__main__":
+    local_path = Path(__file__).resolve().parent
+    config_file = local_path / "config.yaml"
+    config = BlockfaceConfig(load_from_yaml(config_file))
+    blockface_creator(config)
