@@ -87,15 +87,3 @@ class CurbSegmenterConfig(BaseModel):
         Literal["geojson", "parquet"], BeforeValidator(to_lowercase)
     ]
     output_crs: str
-
-
-# TODO: DELETE BELOW - FOR TESTING ONLY
-if __name__ == "__main__":
-    from pathlib import Path
-
-    from curb_utils.io_tools import load_from_yaml
-
-    local_path = Path(__file__).parent
-    cfg = load_from_yaml(local_path / "config.yaml")
-    config = CurbSegmenterConfig(**cfg)
-    pass
