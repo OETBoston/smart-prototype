@@ -19,7 +19,6 @@ set before running the script.
 # Packages
 import warnings
 
-from curb_utils.io_tools import load_from_yaml
 from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
@@ -128,12 +127,3 @@ def curb_segmenter(config: CurbSegmenterConfig) -> None:
         file_type=config.output_file_format,
         output_crs=config.output_crs,
     )
-
-
-if __name__ == "__main__":
-    # TODO: Remove this
-    config_yaml = load_from_yaml(
-        "packages/curb-segmenter/src/curb_segmenter/config.yaml"
-    )
-    config = CurbSegmenterConfig(**config_yaml)
-    curb_segmenter(config)
