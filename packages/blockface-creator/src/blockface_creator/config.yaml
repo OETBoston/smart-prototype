@@ -3,6 +3,12 @@
 # Debug mode (Set this to True for debugging) True does not write to DB.
 debug_mode: False
 
+# Postgres DB export settings
+db_name: "cds"
+db_schema: "staging_next"
+job_name: "short job name"
+job_description: "longer job description"
+
 # Input settings
 roadway_path: "inputs/Road_Inventory_2024.feather"
 
@@ -23,9 +29,3 @@ adjust_geometry: True
 output_path: "outputs"
 output_type: "GeoJSON" # "GeoJSON" or "Parquet"
 output_crs: "epsg:4326"
-
-# Postgres DB export settings
-dbname: "cds"
-schema: "staging_next"
-job_name: "monorepo blockface rerun"
-job_description: "Re-run blockfaces from the combined monorepo again"
