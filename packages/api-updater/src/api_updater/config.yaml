@@ -2,6 +2,6 @@ db_name: "cds"
 staging_db_schema: staging_next
 api_db_schema: cds_sandbox
 
-jobs:
-  curb-segmenter: c9dc87c2-b318-488c-9c06-ef679923c3ff
+source_jobs:
+  curb-segmenter: "auto"
   policy-handler: 33033544-f7cb-4c36-b3e3-6c7d6a182779

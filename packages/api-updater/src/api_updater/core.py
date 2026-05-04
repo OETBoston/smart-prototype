@@ -1,15 +1,15 @@
 from pathlib import Path
 
 from curb_utils.io_tools import load_from_yaml
-from curb_utils.logging import get_logger
+from curb_utils.logging import get_logger, set_log_context
 from dotenv import load_dotenv
 
-from api_update.config import ApiUpdateConfig
+from api_updater.config import ApiUpdaterConfig
 
 # Internal imports
-from api_update.exporter import export_to_csv, export_to_db
-from api_update.extractor import read_db_tables
-from api_update.transformer import transform_policy_updates
+from api_updater.exporter import export_to_csv, export_to_db
+from api_updater.extractor import read_db_tables
+from api_updater.transformer import transform_policy_updates
 
 # Load environment variables
 load_dotenv()
@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 OUTPUT_DIR = Path(__file__).parents[2] / "output"
 
 
-def run_api_update(
+def api_updater(
     curb_segments_job: str | None = None,
     policy_handling_job: str | None = None,
     staging_db_schema: str = "staging",
@@ -98,17 +98,22 @@ def main(
 
 
 if __name__ == "__main__":
+    set_log_context("api-updater")
+    local_path = Path(__file__).resolve().parent
+    config_file = local_path / "config.yaml"
+    config = ApiUpdaterConfig(**load_from_yaml(config_file))
+
+    api_updater(config)
+
+    exit()
+    ### old for reference ###
     # Define external files
     local_path = Path(__file__).resolve().parent
     config_file = local_path / "config.yaml"
 
     from rich import print as rprint
 
-    config = ApiUpdateConfig(**load_from_yaml(config_file_path=config_file))
-
     rprint(config)
-
-    exit()
 
     # Load external data
     config = load_from_yaml(config_file)
