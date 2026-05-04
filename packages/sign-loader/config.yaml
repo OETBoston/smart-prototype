@@ -62,7 +62,7 @@ column_filters:
     mode: "starts_with"
 
 geo_filters:
-  path: "./packages/sign-loader/data/boston-neighborhoods.geojson"
+  path: "data/boston_neighborhood_boundaries/Boston_Neighborhood_Boundaries.shp"
   crs: "EPSG:4326"
   subset_column: "name"
   subset_values: ["Charlestown"]

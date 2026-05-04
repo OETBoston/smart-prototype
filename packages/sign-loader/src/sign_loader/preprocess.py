@@ -47,6 +47,7 @@ def update_column_names(
 def preprocess_cartegraph_signs(
     signs_df: pd.DataFrame,
     config: dict,
+    base_path: Path
 ) -> gpd.GeoDataFrame:
     """Preprocess signs data by filtering for parking signs,
     removing duplicates, and grouping nearby signs together."""
@@ -68,12 +69,13 @@ def preprocess_cartegraph_signs(
     )
 
     # Filter for duplicates by keeping the most recently modified record
-    sign_date_col = config["date_columns"]["sign_modified_date"]
-    image_date_col = config["date_columns"]["attachment_modified_date"]
+    config_req_cols = config["cartegraph_required_columns"]
+    sign_date_col = config_req_cols["date_columns"]["sign_modified_date"]
+    image_date_col = config_req_cols["date_columns"]["attachment_modified_date"]
     signs_df = signs_df.sort_values(
         [sign_date_col, image_date_col],
         ascending=False
-    ).drop_duplicates(subset=config["sign_id_col"], keep="first")
+    ).drop_duplicates(subset=config_req_cols["source_sign_id"], keep="first")
     logger.info("Removed duplicates: %d unique signs", len(signs_df))
 
     for column_filter in config["column_filters"]:
@@ -97,7 +99,7 @@ def preprocess_cartegraph_signs(
 
     # Filter for geographic subset if specified in config
     if config.get("geo_filters"):
-        signs_gdf = filter_by_geo(signs_gdf, config)
+        signs_gdf = filter_by_geo(signs_gdf, config, base_path)
         logger.info(
             "Applied neighborhoods filter: %d signs remaining",
             len(signs_gdf),
@@ -118,12 +120,18 @@ def preprocess_cartegraph_signs(
         .to_crs(config["output_crs"])
     )
 
+    # Create sign_removed_date column if marked as removed
+    signs_gdf["sign_removed_date"] = signs_gdf["cg_last_modified_field"]. \
+        where(
+            signs_gdf["asset_status_field"] == "Removed"
+    )
+
     date_cols = [sign_date_col, image_date_col]
     signs_gdf[date_cols] = signs_gdf[date_cols].apply(pd.to_datetime)
     signs_gdf.drop(columns=["geometry"], inplace=True)
     signs_gdf.set_geometry("truncated_geometry", inplace=True)
 
-    signs_gdf = update_column_names(signs_gdf, config)
+    signs_gdf = update_column_names(signs_gdf, config_req_cols)
 
     logger.info("Preprocessing complete: %d signs processed", len(signs_gdf))
     return signs_gdf

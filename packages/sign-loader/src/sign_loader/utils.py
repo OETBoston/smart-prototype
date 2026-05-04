@@ -1,4 +1,5 @@
 """Utility functions for sign-loader package."""
+from pathlib import Path
 from typing import Any
 
 import geopandas as gpd
@@ -7,13 +8,14 @@ import pandas as pd
 
 def filter_by_geo(
         df: gpd.GeoDataFrame,
-        config: dict
+        config: dict,
+        base_path: Path
 ) -> gpd.GeoDataFrame:
     """Geospatial filter. Currently only supports filtering for points within polygon.
     Useful for developing geographic subsets of data.
     """
     neighborhoods_gdf = gpd.read_file(
-            config["geo_filters"]["path"],
+            base_path / config["geo_filters"]["path"],
             crs=config["geo_filters"]["crs"],
         )[["name", "geometry"]]
     spec_neighborhood = neighborhoods_gdf[

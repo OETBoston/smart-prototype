@@ -27,7 +27,7 @@ from preprocess import (
     preprocess_other_signs
 )
 from curb_utils.db_utils import SmartCurbDB
-from curb_utils.io_tools import load_config
+from curb_utils.io_tools import load_from_yaml
 from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
@@ -188,7 +188,7 @@ def upload_sign_tbls(
 def main() -> None:
     """Main function to run the ETL process for loading parking sign data
     into the database."""
-    local_path = Path(__file__).resolve().parent
+    base_path = Path(__file__).resolve().parent.parent.parent
     logger = get_logger(__name__)
     logger.info("=" * 80)
     logger.info("Starting Signs Uploader Pipeline")
@@ -197,14 +197,14 @@ def main() -> None:
         # Read in config & files
         logger.info("Loading configuration and input files...")
         
-        config = load_config(local_path / "config.yaml")
+        config = load_from_yaml(base_path / "config.yaml")
         logger.info(
-            "Loaded neighborhoods from %s", f"{local_path / config['neighborhoods_path']}"
+            "Loaded neighborhoods from %s", f"{base_path / config["geo_filters"]["path"]}"
         )
         if config["data_source_name"].lower() == "cartegraph":
             # Clean for relevant signs
 
-            cartegraph_df = load_cartegraph_signs(base_path=local_path, config=config)
+            cartegraph_df = load_cartegraph_signs(base_path=base_path, config=config)
             check_required_input_columns(
                 config["cartegraph_required_columns"],
                 cartegraph_df
@@ -212,12 +212,13 @@ def main() -> None:
             signs_gdf = preprocess_cartegraph_signs(
                 signs_df=cartegraph_df,
                 config=config,
+                base_path=base_path
             )
 
         else:
             # assume formatted geospatial file
             signs_gdf = gpd.read_file(
-                local_path / config['signs_path'], crs=config["input_crs"]
+                base_path / config['signs_path'], crs=config["input_crs"]
             )
 
             check_required_input_columns(
@@ -230,7 +231,7 @@ def main() -> None:
             )
             logger.info(
                 "Loaded signs from %s",
-                f"{local_path / config['signs_path']}"
+                f"{base_path / config['signs_path']}"
             )
 
         # Format signs for database tbls
