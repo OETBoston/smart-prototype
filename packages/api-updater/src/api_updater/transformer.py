@@ -380,8 +380,12 @@ def transform_policy_updates(
         [old_policies, old_rules, old_spans, old_rates], active_policy_ids
     )
 
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    if not gemini_key:
+        raise RuntimeError("Unable to read GEMINI_API_KEY environment variable.")
+
     new_policies["description"] = asyncio.run(
-        get_policy_descriptions(new_policies, os.environ.get("GEMINI_API_KEY"))
+        get_policy_descriptions(new_policies, gemini_key)
     )
 
     # --- 6. FINAL CONCATENATION ---
