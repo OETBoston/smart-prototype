@@ -133,7 +133,6 @@ def preprocess_cartegraph_signs(
     signs_gdf.set_geometry("truncated_geometry", inplace=True)
 
     signs_gdf = update_column_names(signs_gdf, config_req_cols)
-
     logger.info("Preprocessing complete: %d signs processed", len(signs_gdf))
     return signs_gdf
 

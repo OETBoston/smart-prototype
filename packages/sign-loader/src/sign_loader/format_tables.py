@@ -49,12 +49,16 @@ def format_asset_locations(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Formats data for asset_locations table and returns an asset location
     id lookup dataframe for merging with signs."""
+    if config["data_source_name"].lower() == "cartegraph":
+        sign_id_col = config["cartegraph_required_columns"]["source_sign_id"]
+    else:
+        sign_id_col = config.get("other_data_source", {}).get("optional_columns", {}).get("source_sign_id", None)
     if "source_sign_id" in base_signs.columns:
         asset_locations = (
             base_signs.groupby("geometry")["source_sign_id"]
             .apply(
                 lambda x: (
-                    f"{config['sign_id_col']}: "
+                    f"{sign_id_col}: "
                     + ", ".join(str(v) for v in x if pd.notna(v))
                 )
             )
