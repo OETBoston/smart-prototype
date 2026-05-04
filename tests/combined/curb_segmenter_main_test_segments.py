@@ -20,8 +20,8 @@ from pathlib import Path
 import warnings
 
 import curb_segmenter.curb_segmentation as cs
-from curb_segmenter import io_utils
-from curb_utils.io_tools import load_config
+from curb_segmenter.main import main as main_module
+from curb_utils.io_tools import load_from_yaml
 warnings.filterwarnings("ignore")
 
 BASE_TEST_DIR = "tests/combined/test_data/"
@@ -33,8 +33,7 @@ def main(test_lst=None):
     logger.info("Running Curb Segmentation Pipeline...")
 
     # Read config
-    config = load_config("packages/curb-segmenter/src/curb_segmenter/config.yaml")
-    config["debug_mode"] = True  # Override debug mode to True for test data generation
+    config = load_from_yaml(Path(__file__).resolve().parent / "config.yaml")
     for test in Path(BASE_TEST_DIR).iterdir():
         if not test.is_dir():
             continue
@@ -44,101 +43,10 @@ def main(test_lst=None):
 
 
 def run_one_test(test, config, logger):
-    full_input_dir = str(test)
-    logger.info("Processing test data in: %s", full_input_dir)
-    segment_id_cols = []
-    # Read curb lines
-    curbs = io_utils.load_blockface_gdf_from_local(
-        input_dir=full_input_dir,
-        table_name=config["bf_table_name"],
-        geom_col=config["bf_geom_col"],
-        source_crs=config["proj_crs"],
-        target_crs=config["proj_crs"],
-    )
-
-    # Read asset locations
-    asset_dict = io_utils.load_asset_gdfs_from_local(
-        asset_dict=config["assets"],
-        target_crs=config["proj_crs"],
-        input_dir=full_input_dir
-    )
-
-    # Clean curb lines
-    clean_curbs_gdf = cs.clean_curb_geometries(
-        curb_lines=curbs,
-        min_curb_len_ft=config["min_curb_len_ft"],
-        eps_fraction=float(config["eps_fraction"]),
-        logger_obj=logger,
-        verbose=True,
-    )
-
-    # Run segmentation by bus stops
-    curb_segments_by_bs = cs.run_segmentation_by_bus_stops(
-        configuration=config,
-        asset_dict=asset_dict,
-        clean_curbs=clean_curbs_gdf,
-        segment_id_cols=segment_id_cols,
-        logger_obj=logger,
-        verbose=True
-    )
-
-    # Run segmentation by fire hydrants
-    curb_segments_by_fh = cs.run_segmentation_by_fire_hydrants(
-        configuration=config,
-        asset_dict=asset_dict,
-        clean_curbs=curb_segments_by_bs,
-        segment_id_cols=segment_id_cols,
-        logger_obj=logger,
-        verbose=True
-    )
-
-    # Run segmentation by parking signs
-    curb_segments_by_ps = cs.run_segmentation_by_parking_signs(
-        configuration=config,
-        asset_dict=asset_dict,
-        clean_curbs=curb_segments_by_fh,
-        segment_id_cols=segment_id_cols,
-        logger_obj=logger,
-        verbose=True
-    )
-
-    # Run segmentation by parking meters
-    curb_segments_by_pm = cs.run_segmentation_by_parking_meters(
-        configuration=config,
-        asset_dict=asset_dict,
-        clean_curbs=curb_segments_by_ps,
-        segment_id_cols=segment_id_cols,
-        logger_obj=logger,
-        verbose=True,
-    )
-
-    # Format and create a GeoDataFrame consistent with the
-    # `curb_segments` table schema
-    curb_segments, job_id, ts = cs.create_curb_segments_table(
-        curb_segments_by_pm,
-        output_crs=config["output_crs"],
-        test=True
-    )
-
-    # Merge tiny segments
-    merged_curb_segments = cs.merge_tiny_curb_segments(
-        gdf=curb_segments,
-        length_threshold=config["tiny_seg_threshold_ft"],
-        asset_dict=asset_dict,
-        logger_obj=logger,
-    )
-
-    # Write curb segments to a local file (to run tests)
-    io_utils.write_curb_segments_to_file(
-        output_gdf=merged_curb_segments,
-        job_id=job_id,
-        timestamp=ts,
-        output_path=f"tests/combined/test_data/{test.name}",
-        output_file_name=config["output_file_name"],
-        file_type=config["output_file_format"],
-        output_crs=config["proj_crs"],
-        test=True
-    )
+    logger.info("Processing test data in: %s", test)
+    config['input_dir'] = f"{test}/"
+    config['final_output_dir'] = f"{test}/"
+    main_module(config)
 
 
 if __name__ == "__main__":
