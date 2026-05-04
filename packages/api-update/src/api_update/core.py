@@ -4,10 +4,12 @@ from curb_utils.io_tools import load_from_yaml
 from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
+from api_update.config import ApiUpdateConfig
+
 # Internal imports
-from exporter import export_to_csv, export_to_db
-from extractor import read_db_tables
-from transformer import transform_policy_updates
+from api_update.exporter import export_to_csv, export_to_db
+from api_update.extractor import read_db_tables
+from api_update.transformer import transform_policy_updates
 
 # Load environment variables
 load_dotenv()
@@ -99,6 +101,14 @@ if __name__ == "__main__":
     # Define external files
     local_path = Path(__file__).resolve().parent
     config_file = local_path / "config.yaml"
+
+    from rich import print as rprint
+
+    config = ApiUpdateConfig(**load_from_yaml(config_file_path=config_file))
+
+    rprint(config)
+
+    exit()
 
     # Load external data
     config = load_from_yaml(config_file)
