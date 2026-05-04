@@ -2,16 +2,20 @@
 
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
-debug_mode: True
-max_images: 3 # For debugging - run only the first n images. Omit or set to null to run all images
+debug_mode: False
+max_images: None # For debugging - run only the first n images. Omit or set to null to run all images
 
-# Number of simultaneous Gemini calls to allow
+# Postgres DB export settings
+db_name: "cds"
+db_schema: "staging_next"
+job_name: "short job name"
+job_description: "longer job description"
+
+# Number of simultaneous Gemini calls to allow. Defaults to 50.
 gemini_concurrent_limit: 50
 
 # Gemini model settings
-
 gemini_preprocess_settings:
-
   model: "gemini-3.1-flash-lite-preview"
   thinking_level: "minimal"
   temperature: 0 # Must be from 0 to 2 (inclusive)
@@ -26,16 +30,7 @@ gemini_settings:
 # Maximum number of retries if Gemini does not produce valid JSON
 max_retries: 3
 
-# PostgreSQL database settings
-db_name: "cds"
-db_schema: "staging_next"
-
 # Sign source data settings
 sign_assets:
   job_id: null # Include a sign job ID to filter, or null/omit to run for all signs
   re_process: False # True to re-process signs that already have policies. Defaults to False.
-
-# PostgreSQL export settings for curb segments
-# Both are OPTIONAL - but a description is recommended.
-sr_job_name: "Charlsetown full with Pre-processor Pt 2"
-sr_job_description: "Run of complete Charlestown dataset with the pre-processor (remaining)"
