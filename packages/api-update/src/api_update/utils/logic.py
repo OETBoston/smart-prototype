@@ -1,8 +1,8 @@
-import json
-import pandas as pd
 import asyncio
-from curb_utils.logging import get_logger_aio
+import json
 
+import pandas as pd
+from curb_utils.logging import get_logger_aio
 from policies_ai.policy_descriptions.descriptions import (
     add_json_to_prompt,
     default_prompt,
@@ -102,8 +102,7 @@ def get_policy_json(policies_df, rules_df, spans_df, rates_df) -> list[str]:
     return policy_json
 
 
-async def get_policy_descriptions(
-        policies_df: pd.DataFrame, api_key: str) -> list[str]:
+async def get_policy_descriptions(policies_df: pd.DataFrame, api_key: str) -> list[str]:
     """
     Generates natural language descriptions for each policy in a DataFrame.
 
@@ -119,7 +118,9 @@ async def get_policy_descriptions(
     logger = get_logger_aio(__name__)
 
     async def process_example(policy_json: str) -> str:
-        policy_str = json.dumps(policy_json) if not isinstance(policy_json, str) else policy_json
+        policy_str = (
+            json.dumps(policy_json) if not isinstance(policy_json, str) else policy_json
+        )
         prompt = add_json_to_prompt(default_prompt, policy_str)
 
         description = await generate_description(
@@ -131,6 +132,6 @@ async def get_policy_descriptions(
         async with asyncio.TaskGroup() as tg:
             tasks = [
                 tg.create_task(process_example(policy))
-                for policy in policies_df['policy_json']
+                for policy in policies_df["policy_json"]
             ]
         return [t.result() for t in tasks]
