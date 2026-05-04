@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
@@ -7,11 +8,11 @@ from utils import filter_by_column_values, filter_by_geo
 from curb_utils.logging import get_logger
 
 
-def load_cartegraph_signs(base_path: str, config: dict) -> pd.DataFrame:
+def load_cartegraph_signs(base_path: Path, config: dict) -> pd.DataFrame:
     """Load signs data from Cartegraph export, which is expected to be in a csv file."""
     logger = get_logger(__name__)
-    signs_df = pd.read_csv(f"{base_path}/{config['signs_path']}")
-    logger.info("Loaded signs from %s", f"{config['signs_path']}")
+    signs_df = pd.read_csv(base_path / config["signs_path"])
+    logger.info("Loaded signs from %s", f"{base_path / config['signs_path']}")
     return signs_df
 
 

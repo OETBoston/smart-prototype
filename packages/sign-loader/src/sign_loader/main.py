@@ -15,6 +15,7 @@ set before running the script.
 """
 
 import datetime
+from pathlib import Path
 import uuid
 
 import geopandas as gpd
@@ -187,7 +188,7 @@ def upload_sign_tbls(
 def main() -> None:
     """Main function to run the ETL process for loading parking sign data
     into the database."""
-    base_path = "./packages/sign-loader"
+    local_path = Path(__file__).resolve().parent
     logger = get_logger(__name__)
     logger.info("=" * 80)
     logger.info("Starting Signs Uploader Pipeline")
@@ -195,14 +196,15 @@ def main() -> None:
     try:
         # Read in config & files
         logger.info("Loading configuration and input files...")
-        config = load_config(f"{base_path}/config.yaml")
+        
+        config = load_config(local_path / "config.yaml")
         logger.info(
-            "Loaded neighborhoods from %s", f"{base_path}{config['neighborhoods_path']}"
+            "Loaded neighborhoods from %s", f"{local_path / config['neighborhoods_path']}"
         )
         if config["data_source_name"].lower() == "cartegraph":
             # Clean for relevant signs
 
-            cartegraph_df = load_cartegraph_signs(base_path=base_path, config=config)
+            cartegraph_df = load_cartegraph_signs(base_path=local_path, config=config)
             check_required_input_columns(
                 config["cartegraph_required_columns"],
                 cartegraph_df
@@ -215,7 +217,7 @@ def main() -> None:
         else:
             # assume formatted geospatial file
             signs_gdf = gpd.read_file(
-                f"{base_path}{config['signs_path']}", crs=config["input_crs"]
+                local_path / config['signs_path'], crs=config["input_crs"]
             )
 
             check_required_input_columns(
@@ -226,7 +228,10 @@ def main() -> None:
                 signs_gdf=signs_gdf,
                 config=config
             )
-            logger.info("Loaded signs from %s", f"{base_path}{config['signs_path']}")
+            logger.info(
+                "Loaded signs from %s",
+                f"{local_path / config['signs_path']}"
+            )
 
         # Format signs for database tbls
         to_upload_dict = format_sign_tbls(
