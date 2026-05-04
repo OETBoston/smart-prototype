@@ -11,7 +11,7 @@ from curb_utils.io_tools import load_from_txt
 from google import genai
 
 # Instruction Paths
-INSTRUCTIONS_DIRECTORY = Path(__file__).parents[3] / "instructions"
+INSTRUCTIONS_DIRECTORY = Path(__file__).resolve().parent / "instructions"
 DEFAULT_INSTRUCTION_PATH = (
     INSTRUCTIONS_DIRECTORY / "default_instructions_descriptions.txt"
 )
@@ -38,7 +38,6 @@ def add_json_to_prompt(prompt: str, policy_json: str) -> str:
 async def generate_description(
     client: genai.Client,
     sem: asyncio.Semaphore,
-    logger: logging.Logger,
     prompt: str = default_prompt,
     system_instruction=default_instruction,
     model_opts: GeminiOptions | None = None,
@@ -77,7 +76,6 @@ async def generate_description(
             client=client,
             system_instruction=system_instruction,
             contents=contents,
-            logger=logger,
             response_schema=None,
             response_mime_type="text/plain",
             model_opts=model_opts,
@@ -112,7 +110,7 @@ async def run_examples(api_key) -> None:
         outfile = policy_file.with_suffix(".RESULT.txt")
         prompt = add_json_to_prompt(default_prompt, policy_json)
         description = await generate_description(
-            client, sem, logger, prompt, model_opts=None, api_key=api_key
+            client, sem, prompt, model_opts=None, api_key=api_key
         )
         with open(outfile, "w+") as f:
             f.write(description)

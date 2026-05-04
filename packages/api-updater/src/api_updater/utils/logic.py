@@ -2,8 +2,8 @@ import asyncio
 import json
 
 import pandas as pd
-from curb_utils.logging import get_logger_aio
-from policies_ai.policy_descriptions.descriptions import (
+
+from api_updater.descriptions import (
     add_json_to_prompt,
     default_prompt,
     generate_description,
@@ -115,7 +115,6 @@ async def get_policy_descriptions(policies_df: pd.DataFrame, api_key: str) -> li
     """
 
     sem = asyncio.Semaphore(50)
-    logger = get_logger_aio(__name__)
 
     async def process_example(policy_json: str) -> str:
         policy_str = (
@@ -124,7 +123,7 @@ async def get_policy_descriptions(policies_df: pd.DataFrame, api_key: str) -> li
         prompt = add_json_to_prompt(default_prompt, policy_str)
 
         description = await generate_description(
-            client, sem, logger, prompt, model_opts=None, api_key=api_key
+            client, sem, prompt, model_opts=None, api_key=api_key
         )
         return description
 
