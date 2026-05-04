@@ -7,7 +7,7 @@ from typing import Optional
 from rich.console import Console
 from rich.logging import RichHandler
 
-DEFAULT_LOG_FILE = "logs/log{day}.log"
+DEFAULT_LOG_FILE = "logs/log-{day}.log"
 
 
 class ContextFilter(logging.Filter):

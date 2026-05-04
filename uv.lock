@@ -317,6 +317,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "pyarrow" },
+    { name = "pydantic" },
     { name = "pyyaml" },
     { name = "shapely" },
 ]
@@ -332,6 +333,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.3.3" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pyarrow", specifier = ">=22.0.0" },
+    { name = "pydantic", specifier = ">=2.13.2" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "shapely", specifier = ">=2.1.2" },
 ]

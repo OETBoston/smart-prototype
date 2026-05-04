@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import BaseModel, BeforeValidator
+from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 
 def validate_path(path: str) -> str:
@@ -21,8 +21,8 @@ class Config(BaseModel):
     """Overall configuration for the pipeline"""
 
     class Steps(BaseModel):
-        model_config = {"extra": "forbid"}
-        geometry_creation: StepConfig
+        model_config = ConfigDict(extra="forbid")
+        blockface_creator: StepConfig
         curb_segmenter: StepConfig
         sign_reader: StepConfig
         policy_applier: StepConfig

@@ -1,9 +1,10 @@
 from typing import Any, Dict, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class BlockfaceCreatorConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     # Debug mode (Set this to True for debugging) True does not write to DB.
     debug_mode: bool
 
