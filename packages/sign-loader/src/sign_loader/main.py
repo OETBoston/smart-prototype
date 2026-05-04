@@ -68,7 +68,7 @@ def main() -> None:
 
         config = load_from_yaml(base_path / "config.yaml")
         logger.info(
-            "Loaded neighborhoods from %s", f"{base_path / config["geo_filters"]["path"]}"
+            "Loaded config from %s", f"{base_path / 'config.yaml'}"
         )
         if config["data_source_name"].lower() == "cartegraph":
             # Clean for relevant signs

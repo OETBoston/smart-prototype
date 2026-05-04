@@ -78,19 +78,20 @@ def preprocess_cartegraph_signs(
     ).drop_duplicates(subset=config_req_cols["source_sign_id"], keep="first")
     logger.info("Removed duplicates: %d unique signs", len(signs_df))
 
-    for column_filter in config["column_filters"]:
-        signs_df = filter_by_column_values(
-            signs_df,
-            column=column_filter["column"],
-            values=column_filter["values"],
-            mode=column_filter["mode"],
-        )
-        logger.info(
-            "Applied column filter on %s with mode %s: %d signs remaining",
-            column_filter["column"],
-            column_filter["mode"],
-            len(signs_df),
-        )
+    if config.get("column_filters"):
+        for column_filter in config["column_filters"]:
+            signs_df = filter_by_column_values(
+                signs_df,
+                column=column_filter["column"],
+                values=column_filter["values"],
+                mode=column_filter["mode"],
+            )
+            logger.info(
+                "Applied column filter on %s with mode %s: %d signs remaining",
+                column_filter["column"],
+                column_filter["mode"],
+                len(signs_df),
+            )
 
     # Make gdf
     signs_gdf = gpd.GeoDataFrame(signs_df, geometry="geometry", crs=config["input_crs"])
