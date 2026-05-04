@@ -13,14 +13,15 @@ from typing import cast
 
 import geopandas as gpd
 import pandas as pd
-from api_update.utils import (
+from curb_utils.logging import get_logger
+from shapely import wkb
+
+from api_updater.utils import (
     get_policy_descriptions,
     get_policy_json,
     get_policy_signatures,
 )
-from api_update.utils_geo import consolidate_curb_segments
-from curb_utils.logging import get_logger
-from shapely import wkb
+from api_updater.utils_geo import consolidate_curb_segments
 
 logger = get_logger(__name__)
 

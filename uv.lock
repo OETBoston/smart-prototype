@@ -12,7 +12,8 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "api-update",
+    "api-db-rollover",
+    "api-updater",
     "blockface-creator",
     "curb-segmenter",
     "curb-utils",
@@ -149,9 +150,24 @@ wheels = [
 ]
 
 [[package]]
-name = "api-update"
+name = "api-db-rollover"
 version = "0.1.0"
-source = { editable = "packages/api-update" }
+source = { editable = "packages/api-db-rollover" }
+dependencies = [
+    { name = "curb-utils" },
+    { name = "dotenv" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "curb-utils", editable = "packages/curb-utils" },
+    { name = "dotenv", specifier = ">=0.9.9" },
+]
+
+[[package]]
+name = "api-updater"
+version = "0.1.0"
+source = { editable = "packages/api-updater" }
 dependencies = [
     { name = "curb-utils" },
     { name = "pandas" },
@@ -3429,7 +3445,7 @@ name = "smart-prototype"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "api-update" },
+    { name = "api-updater" },
     { name = "blockface-creator" },
     { name = "curb-segmenter" },
     { name = "curb-utils" },
@@ -3448,7 +3464,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "api-update", editable = "packages/api-update" },
+    { name = "api-updater", editable = "packages/api-updater" },
     { name = "blockface-creator", editable = "packages/blockface-creator" },
     { name = "curb-segmenter", editable = "packages/curb-segmenter" },
     { name = "curb-utils", editable = "packages/curb-utils" },
