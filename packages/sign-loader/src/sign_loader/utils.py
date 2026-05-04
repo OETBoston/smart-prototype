@@ -1,5 +1,4 @@
-import datetime
-import os
+"""Utility functions for sign-loader package."""
 from typing import Any
 
 import geopandas as gpd
@@ -49,3 +48,27 @@ def filter_by_column_values(
     else:
         raise NotImplementedError(f"Unsupported column filter mode: {mode}")
     return df
+
+
+def check_required_input_columns(
+        source_column_info: dict,
+        df: pd.DataFrame | gpd.GeoDataFrame
+) -> None:
+    """Check that all required input columns are present in the data."""
+    input_columns = []
+
+    def extract_columns(obj):
+        """Recursively extract column names from nested structures."""
+        if isinstance(obj, str):
+            input_columns.append(obj)
+        elif isinstance(obj, list):
+            for item in obj:
+                extract_columns(item)
+        elif isinstance(obj, dict):
+            for value in obj.values():
+                extract_columns(value)
+
+    extract_columns(source_column_info)
+    missing_columns = [col for col in input_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required input columns: {missing_columns}")

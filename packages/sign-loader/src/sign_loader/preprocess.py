@@ -16,6 +16,34 @@ def load_cartegraph_signs(base_path: str, config: dict) -> pd.DataFrame:
     return signs_df
 
 
+def update_column_names(
+        signs_gdf: gpd.GeoDataFrame,
+        config: dict
+) -> gpd.GeoDataFrame:
+    """Update column names to match expected names for database upload."""
+    signs_gdf = signs_gdf.rename(
+        columns={
+            config["source_sign_id"]: "source_sign_id",
+            config["source_image_id"]: "source_image_id",
+            config["uri"]: "uri",
+            config["sign_type_code"]: "sign_type_code",
+            config["added_date"]: "added_date",
+            "truncated_geometry": "geometry",
+
+        }
+    )
+    output_cols = [
+        "source_sign_id",
+        "source_image_id",
+        "sign_type_code",
+        "added_date",
+        "sign_removed_date",
+        "uri",
+        "geometry",
+    ]
+    return signs_gdf[output_cols]
+
+
 def preprocess_cartegraph_signs(
     signs_df: pd.DataFrame,
     config: dict,
@@ -40,8 +68,10 @@ def preprocess_cartegraph_signs(
     )
 
     # Filter for duplicates by keeping the most recently modified record
+    sign_date_col = config["date_columns"]["sign_modified_date"]
+    image_date_col = config["date_columns"]["attachment_modified_date"]
     signs_df = signs_df.sort_values(
-        ["cg_last_modified_field", "attachment_cg_last_modified_field"],
+        [sign_date_col, image_date_col],
         ascending=False
     ).drop_duplicates(subset=config["sign_id_col"], keep="first")
     logger.info("Removed duplicates: %d unique signs", len(signs_df))
@@ -88,34 +118,33 @@ def preprocess_cartegraph_signs(
         .to_crs(config["output_crs"])
     )
 
-    date_cols = ["entry_date_field", "cg_last_modified_field"]
+    date_cols = [sign_date_col, image_date_col]
     signs_gdf[date_cols] = signs_gdf[date_cols].apply(pd.to_datetime)
     signs_gdf.drop(columns=["geometry"], inplace=True)
     signs_gdf.set_geometry("truncated_geometry", inplace=True)
 
-    # TODO: Move mappping of column names to a separate function.
-    # Should this be an earlier step?
-    # We should make all of this configurable
-    # and required.
-    signs_gdf = signs_gdf.rename(
-        columns={
-            config["sign_id_col"]: "source_sign_id",
-            config["attachment_id_col"]: "source_image_id",
-            "mutcd_code_field": "sign_type_code",
-            "entry_date_field": "added_date",
-            config["uri_col"]: "uri",
-            "truncated_geometry": "geometry",
-        }
-    )
-    output_cols = [
-        "source_sign_id",
-        "source_image_id",
-        "sign_type_code",
-        "added_date",
-        "sign_removed_date",
-        "uri",
-        "geometry",
-    ]
+    signs_gdf = update_column_names(signs_gdf, config)
 
     logger.info("Preprocessing complete: %d signs processed", len(signs_gdf))
-    return signs_gdf[output_cols]
+    return signs_gdf
+
+
+def preprocess_other_signs(
+        signs_gdf: gpd.GeoDataFrame,
+        config: dict
+) -> gpd.GeoDataFrame:
+    """Preprocess signs data from other sources by renaming columns and
+    updating CRS (if needed)."""
+    # Reproject to output crs if needed
+    if signs_gdf.crs != config["output_crs"]:
+        signs_gdf = signs_gdf.to_crs(config["output_crs"])
+
+    # Ensure column names are the same (if these columns exist in the df)
+    other_data_source_config = config["other_data_source"]
+    rename_dict = {}
+    for col_typ in ["required_columns", "optional_columns"]:
+        for clean_col, og_col in other_data_source_config[col_typ].items():
+            if og_col in signs_gdf.columns:
+                rename_dict[og_col] = clean_col
+    signs_gdf = signs_gdf.rename(columns=rename_dict)
+    return signs_gdf

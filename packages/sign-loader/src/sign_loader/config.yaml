@@ -25,11 +25,30 @@ signs_path: "data/boston-cartegraph.csv"
 input_crs: "EPSG:4326"
 
 # Columns in the input data
-sign_id_col: "oid"
-attachment_id_col: "attachment_oid"
-uri_col: "attachment_public_url"
-notes_col: None
-geometry_col: None
+# Required columns if using Cartegraph input
+cartegraph_required_columns:
+  source_sign_id: "oid"
+  source_image_id: "attachment_oid"
+  uri: "attachment_public_url"
+  sign_type_code: "mutcd_code_field"
+  added_date: "entry_date_field"
+  geometry_columns:
+    - "latitude"
+    - "longitude"
+  date_columns:
+    sign_modified_date: "cg_last_modified_field"
+    attachment_modified_date: "attachment_cg_last_modified_field"
+
+# Required columns if not using Cartegraph input
+other_data_source:
+  required_columns:
+    geometry: "geometry_col"
+    uri: "image_url_col"
+  optional_columns:
+    source_sign_id: "sign_id_col"
+    source_image_id: "attachment_id_col"
+    notes_col: None
+  
 
 output_crs: "EPSG:4326"
 
@@ -41,7 +60,6 @@ column_filters:
   - column: "mutcd_code_field"
     values: ["P-", "MS-", "PB-", "S-", "AC-", "T-", "TS-", "TC-", "R7-107a", "R7-4", "R7-21"]
     mode: "starts_with"
-
 
 geo_filters:
   path: "./packages/sign-loader/data/boston-neighborhoods.geojson"

@@ -19,7 +19,12 @@ import uuid
 
 import geopandas as gpd
 import pandas as pd
-from cg import load_cartegraph_signs, preprocess_cartegraph_signs
+from utils import check_required_input_columns
+from preprocess import (
+    load_cartegraph_signs,
+    preprocess_cartegraph_signs,
+    preprocess_other_signs
+)
 from curb_utils.db_utils import SmartCurbDB
 from curb_utils.io_tools import load_config
 from curb_utils.logging import get_logger
@@ -41,19 +46,6 @@ def format_sign_tbls(
     logger = get_logger(__name__)
     logger.info("Formatting %d signs into database tables", len(signs_gdf))
     base_signs = signs_gdf.copy()
-
-    # Ensure column names are the same (if these columns exist in the df)
-    rename_dict = {}
-    col_mapping = {
-        "sign_id_col": "source_sign_id",
-        "attachment_id_col": "source_image_id",
-        "geometry_col": "geometry",
-        "uri_col": "uri",
-    }
-    for config_key, target_name in col_mapping.items():
-        if config_key in config and config[config_key] in base_signs.columns:
-            rename_dict[config[config_key]] = target_name
-    base_signs = base_signs.rename(columns=rename_dict)
 
     # Format for asset_jobs table
     job_id = str(uuid.uuid4().hex)
@@ -172,7 +164,6 @@ def upload_sign_tbls(
     upload_dict: dict,
     dbname: str,
     schema: str,
-    logger: logging.Logger,
     debug_mode: bool = False,
 ) -> None:
     """Upload tables to database.
@@ -211,23 +202,34 @@ def main() -> None:
             # Clean for relevant signs
 
             cartegraph_df = load_cartegraph_signs(base_path=base_path, config=config)
-
+            check_required_input_columns(
+                config["cartegraph_required_columns"],
+                cartegraph_df
+            )
             signs_gdf = preprocess_cartegraph_signs(
                 signs_df=cartegraph_df,
                 config=config,
             )
+
         else:
             # assume formatted geospatial file
             signs_gdf = gpd.read_file(
                 f"{base_path}{config['signs_path']}", crs=config["input_crs"]
             )
-            if signs_gdf.crs != config["output_crs"]:
-                signs_gdf = signs_gdf.to_crs(config["output_crs"])
+
+            check_required_input_columns(
+                config["other_data_source"]["required_columns"],
+                signs_gdf
+            )
+            signs_gdf = preprocess_other_signs(
+                signs_gdf=signs_gdf,
+                config=config
+            )
             logger.info("Loaded signs from %s", f"{base_path}{config['signs_path']}")
 
         # Format signs for database tbls
         to_upload_dict = format_sign_tbls(
-            signs_gdf=signs_gdf, config=config, logger=logger
+            signs_gdf=signs_gdf, config=config
         )
 
         # Upload signs to database
@@ -235,7 +237,6 @@ def main() -> None:
             upload_dict=to_upload_dict,
             dbname=config["dbname"],
             schema=config["schema"],
-            logger=logger,
             debug_mode=config["debug_mode"],
         )
 
