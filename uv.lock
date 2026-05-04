@@ -17,7 +17,6 @@ members = [
     "blockface-creator",
     "curb-segmenter",
     "curb-utils",
-    "policies-ai",
     "policy-applier",
     "sign-reader",
     "smart-prototype",
@@ -2365,17 +2364,6 @@ wheels = [
 ]
 
 [[package]]
-name = "policies-ai"
-version = "0.1.0"
-source = { editable = "packages/policies-ai" }
-dependencies = [
-    { name = "google-genai" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "google-genai", specifier = ">=1.69.0" }]
-
-[[package]]
 name = "policy-applier"
 version = "0.1.0"
 source = { editable = "packages/policy-applier" }
@@ -3449,7 +3437,6 @@ dependencies = [
     { name = "blockface-creator" },
     { name = "curb-segmenter" },
     { name = "curb-utils" },
-    { name = "policies-ai" },
     { name = "policy-applier" },
     { name = "sign-reader" },
 ]
@@ -3468,7 +3455,6 @@ requires-dist = [
     { name = "blockface-creator", editable = "packages/blockface-creator" },
     { name = "curb-segmenter", editable = "packages/curb-segmenter" },
     { name = "curb-utils", editable = "packages/curb-utils" },
-    { name = "policies-ai", editable = "packages/policies-ai" },
     { name = "policy-applier", editable = "packages/policy-applier" },
     { name = "sign-reader", editable = "packages/sign-reader" },
 ]
