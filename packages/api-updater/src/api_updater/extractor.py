@@ -24,7 +24,6 @@ def read_db_tables(
             try:
                 data[table] = db.get_data(table, filter=filter)
             except Exception as e:
-                logger.error(f"Error reading table {table}: {e}")
-                raise
+                raise RuntimeError(f"Error reading table {table}:") from e
 
     return data

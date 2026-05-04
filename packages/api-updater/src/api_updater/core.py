@@ -52,8 +52,7 @@ def api_updater(config: ApiUpdaterConfig) -> None:
     )
 
     if not staging_data_dict:
-        logger.error("Error reading staging data. Exiting.")
-        raise SystemExit(0)
+        raise RuntimeError("Error reading staging data.")
 
     api_data_dict = read_db_tables(
         dbname=config.db_name,
@@ -69,8 +68,7 @@ def api_updater(config: ApiUpdaterConfig) -> None:
     )
 
     if not api_data_dict:
-        logger.error("Error reading API data. Exiting.")
-        raise SystemExit(0)
+        raise RuntimeError("Error reading API data.")
 
     # 2. Process Data
     processed = transform_policy_updates(staging_data_dict, api_data_dict)
