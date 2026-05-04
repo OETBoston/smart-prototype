@@ -6,11 +6,10 @@ from shapely import Point
 from utils import filter_by_column_values, filter_by_geo
 from curb_utils.logging import get_logger
 
-logger = get_logger(__name__)
-
 
 def load_cartegraph_signs(base_path: str, config: dict) -> pd.DataFrame:
     """Load signs data from Cartegraph export, which is expected to be in a csv file."""
+    logger = get_logger(__name__)
     signs_df = pd.read_csv(f"{base_path}/{config['signs_path']}")
     logger.info("Loaded signs from %s", f"{config['signs_path']}")
     return signs_df
@@ -50,7 +49,7 @@ def preprocess_cartegraph_signs(
 ) -> gpd.GeoDataFrame:
     """Preprocess signs data by filtering for parking signs,
     removing duplicates, and grouping nearby signs together."""
-
+    logger = get_logger(__name__)
     logger.info("Starting preprocessing with %d total signs", len(signs_df))
 
     # Filter out signs with missing lat/long

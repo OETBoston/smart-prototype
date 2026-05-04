@@ -168,6 +168,7 @@ def upload_sign_tbls(
 ) -> None:
     """Upload tables to database.
     If debug_mode is True, does not write to DB."""
+    logger = get_logger(__name__)
     logger.info(
         "Starting upload to database %s.%s (debug_mode=%s)", dbname, schema, debug_mode
     )
@@ -187,7 +188,7 @@ def main() -> None:
     """Main function to run the ETL process for loading parking sign data
     into the database."""
     base_path = "./packages/sign-loader"
-    logger = setup_logging()
+    logger = get_logger(__name__)
     logger.info("=" * 80)
     logger.info("Starting Signs Uploader Pipeline")
     logger.info("=" * 80)
@@ -249,7 +250,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    load_dotenv()
     logger = get_logger(__name__)
     logger.info("Running Sign Loader Pipeline Process...")
+    load_dotenv()
     main()
