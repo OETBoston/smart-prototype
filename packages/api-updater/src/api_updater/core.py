@@ -21,33 +21,33 @@ logger = get_logger(__name__)
 OUTPUT_DIR = Path(__file__).parents[2] / "output"
 
 
-def api_updater(
-    curb_segments_job: str | None = None,
-    policy_handling_job: str | None = None,
-    staging_db_schema: str = "staging",
-    api_db_schema: str = "public_cds",
-) -> None:
+def api_updater(config: ApiUpdaterConfig) -> None:
     """
-    Orchestrates curb policy update processing.
+    Runs curb policy update processing.
     Args:
-        curb_segments_job (str | None, optional): The curb segments job_id to use.
-        policy_handling_job (str | None, optional): The policy handling job_id to use.
-        staging_db_schema (str): database schema for staging inputs
-        api_db_schema (str): database schema for API inputs and outputs
+        config (Config): config object as defined in config.py
     """
     logger.info("Starting update process.")
 
     # 1. Acquire Data
+    jobs = config.source_jobs
+    if isinstance(jobs.curb_segmenter, str) or isinstance(jobs.policy_handler, str):
+        raise ValueError(
+            'Job IDs must be specified as UUID or None. "'
+            '"auto" is only allowed when running in automated pipeline mode.'
+        )
+    segments_filter = (
+        None if not jobs.curb_segmenter else f"job_id = {jobs.curb_segmenter}"
+    )
+    policies_filter = (
+        None if not jobs.policy_handler else f"job_id = {jobs.policy_handler}"
+    )
     staging_data_dict = read_db_tables(
-        dbname="cds",
-        schema=staging_db_schema,
+        dbname=config.db_name,
+        schema=config.staging_db_schema,
         tables={
-            "curb_segments": None
-            if curb_segments_job is None
-            else f"job_id = '{curb_segments_job}'",
-            "curb_segment_policies": None
-            if policy_handling_job is None
-            else f"job_id = '{policy_handling_job}'",
+            "curb_segments": segments_filter,
+            "curb_segment_policies": policies_filter,
         },
     )
 
@@ -56,8 +56,8 @@ def api_updater(
         raise SystemExit(0)
 
     api_data_dict = read_db_tables(
-        dbname="cds",
-        schema=api_db_schema,
+        dbname=config.db_name,
+        schema=config.api_db_schema,
         tables={
             "curb_zones": "end_date IS NULL",
             "curb_policies": None,
@@ -78,23 +78,10 @@ def api_updater(
     # 3. Export Data
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     export_to_csv(processed, out_dir=OUTPUT_DIR)
-    export_to_db(processed, api_db_schema=api_db_schema)
+    export_to_db(
+        db_name=config.db_name, data_dict=processed, api_db_schema=config.api_db_schema
+    )
     logger.info("Update process completed successfully.")
-
-
-def main(
-    curb_segments_job: str | None = None,
-    policy_handling_job: str | None = None,
-    staging_db_schema: str = "staging",
-    api_db_schema: str = "public_cds",
-) -> None:
-    try:
-        run_api_update(
-            curb_segments_job, policy_handling_job, staging_db_schema, api_db_schema
-        )
-    except Exception as e:
-        logger.error(f"Failed to run update: {e}")
-        exit(1)
 
 
 if __name__ == "__main__":
@@ -104,29 +91,3 @@ if __name__ == "__main__":
     config = ApiUpdaterConfig(**load_from_yaml(config_file))
 
     api_updater(config)
-
-    exit()
-    ### old for reference ###
-    # Define external files
-    local_path = Path(__file__).resolve().parent
-    config_file = local_path / "config.yaml"
-
-    from rich import print as rprint
-
-    rprint(config)
-
-    # Load external data
-    config = load_from_yaml(config_file)
-
-    staging_db_schema = config["staging_db"]["schema"]
-    api_db_schema = config["api_db"]["schema"]
-
-    curb_segments_job = config["staging_db"]["curb_segments_job"]
-    policy_handling_job = config["staging_db"]["policy_handling_job"]
-
-    main(
-        curb_segments_job=curb_segments_job,
-        policy_handling_job=policy_handling_job,
-        staging_db_schema=staging_db_schema,
-        api_db_schema=api_db_schema,
-    )

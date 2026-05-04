@@ -40,7 +40,7 @@ def export_to_csv(
 
 
 def export_to_db(
-    data_dict: dict[str, pd.DataFrame], api_db_schema: str = "public_cds"
+    db_name: str, data_dict: dict[str, pd.DataFrame], api_db_schema: str
 ) -> None:
     """
     Exports processed DataFrames to the database.
@@ -61,7 +61,7 @@ def export_to_db(
             logger.info(f"Skipping {table_name}: DataFrame is empty.")
             continue
 
-        with SmartCurbDB(dbname="cds", schema=api_db_schema) as db:
+        with SmartCurbDB(dbname=db_name, schema=api_db_schema) as db:
             if table_name == "curb_zone_policies_delete":
                 db.delete("curb_zone_policies", df, keys)
             elif table_name == "curb_zone_policies":
