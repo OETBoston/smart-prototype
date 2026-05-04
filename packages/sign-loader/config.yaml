@@ -23,6 +23,7 @@ debug_mode: False
 
 signs_path: "data/boston-cartegraph.csv"
 input_crs: "EPSG:4326"
+output_crs: "EPSG:4326"
 
 # Columns in the input data
 # Required columns if using Cartegraph input
@@ -45,12 +46,9 @@ other_data_source:
     geometry: "geometry_col"
     uri: "image_url_col"
   optional_columns:
-    source_sign_id: "sign_id_col"
-    source_image_id: "attachment_id_col"
+    source_sign_id: None
+    source_image_id: None
     notes_col: None
-  
-
-output_crs: "EPSG:4326"
 
 # Cartegraph-related Filters
 column_filters:
