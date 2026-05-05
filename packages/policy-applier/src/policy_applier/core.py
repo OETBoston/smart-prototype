@@ -2,6 +2,7 @@ import json
 
 import geopandas as gpd
 import pandas as pd
+from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 from rich.progress import track
 
@@ -18,7 +19,9 @@ from policy_applier.handler_utils import (
     run_policy_pass,
 )
 
+# Session settings
 load_dotenv()
+logger = get_logger(__name__)
 
 
 def prepare_location_policies(
@@ -280,7 +283,7 @@ def process_segment_policies(
             all_blockface_results.extend(results)
         # TODO: acceptable continue processing other blockfaces if one fails?
         except Exception as e:
-            print(f"Error processing blockface {blockface}: {e}")
+            logger.exception(f"Error processing blockface {blockface}: {e}")
             continue
 
     # Format Final Output
@@ -307,6 +310,8 @@ def policy_applier(config: PolicyApplierConfig) -> None:
     Args:
         config (PolicyApplierConfig): Configuration for the policy applier.
     """
+    logger.info("Starting policy applier.")
+
     # Data Ingestion
     (
         df_segments,
@@ -351,3 +356,4 @@ def policy_applier(config: PolicyApplierConfig) -> None:
             db_name=config.db_name,
             db_schema=config.db_schema,
         )
+    logger.info("Policy applier finished.")
