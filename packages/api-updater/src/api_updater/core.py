@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from api_updater.config import ApiUpdaterConfig
 
 # Internal imports
-from api_updater.exporter import export_to_csv, export_to_db
+from api_updater.exporter import export_to_db
 from api_updater.extractor import read_db_tables
 from api_updater.transformer import transform_policy_updates
 
@@ -16,9 +16,6 @@ load_dotenv()
 
 # Logging Configuration
 logger = get_logger(__name__)
-
-# Constants/Config
-OUTPUT_DIR = Path(__file__).parents[2] / "output"
 
 
 def api_updater(config: ApiUpdaterConfig) -> None:
@@ -79,8 +76,6 @@ def api_updater(config: ApiUpdaterConfig) -> None:
     )
 
     # 3. Export Data
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    export_to_csv(processed, out_dir=OUTPUT_DIR)
     export_to_db(
         db_name=config.db_name, data_dict=processed, api_db_schema=config.api_db_schema
     )
