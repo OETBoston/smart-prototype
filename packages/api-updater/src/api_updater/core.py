@@ -1,7 +1,4 @@
-from pathlib import Path
-
-from curb_utils.io_tools import load_from_yaml
-from curb_utils.logging import get_logger, set_log_context
+from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
 from api_updater.config import ApiUpdaterConfig
@@ -80,12 +77,3 @@ def api_updater(config: ApiUpdaterConfig) -> None:
         db_name=config.db_name, data_dict=processed, api_db_schema=config.api_db_schema
     )
     logger.info("Update process completed successfully.")
-
-
-if __name__ == "__main__":
-    set_log_context("api-updater")
-    local_path = Path(__file__).resolve().parent
-    config_file = local_path / "config.yaml"
-    config = ApiUpdaterConfig(**load_from_yaml(config_file))
-
-    api_updater(config)
