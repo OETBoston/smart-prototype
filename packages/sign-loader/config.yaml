@@ -20,7 +20,6 @@ schema: "staging_test"
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
 debug_mode: False
-
 signs_path: "data/boston-cartegraph.csv"
 input_crs: "EPSG:4326"
 output_crs: "EPSG:4326"
@@ -59,7 +58,7 @@ column_filters:
     values: ["P-", "MS-", "PB-", "S-", "AC-", "T-", "TS-", "TC-", "R7-107a", "R7-4", "R7-21"]
     mode: "starts_with"
 
-geo_filters:
+geo_filter:
   path: "data/boston_neighborhood_boundaries/Boston_Neighborhood_Boundaries.shp"
   crs: "EPSG:4326"
   subset_column: "name"
