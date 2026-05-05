@@ -13,21 +13,21 @@ Ensure that all dependencies are installed and configuration paths are correctly
 set before running the script.
 ==============================================================================
 """
+
 from pathlib import Path
 
 import geopandas as gpd
-from format_tables import format_sign_tbls
-from preprocess import (
-    load_cartegraph_signs,
-    preprocess_cartegraph_signs,
-    preprocess_other_signs
-)
-from utils import check_required_input_columns
-
 from curb_utils.db_utils import SmartCurbDB
 from curb_utils.io_tools import load_from_yaml
 from curb_utils.logging import get_logger
 from dotenv import load_dotenv
+from format_tables import format_sign_tbls
+from preprocess import (
+    load_cartegraph_signs,
+    preprocess_cartegraph_signs,
+    preprocess_other_signs,
+)
+from utils import check_required_input_columns
 
 
 def upload_sign_tbls(
@@ -45,7 +45,7 @@ def upload_sign_tbls(
 
     with SmartCurbDB(dbname=dbname, schema=schema) as db:
         for tbl_name, df in upload_dict.items():
-            if not bool(debug_mode):
+            if not debug_mode:
                 db.append_data(tbl_name, df)
                 logger.info("Uploaded %d rows to table %s", len(df), tbl_name)
             else:
@@ -67,47 +67,32 @@ def main() -> None:
         logger.info("Loading configuration and input files...")
 
         config = load_from_yaml(base_path / "config.yaml")
-        logger.info(
-            "Loaded config from %s", f"{base_path / 'config.yaml'}"
-        )
+        logger.info("Loaded config from %s", f"{base_path / 'config.yaml'}")
         if config["data_source_name"].lower() == "cartegraph":
             # Clean for relevant signs
 
             cartegraph_df = load_cartegraph_signs(base_path=base_path, config=config)
             check_required_input_columns(
-                config["cartegraph_required_columns"],
-                cartegraph_df
+                config["cartegraph_required_columns"], cartegraph_df
             )
             signs_gdf = preprocess_cartegraph_signs(
-                signs_df=cartegraph_df,
-                config=config,
-                base_path=base_path
+                signs_df=cartegraph_df, config=config, base_path=base_path
             )
 
         else:
             # assume formatted geospatial file
             signs_gdf = gpd.read_file(
-                base_path / config['signs_path'], crs=config["input_crs"]
+                base_path / config["signs_path"], crs=config["input_crs"]
             )
 
             check_required_input_columns(
-                config["other_data_source"]["required_columns"],
-                signs_gdf
+                config["other_data_source"]["required_columns"], signs_gdf
             )
-            signs_gdf = preprocess_other_signs(
-                signs_gdf=signs_gdf,
-                config=config
-            )
-            logger.info(
-                "Loaded signs from %s",
-                f"{base_path / config['signs_path']}"
-            )
+            signs_gdf = preprocess_other_signs(signs_gdf=signs_gdf, config=config)
+            logger.info("Loaded signs from %s", f"{base_path / config['signs_path']}")
 
         # Format signs for database tbls
-        to_upload_dict = format_sign_tbls(
-            signs_gdf=signs_gdf,
-            config=config
-        )
+        to_upload_dict = format_sign_tbls(signs_gdf=signs_gdf, config=config)
 
         # Upload signs to database
         upload_sign_tbls(

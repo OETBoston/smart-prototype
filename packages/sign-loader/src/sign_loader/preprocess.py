@@ -3,9 +3,9 @@ from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
-from shapely import Point
-from utils import filter_by_column_values, filter_by_geo
 from curb_utils.logging import get_logger
+from shapely import Point
+from utils import filter_by_column_values, filter_by_geo, read_and_reproject_gdf
 
 
 def load_cartegraph_signs(base_path: Path, config: dict) -> pd.DataFrame:
@@ -16,10 +16,7 @@ def load_cartegraph_signs(base_path: Path, config: dict) -> pd.DataFrame:
     return signs_df
 
 
-def update_column_names(
-        signs_gdf: gpd.GeoDataFrame,
-        config: dict
-) -> gpd.GeoDataFrame:
+def update_column_names(signs_gdf: gpd.GeoDataFrame, config: dict) -> gpd.GeoDataFrame:
     """Update column names to match expected names for database upload."""
     signs_gdf = signs_gdf.rename(
         columns={
@@ -29,7 +26,6 @@ def update_column_names(
             config["sign_type_code"]: "sign_type_code",
             config["added_date"]: "added_date",
             "truncated_geometry": "geometry",
-
         }
     )
     output_cols = [
@@ -45,9 +41,7 @@ def update_column_names(
 
 
 def preprocess_cartegraph_signs(
-    signs_df: pd.DataFrame,
-    config: dict,
-    base_path: Path
+    signs_df: pd.DataFrame, config: dict, base_path: Path
 ) -> gpd.GeoDataFrame:
     """Preprocess signs data by filtering for parking signs,
     removing duplicates, and grouping nearby signs together."""
@@ -73,8 +67,7 @@ def preprocess_cartegraph_signs(
     sign_date_col = config_req_cols["date_columns"]["sign_modified_date"]
     image_date_col = config_req_cols["date_columns"]["attachment_modified_date"]
     signs_df = signs_df.sort_values(
-        [sign_date_col, image_date_col],
-        ascending=False
+        [sign_date_col, image_date_col], ascending=False
     ).drop_duplicates(subset=config_req_cols["source_sign_id"], keep="first")
     logger.info("Removed duplicates: %d unique signs", len(signs_df))
 
@@ -99,8 +92,22 @@ def preprocess_cartegraph_signs(
         signs_gdf = signs_gdf.to_crs(config["output_crs"])
 
     # Filter for geographic subset if specified in config
-    if config.get("geo_filters"):
-        signs_gdf = filter_by_geo(signs_gdf, config, base_path)
+    if config.get("geo_filter"):
+        polygon_gdf = read_and_reproject_gdf(
+            path=base_path / config["geo_filter"]["path"],
+            output_crs=config["output_crs"],
+        )
+
+        # get optional selectors for filtering the polygons
+        subset_column = config["geo_filter"].get("subset_column")
+        subset_values = config["geo_filter"].get("subset_values")
+
+        signs_gdf = filter_by_geo(
+            gdf_points=signs_gdf,
+            gdf_polygons=polygon_gdf,
+            subset_column=subset_column,
+            subset_values=subset_values,
+        )
         logger.info(
             "Applied neighborhoods filter: %d signs remaining",
             len(signs_gdf),
@@ -122,9 +129,8 @@ def preprocess_cartegraph_signs(
     )
 
     # Create sign_removed_date column if marked as removed
-    signs_gdf["sign_removed_date"] = signs_gdf["cg_last_modified_field"]. \
-        where(
-            signs_gdf["asset_status_field"] == "Removed"
+    signs_gdf["sign_removed_date"] = signs_gdf["cg_last_modified_field"].where(
+        signs_gdf["asset_status_field"] == "Removed"
     )
 
     date_cols = [sign_date_col, image_date_col]
@@ -138,8 +144,7 @@ def preprocess_cartegraph_signs(
 
 
 def preprocess_other_signs(
-        signs_gdf: gpd.GeoDataFrame,
-        config: dict
+    signs_gdf: gpd.GeoDataFrame, config: dict
 ) -> gpd.GeoDataFrame:
     """Preprocess signs data from other sources by renaming columns and
     updating CRS (if needed)."""

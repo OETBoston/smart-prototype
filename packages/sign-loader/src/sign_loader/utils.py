@@ -1,31 +1,46 @@
 """Utility functions for sign-loader package."""
-from pathlib import Path
+
 from typing import Any
 
 import geopandas as gpd
 import pandas as pd
 
 
+def read_and_reproject_gdf(path: str, output_crs: str) -> gpd.GeoDataFrame:
+    """Reads in geospatial data and reprojects to output CRS if necessary.
+    Assumes GeoJson or Shapefile input with known CRS.
+    """
+    gdf = gpd.read_file(path)
+    if not gdf.crs:
+        raise ValueError(f"Input geospatial data at {path} missing CRS information.")
+    if gdf.crs != output_crs:
+        gdf = gdf.to_crs(output_crs)
+    return gdf
+
+
 def filter_by_geo(
-        df: gpd.GeoDataFrame,
-        config: dict,
-        base_path: Path
+    gdf_points: gpd.GeoDataFrame,
+    gdf_polygons: gpd.GeoDataFrame,
+    subset_column: str,
+    subset_values: list[str],
 ) -> gpd.GeoDataFrame:
     """Geospatial filter. Currently only supports filtering for points within polygon.
-    Useful for developing geographic subsets of data.
+    Useful for developing geographic subsets of data. Expects both to have the same CRS.
     """
-    neighborhoods_gdf = gpd.read_file(
-            base_path / config["geo_filters"]["path"],
-            crs=config["geo_filters"]["crs"],
-        )[["name", "geometry"]]
-    spec_neighborhood = neighborhoods_gdf[
-        neighborhoods_gdf["name"].isin(config["geo_filters"]["subset_values"])
-    ]
-    if spec_neighborhood.crs != config["output_crs"]:
-        spec_neighborhood = spec_neighborhood.to_crs(config["output_crs"])
-    df = gpd.sjoin(
-        df, spec_neighborhood, predicate="within", how="inner"
-    )
+    # Enforce that both geodataframes are in the same CRS before spatial join
+    if gdf_points.crs != gdf_polygons.crs:
+        raise ValueError("CRS mismatch between points and polygons geodataframes.")
+
+    # Optionally, filter for specifc subset of the polygon data first
+    # Useful for selected e.g. a single neighborhood
+    if subset_column:
+        if not subset_values:
+            raise ValueError(
+                "Subset values must be provided when subset column is specified."
+            )
+        gdf_polygons = gdf_polygons[gdf_polygons[subset_column].isin(subset_values)]
+
+    df = gpd.sjoin(gdf_points, gdf_polygons, predicate="within", how="inner")
     return df
 
 
@@ -53,13 +68,12 @@ def filter_by_column_values(
 
 
 def check_required_input_columns(
-        source_column_info: dict,
-        df: pd.DataFrame | gpd.GeoDataFrame
+    source_column_info: dict, df: pd.DataFrame | gpd.GeoDataFrame
 ) -> None:
     """Check that all required input columns are present in the data."""
     input_columns = []
 
-    def extract_columns(obj):
+    def extract_columns(obj) -> None:
         """Recursively extract column names from nested structures."""
         if isinstance(obj, str):
             input_columns.append(obj)
