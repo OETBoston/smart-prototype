@@ -91,8 +91,13 @@ async def main(config: SignReaderConfig) -> None:
         )
 
     logger.info("Fetching list from database...")
+    asset_job_id = config.source_jobs.parking_sign
+
+    # Auto-detection must occur upstream of fetching image list
+    if asset_job_id == "auto":
+        raise RuntimeError("Failed to autodetect asset job id for parking signs.")
     images_list = get_image_list(
-        asset_job_id=config.sign_assets.job_id if config.sign_assets.job_id else None,
+        asset_job_id=asset_job_id or None,
         re_process=config.sign_assets.re_process,
     )
 
