@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from curb_utils.ai_client import GeminiOptions
@@ -6,12 +7,16 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class SignAssetsConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    job_id: UUID | None = Field(None)
     re_process: bool = Field(False)
 
 
 class SignReaderConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+    # Source job ids
+    class Jobs(BaseModel):
+        parking_sign: UUID | Literal["auto"] | None = Field(None)
+
     debug_mode: bool = Field(False)
     max_images: int | None = Field(None)
     db_name: str
