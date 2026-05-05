@@ -37,6 +37,13 @@ def curb_segmenter(config: CurbSegmenterConfig) -> None:
 
     segment_id_cols = []
 
+    # Autodetection of job ids must be resolved upstream
+    for job_name, job_id in config.source_jobs:
+        if job_id == "auto":
+            raise RuntimeError(
+                f"Failed to resolve auto-detection of job id for {job_name}"
+            )
+
     # Read curb lines
     curbs = io_utils.load_blockface_gdf_from_pg(
         dbname=config.db_name,
