@@ -5,21 +5,34 @@ This module assigns parking policies to segmented curb goemetries. In the contex
 
 ## Usage
 
-### Command-Line Policy Assignment
-Process curb segment data and assign policies programmatically. Two arguments are required:
-
+### Running the Policy Applier
+The entry point for the program can be found at `__main__.py` which can be run directly as a script. Alternatively, from the project root run:
 ```sh
-python main.py [--job-id JOB_ID --schema SCHEMA] [--help]
+uv run python -m policy_applier
 ```
-- Use `--job-id JOB_ID` to process curb segments created by a specific job ID.
-- Use `--schema SCHEMA` to specify the staging database schema for input and output tables.
-- Use `--help` to see all available arguments and options.
+
+### Config Optionns
+Options for running the policy applier are set in the `config.yaml` file within the package source.
+
+| Option Name | Definition |
+|---|---|
+| db_name (str) | Name of the database used for data processing. Should normally be "cds". |
+| db_schema (str) | Name of the database schema to use. Should normally be "staging_next". |
+| job_name (str) | A short name for the job |
+| job_description (str) | Longer job description |
+| curb_segmenter_job_id (UUID str) | ID of a valid curb segmentation job to use as an input. |
+| default_parking_anytime (bool) | If `true`, each curb segment will be assigned (in addition to other policies), a default policy allowing parking for all users/times at a minimal priority level. This underlying policy can be used to explicitly allow parking at times when no other policy takes precedence (e.g. overnight) |
+| write_to_csv (bool) | If true, will skip writing to the database and instead output results to a CSV file for inspection. Useful for debugging. |
+| csv_file_path (str) | name of the csv file to use for test outputs |
 
 ## Module Structure
-- `main.py` — Command-line tool for policy assignment (argument parsing, batch processing)
-- `db_utils/` — Database connection and query helpers
-- `handler_utils/` — Policy handler logic
-- `io_utils/` — Input/output helpers
+- `__main__.py` — Entrypoint to run `core.policy_applier`
+- `core.py` — Core code for policy assignment
+- `config.py` — Contains Pydantic data models for configuration.
+- `config.yaml` — YAML-based configuration settings.
+- `db_utils/` — Database connection and query helpers.
+- `handler_utils/` — Policy handler logic.
+- `io_utils/` — Helper functions for reading/writing data.
 
 ## Core Logic: In-Depth Policy Assignment
 
@@ -63,7 +76,7 @@ To account for policies pointing backwards against the flow of the blockface, th
 - The outputs from the Forward and Backward passes are merged. If a policy is found to be active during *either* pass, it applies to the segment. 
 - Duplicate policies on the same segment (e.g., a policy that is active in both the forward and backward passes over the same space) are dropped so they are only applied once.
 - The merged DataFrame is grouped by segment and sorted strictly by the `priority` field embedded in the policy JSON.
-- Any segment without an active policy is assigned an empty list, unless the config option  `default_parking_anytime` is set to `True`. In that case, a low priority policy allowing parking at anytime for all users is appended.
+- Any segment without an active policy is assigned an empty list, unless the config option  `default_parking_anytime` is set to `True`.
 
 ### 8. Export
 The final sorted list of policy dictionaries for each segment is serialized into a JSON string (`policy_list`) and written back out to the Postgres database under a newly created policy handling job ID.
