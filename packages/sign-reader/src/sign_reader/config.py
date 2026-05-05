@@ -17,6 +17,8 @@ class SignReaderConfig(BaseModel):
     class Jobs(BaseModel):
         parking_sign: UUID | Literal["auto"] | None = Field(None)
 
+    source_jobs: Jobs
+
     debug_mode: bool = Field(False)
     max_images: int | None = Field(None)
     db_name: str
