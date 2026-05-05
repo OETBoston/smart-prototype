@@ -1,7 +1,7 @@
 # Smart Curb Policy Handling
+This module assigns parking policies to segmented curb goemetries. In the context of the Smart Curb Prototype, the policy application process is downstream of the Curb Segmentation (which identifies how a blockface is divided based on the signs, fire hydrants, etc that are the basis for parking regulations) and the Sign Reader (which generates policies from signage information).
 
-This module provides a pipeline for policy assignment for curb segments based on physical curb assets.
-`main.py` is the main entry point for running the pipeline. 
+`__main.py__` is the main entry point for running the policy applier. 
 
 ## Usage
 
@@ -41,7 +41,7 @@ For each blockface, `generate_event_log` processes items sequentially from the u
 
 When determining direction (`TOWARD` vs. `AWAY`), perspective is relative to driving downstream. Depending on which side of the street the sign is located, the physical arrows translate differently:
 - **Right-hand side:** A right-pointing arrow points `TOWARD` you; a left-pointing arrow points `AWAY` from you.
-- **Left-hand side:** A right-pointing arrow points `AWAY` from you; a left-pointing arrow points `TOWARD` you.
+- **Left-hand side:** A right-pointing arrow points `AWAY` from you; a left-pointing arrow points `TOWARD` you. Left-hand side logic applies on one-way streets only.
 - **Bidirectional:** A sign with a double arrow ("both" or nan) will always point both `TOWARD` and `AWAY`, regardless of which side of the street it is on.
 
 Based on this perspective, the process translates physical assets into logical events:
@@ -63,7 +63,7 @@ To account for policies pointing backwards against the flow of the blockface, th
 - The outputs from the Forward and Backward passes are merged. If a policy is found to be active during *either* pass, it applies to the segment. 
 - Duplicate policies on the same segment (e.g., a policy that is active in both the forward and backward passes over the same space) are dropped so they are only applied once.
 - The merged DataFrame is grouped by segment and sorted strictly by the `priority` field embedded in the policy JSON.
-- Any segment without an active policy is assigned an empty list, unless `blanket_allowance=True`, which appends a default `PARKING_ANYTIME_POLICY`.
+- Any segment without an active policy is assigned an empty list, unless the config option  `default_parking_anytime` is set to `True`. In that case, a low priority policy allowing parking at anytime for all users is appended.
 
 ### 8. Export
 The final sorted list of policy dictionaries for each segment is serialized into a JSON string (`policy_list`) and written back out to the Postgres database under a newly created policy handling job ID.
