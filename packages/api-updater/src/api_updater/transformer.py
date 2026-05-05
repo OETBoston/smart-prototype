@@ -384,9 +384,11 @@ def transform_policy_updates(
     if not gemini_key:
         raise RuntimeError("Unable to read GEMINI_API_KEY environment variable.")
 
+    logger.info("Generating %s descriptions.", len(new_policies))
     new_policies["description"] = asyncio.run(
         get_policy_descriptions(new_policies, gemini_key)
     )
+    logger.info("Policy generation complete.")
 
     # --- 6. FINAL CONCATENATION ---
     curb_zones = pd.concat([new_zones, old_zones]).reset_index(drop=True)
