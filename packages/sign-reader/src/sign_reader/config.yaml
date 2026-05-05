@@ -3,13 +3,17 @@
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
 debug_mode: False
-max_images: null # For debugging - run only the first n images. Omit or set to null to run all images
+max_images: 20 # For debugging - run only the first n images. Omit or set to null to run all images
 
 # Postgres DB export settings
 db_name: "cds"
 db_schema: "staging_next"
 job_name: "short job name"
 job_description: "longer job description"
+
+# Source job ids
+source_jobs:
+  parking_sign: null
 
 # Number of simultaneous Gemini calls to allow. Defaults to 50.
 gemini_concurrent_limit: 50
@@ -32,5 +36,4 @@ max_retries: 3
 
 # Sign source data settings
 sign_assets:
-  job_id: null # Include a sign job ID to filter, or null/omit to run for all signs
   re_process: False # True to re-process signs that already have policies. Defaults to False.
