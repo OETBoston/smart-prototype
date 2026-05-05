@@ -56,9 +56,9 @@ class CurbSegmenterConfig(BaseModel):
     # Input job ids
     class Jobs(BaseModel):
         blockface_creator: UUID | Literal["auto"] | None = Field(None)
-        parking_signs: UUID | Literal["auto"] | None = Field(None)
-        fire_hydrants: UUID | Literal["auto"] | None = Field(None)
-        bus_stops: UUID | Literal["auto"] | None = Field(None)
+        parking_sign: UUID | Literal["auto"] | None = Field(None)
+        fire_hydrant: UUID | Literal["auto"] | None = Field(None)
+        bus_stop: UUID | Literal["auto"] | None = Field(None)
         parking_meters: UUID | Literal["auto"] | None = Field(None)
 
     source_jobs: Jobs

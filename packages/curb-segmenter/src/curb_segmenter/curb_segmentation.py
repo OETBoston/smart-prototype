@@ -182,7 +182,7 @@ def add_upstream_downstream_assets(
     ps = asset_dict.get("parking_sign")
     fh = asset_dict.get("fire_hydrant")
     bs = asset_dict.get("bus_stop")
-    mp = asset_dict.get("meter_policies")
+    mp = asset_dict.get("parking_meters")
 
     ps_ids = (
         set(ps["ps_id"].dropna()) if ps is not None and "ps_id" in ps.columns else set()

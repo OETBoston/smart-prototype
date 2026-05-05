@@ -44,14 +44,12 @@ def curb_segmenter(config: CurbSegmenterConfig) -> None:
         table_name=config.bf_table_name,
         geom_col=config.bf_geom_col,
         target_crs=config.proj_crs,
-        filter_string=f"job_id = '{config.bf_job_id}'",
+        filter_string=f"job_id = '{config.source_jobs.blockface_creator}'",
     )
 
     # Read asset locations
     asset_dict = io_utils.load_asset_gdfs_from_pg(
-        dbname=config.db_name,
-        schema=config.db_schema,
-        asset_dict=config.assets.model_dump(),
+        config=config.model_dump(),
         target_crs=config.proj_crs,
     )
 
