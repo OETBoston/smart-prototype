@@ -2,6 +2,7 @@ import json
 
 import geopandas as gpd
 import pandas as pd
+from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 from rich.progress import track
 
@@ -11,9 +12,16 @@ from policy_applier.db_utils import (
     append_policy_handling_jobs,
     read_policy_applier_tables,
 )
-from policy_applier.handler_utils import Direction, generate_event_log, run_policy_pass
+from policy_applier.handler_utils import (
+    PARKING_ANYTIME_POLICY,
+    Direction,
+    generate_event_log,
+    run_policy_pass,
+)
 
+# Session settings
 load_dotenv()
+logger = get_logger(__name__)
 
 
 def prepare_location_policies(
@@ -226,6 +234,7 @@ def process_segment_policies(
     df_sign_policies: pd.DataFrame,
     df_meter_policies: pd.DataFrame,
     df_nonsign_features: pd.DataFrame,
+    default_parking_anytime: bool = False,
 ) -> pd.DataFrame | None:
     """Process all blockfaces to determine curb policies.
 
@@ -274,12 +283,20 @@ def process_segment_policies(
             all_blockface_results.extend(results)
         # TODO: acceptable continue processing other blockfaces if one fails?
         except Exception as e:
-            print(f"Error processing blockface {blockface}: {e}")
+            logger.exception(f"Error processing blockface {blockface}: {e}")
             continue
 
     # Format Final Output
     if all_blockface_results:
         df_final = pd.DataFrame(all_blockface_results)
+
+        # if true, will output a default "Parking Anytime" policy at low priority
+        # on all segments. can be used to ensure that parking is allowed at a
+        # a given time when no other policies are active (e.g. overnight)
+        if default_parking_anytime:
+            df_final["policy_list"] = df_final["policy_list"].apply(
+                lambda x: x + [PARKING_ANYTIME_POLICY]
+            )
         df_final["policy_list"] = df_final["policy_list"].apply(json.dumps)
         return df_final
 
@@ -293,6 +310,8 @@ def policy_applier(config: PolicyApplierConfig) -> None:
     Args:
         config (PolicyApplierConfig): Configuration for the policy applier.
     """
+    logger.info("Starting policy applier.")
+
     # Data Ingestion
     (
         df_segments,
@@ -315,6 +334,7 @@ def policy_applier(config: PolicyApplierConfig) -> None:
         df_sign_policies=df_sign_policies,
         df_meter_policies=df_meter_policies,
         df_nonsign_features=df_nonsign_features,
+        default_parking_anytime=config.default_parking_anytime,
     )
 
     # Write to database
@@ -336,3 +356,4 @@ def policy_applier(config: PolicyApplierConfig) -> None:
             db_name=config.db_name,
             db_schema=config.db_schema,
         )
+    logger.info("Policy applier finished.")

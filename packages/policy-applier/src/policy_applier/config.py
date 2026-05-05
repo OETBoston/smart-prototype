@@ -14,5 +14,6 @@ class PolicyApplierConfig(BaseModel):
     curb_segmenter_job_id: str
 
     # Process parameters
+    default_parking_anytime: bool
     write_to_csv: bool = False
     csv_file_path: str = "curb_policy_output.csv"
