@@ -28,10 +28,8 @@ def append_policy_handling_jobs(
 
     job_data = {
         "job_id": [job_id],
-        "job_name": [f"{timestamp} Policy Applier ({user})"],
-        "job_description": [
-            f"Policy Applier session initiated by {user} at {now.isoformat()}"
-        ],
+        "job_name": [job_name],
+        "job_description": [job_description],
     }
 
     with SmartCurbDB(dbname=db_name, schema=db_schema) as db:
