@@ -1,6 +1,6 @@
 db_name: "cds"
 staging_db_schema: staging_next
-api_db_schema: public_cds_sandbox
+api_db_schema: public_cds_next
 
 source_jobs:
   curb-segmenter: "auto"
