@@ -51,7 +51,7 @@ def append_curb_segment_policies(
 
 
 def read_policy_applier_tables(
-    curb_segment_job_id: str, db_name: str, db_schema: str
+    curb_segment_job_id: uuid.UUID | None, db_name: str, db_schema: str
 ) -> tuple[
     GeoDataFrame,
     DataFrame,
