@@ -1,10 +1,8 @@
 import asyncio
-import logging
 from pathlib import Path
 
 from curb_utils.ai_client.clients import (
     call_gemini_client_aio,
-    init_gemini_client,
 )
 from curb_utils.ai_client.config import GeminiOptions
 from curb_utils.io_tools import load_from_txt
@@ -72,57 +70,3 @@ async def generate_description(
             return "NO DESCRIPTION AVAILABLE"
         else:
             return response.text
-
-
-async def run_examples(api_key) -> None:
-    """Provides basic example for running the description"""
-
-    # create logger (required by call_gemini_client_aio).
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.INFO)
-
-    from time import perf_counter
-
-    def read_policy_example(path) -> str:
-        import json
-
-        with open(path) as f:
-            policy = json.load(f)
-        return json.dumps(policy)
-
-    async def process_example(policy_file: Path) -> str:
-        sem = asyncio.Semaphore(50)
-        logger.info(f"Processing {policy_file}...")
-        policy_json = read_policy_example(policy_file)
-        outfile = policy_file.with_suffix(".RESULT.txt")
-        prompt = add_json_to_prompt(default_prompt, policy_json)
-        description = await generate_description(
-            client, sem, prompt, model_opts=None, api_key=api_key
-        )
-        with open(outfile, "w+") as f:
-            f.write(description)
-        return description
-
-    examples_dir = Path(__file__).parent / "test_data"
-    files_to_process = list(examples_dir.glob("*.json"))
-
-    start = perf_counter()
-
-    with init_gemini_client(api_key) as client:
-        async with asyncio.TaskGroup() as tg:
-            for f in files_to_process:
-                tg.create_task(process_example(f))
-    end = perf_counter()
-    elapsed = round(end - start, 3)
-    print(f"Processed {len(files_to_process)} files in {elapsed}s")
-
-
-if __name__ == "__main__":
-    import os
-
-    from dotenv import load_dotenv
-
-    load_dotenv()
-
-    api_key = os.environ["GEMINI_API_KEY"]
-    asyncio.run(run_examples(api_key))
