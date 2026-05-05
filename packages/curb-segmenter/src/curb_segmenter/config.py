@@ -1,4 +1,5 @@
 from typing import Annotated, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, BeforeValidator, Field
 
@@ -15,7 +16,6 @@ class AssetsConfig(BaseModel):
         """Base configuration for assets. May be extended for specific asset types."""
 
         new_id_col: str
-        job_id: str
         asset_type: Literal["sign_asset", "nonsign_asset", "parking_meter"]
 
     class FireHydrantConfig(AssetConfig):
@@ -53,16 +53,25 @@ class CurbSegmenterConfig(BaseModel):
     job_name: str
     job_description: str
 
+    # Input job ids
+    class Jobs(BaseModel):
+        blockface_creator: UUID | Literal["auto"] | None = Field(None)
+        parking_signs: UUID | Literal["auto"] | None = Field(None)
+        fire_hydrants: UUID | Literal["auto"] | None = Field(None)
+        bus_stops: UUID | Literal["auto"] | None = Field(None)
+        parking_meters: UUID | Literal["auto"] | None = Field(None)
+
+    source_jobs: Jobs
+
+    # Input Blockface data settings
+    bf_table_name: str
+    bf_geom_col: str
+
     # Debug mode (Set this to True for debugging) True does not write to DB.
     debug_mode: bool
 
     # Project settings
     proj_crs: str
-
-    # Input Blockface data settings
-    bf_table_name: str
-    bf_geom_col: str
-    bf_job_id: str
 
     # Input Asset Table Specifications
     assets: AssetsConfig
