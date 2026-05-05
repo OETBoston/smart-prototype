@@ -1,11 +1,13 @@
 import asyncio
 import json
+from pathlib import Path
 
 import pandas as pd
+from curb_utils.ai_client import GeminiOptions
+from curb_utils.io_tools import load_from_txt
 
 from api_updater.descriptions import (
     add_json_to_prompt,
-    default_prompt,
     generate_description,
     init_gemini_client,
 )
@@ -102,7 +104,11 @@ def get_policy_json(policies_df, rules_df, spans_df, rates_df) -> list[str]:
     return policy_json
 
 
-async def get_policy_descriptions(policies_df: pd.DataFrame, api_key: str) -> list[str]:
+async def get_policy_descriptions(
+    policies_df: pd.DataFrame,
+    gemini_settings: GeminiOptions,
+    gemini_concurrent_limit: int,
+) -> list[str]:
     """
     Generates natural language descriptions for each policy in a DataFrame.
 
@@ -114,23 +120,36 @@ async def get_policy_descriptions(policies_df: pd.DataFrame, api_key: str) -> li
         List[str]: A list of generated descriptions.
     """
 
-    sem = asyncio.Semaphore(50)
+    sem = asyncio.Semaphore(gemini_concurrent_limit)
 
-    async def process_example(policy_json: str) -> str:
+    instruction_directory = Path(__file__).resolve().parent.parent / "instructions"
+    instruction_file = instruction_directory / "default_instructions_descriptions.txt"
+    prompt_file = instruction_directory / "default_prompt_descriptions.txt"
+
+    system_instruciton = load_from_txt(instruction_file)
+    prompt_base = load_from_txt(prompt_file)
+
+    async def process_policy(policy_json: str) -> str:
         policy_str = (
             json.dumps(policy_json) if not isinstance(policy_json, str) else policy_json
         )
-        prompt = add_json_to_prompt(default_prompt, policy_str)
+        prompt = add_json_to_prompt(prompt_base, policy_str)
 
         description = await generate_description(
-            client, sem, prompt, model_opts=None, api_key=api_key
+            client=client,
+            sem=sem,
+            prompt=prompt,
+            system_instruction=system_instruciton,
+            model_opts=gemini_settings,
         )
         return description
 
-    with init_gemini_client(api_key) as client:
+    with init_gemini_client() as client:
         async with asyncio.TaskGroup() as tg:
             tasks = [
-                tg.create_task(process_example(policy))
+                tg.create_task(process_policy(policy))
                 for policy in policies_df["policy_json"]
             ]
-        return [t.result() for t in tasks]
+
+    # Collect results from all description retrievals
+    return [t.result() for t in tasks]

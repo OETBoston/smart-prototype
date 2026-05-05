@@ -7,12 +7,12 @@ Contains modular functions for curb data acquisition, processing, and export.
 import ast
 import asyncio
 import json
-import os
 import uuid
 from typing import cast
 
 import geopandas as gpd
 import pandas as pd
+from curb_utils.ai_client import GeminiOptions
 from curb_utils.logging import get_logger
 from shapely import wkb
 
@@ -199,7 +199,10 @@ def build_zone_tables(
 
 
 def transform_policy_updates(
-    staging_data_dict: dict[str, pd.DataFrame], api_data_dict: dict[str, pd.DataFrame]
+    staging_data_dict: dict[str, pd.DataFrame],
+    api_data_dict: dict[str, pd.DataFrame],
+    gemini_settings: GeminiOptions,
+    gemini_concurrent_limit: int,
 ) -> dict[str, pd.DataFrame]:
     """
     Processes and flattens the data, returning updated DataFrames.
@@ -380,13 +383,9 @@ def transform_policy_updates(
         [old_policies, old_rules, old_spans, old_rates], active_policy_ids
     )
 
-    gemini_key = os.environ.get("GEMINI_API_KEY")
-    if not gemini_key:
-        raise RuntimeError("Unable to read GEMINI_API_KEY environment variable.")
-
     logger.info("Generating %s descriptions.", len(new_policies))
     new_policies["description"] = asyncio.run(
-        get_policy_descriptions(new_policies, gemini_key)
+        get_policy_descriptions(new_policies, gemini_settings, gemini_concurrent_limit)
     )
     logger.info("Policy generation complete.")
 

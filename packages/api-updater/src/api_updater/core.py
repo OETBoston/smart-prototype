@@ -71,7 +71,12 @@ def api_updater(config: ApiUpdaterConfig) -> None:
         raise RuntimeError("Error reading API data.")
 
     # 2. Process Data
-    processed = transform_policy_updates(staging_data_dict, api_data_dict)
+    processed = transform_policy_updates(
+        staging_data_dict=staging_data_dict,
+        api_data_dict=api_data_dict,
+        gemini_settings=config.gemini_description_settings,
+        gemini_concurrent_limit=config.gemini_concurrent_limit,
+    )
 
     # 3. Export Data
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
