@@ -1,0 +1,69 @@
+# ==============================================================================
+# Configuration File for Sign Loader
+# ==============================================================================
+# This YAML file defines all parameters and settings required to run the
+# Sign Loader workflow. It provides centralized control over data input paths,
+# preprocessing options, required parameters, inference thresholds, and output
+# specifications.
+#
+#
+# Modify these parameters as needed for different datasets and environments.
+# All paths should be absolute or relative to the project root.
+# ==============================================================================
+
+job_name: "test-job"
+job_description: "this is for testing"
+data_source_name: "Cartegraph"
+
+dbname: "cds"
+schema: "staging_test"
+
+# Debug mode (Set this to True for debugging) True does not write to DB.
+debug_mode: False
+signs_path: "data/boston-cartegraph.csv"
+input_crs: "EPSG:4326"
+output_crs: "EPSG:4326"
+
+# Columns in the input data
+# Required columns if using Cartegraph input
+cartegraph_required_columns:
+  source_sign_id: "oid"
+  source_image_id: "attachment_oid"
+  uri: "attachment_public_url"
+  sign_type_code: "mutcd_code_field"
+  added_date: "entry_date_field"
+  geometry_columns:
+    - "latitude"
+    - "longitude"
+  date_columns:
+    sign_modified_date: "cg_last_modified_field"
+    attachment_modified_date: "attachment_cg_last_modified_field"
+
+# Required columns if not using Cartegraph input
+other_data_source:
+  required_columns:
+    geometry: "geometry_col"
+    uri: "image_url_col"
+  optional_columns:
+    source_sign_id: None
+    source_image_id: None
+    notes_col: None
+
+# Cartegraph-related Filters
+column_filters:
+  - column: "asset_status_field"
+    values: ["Missing", "Proposed"]
+    mode: "drop"
+  - column: "mutcd_code_field"
+    values: ["P-", "MS-", "PB-", "S-", "AC-", "T-", "TS-", "TC-", "R7-107a", "R7-4", "R7-21"]
+    mode: "starts_with"
+
+geo_filter:
+  path: "data/boston_neighborhood_boundaries/Boston_Neighborhood_Boundaries.shp"
+  crs: "EPSG:4326"
+  subset_column: "name"
+  subset_values: ["Charlestown"]
+
+grouping_parameters:
+  grouping_distance_ft: 5
+  grouping_crs: "EPSG:2249"
