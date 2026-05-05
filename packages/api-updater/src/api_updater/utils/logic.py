@@ -3,13 +3,12 @@ import json
 from pathlib import Path
 
 import pandas as pd
-from curb_utils.ai_client import GeminiOptions
+from curb_utils.ai_client import GeminiOptions, init_gemini_client
 from curb_utils.io_tools import load_from_txt
 
 from api_updater.descriptions import (
     add_json_to_prompt,
     generate_description,
-    init_gemini_client,
 )
 
 
