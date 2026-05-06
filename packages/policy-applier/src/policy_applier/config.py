@@ -1,4 +1,7 @@
-from pydantic import BaseModel
+from typing import Literal
+from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 
 class PolicyApplierConfig(BaseModel):
@@ -10,8 +13,11 @@ class PolicyApplierConfig(BaseModel):
     job_name: str
     job_description: str
 
-    # Input data settings
-    curb_segmenter_job_id: str
+    # Source job ids
+    class Jobs(BaseModel):
+        curb_segmenter: UUID | Literal["auto"] | None = Field(None)
+
+    source_jobs: Jobs
 
     # Process parameters
     default_parking_anytime: bool

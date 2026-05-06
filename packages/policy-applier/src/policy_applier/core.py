@@ -312,6 +312,17 @@ def policy_applier(config: PolicyApplierConfig) -> None:
     """
     logger.info("Starting policy applier.")
 
+    # Autodetction of job ids must be upstream
+    for job_name, job_id in config.source_jobs:
+        if job_id == "auto":
+            raise RuntimeError(
+                f"Failed to resolve auto-detection of job id for {job_name}"
+            )
+
+    curb_segmenter_job_id = config.source_jobs.curb_segmenter
+    # satify type checker. actual case handled above.
+    assert curb_segmenter_job_id != "auto"
+
     # Data Ingestion
     (
         df_segments,
@@ -321,7 +332,7 @@ def policy_applier(config: PolicyApplierConfig) -> None:
         df_meter_policies,
         df_nonsign_features,
     ) = read_policy_applier_tables(
-        curb_segment_job_id=config.curb_segmenter_job_id,
+        curb_segment_job_id=curb_segmenter_job_id,
         db_name=config.db_name,
         db_schema=config.db_schema,
     )
