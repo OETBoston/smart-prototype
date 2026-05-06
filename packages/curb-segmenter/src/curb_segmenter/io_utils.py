@@ -86,9 +86,7 @@ def load_blockface_gdf_from_pg(
 
 
 def load_asset_gdfs_from_pg(
-    dbname: str,
-    schema: str,
-    asset_dict: dict,
+    config: dict,
     target_crs: str,
 ):
     """
@@ -99,33 +97,48 @@ def load_asset_gdfs_from_pg(
     structured according to the provided asset type specifications and coordinate reference settings.
 
     Args:
-        dbname (str): Name of the PostgreSQL database to connect to.
-        schema (str): Schema within the database where asset tables are located.
-        asset_dict (dict): Dictionary defining the mapping of asset types to their specifications.
-            The dictionary structure should follow specific asset-category relationships.
+        config (dict): Configuration dictionary containing database and asset settings.
         target_crs (str): Target coordinate reference system (CRS) for the output GeoDataFrames.
 
     Returns:
         dict: A dictionary where keys are asset types from the asset_dict and values are
             GeoDataFrames containing the IDs, location IDs, and geometries for these assets.
     """
+    # set the db parameters from config
+    dbname = config["db_name"]
+    schema = config["db_schema"]
+
+    # get asset specifications from config
+    asset_dict = config["assets"]
+
     # Define an empty collector dictionary to store the GeoDataFrames
     asset_gdfs = {}
 
     # Loop through the nonsign asset types and load the GeoDataFrames
     for asset, asset_config in asset_dict.items():
+        # Get the relevant DB Job ID
+        job_id = config["source_jobs"][asset]
         # Specify table names and column names based on an asset type
         if asset == "parking_sign":
+            print(f"Loading parking signs...{job_id}")
             table_name = "signs"
             native_id_col = "sign_id"
             native_location_id_col = "sign_location_id"
             select_cols = [native_id_col, native_location_id_col, "sign_removed_date"]
-        elif asset_config["asset_type"] == "nonsign_asset":
+        elif asset == "fire_hydrant":
+            print(f"Loading fire hydrants...{job_id}")
+            table_name = "nonsign_features"
+            native_id_col = "feature_id"
+            native_location_id_col = "feature_location"
+            select_cols = [native_id_col, native_location_id_col]
+        elif asset == "bus_stop":
+            print(f"Loading bus stops...{job_id}")
             table_name = "nonsign_features"
             native_id_col = "feature_id"
             native_location_id_col = "feature_location"
             select_cols = [native_id_col, native_location_id_col]
         elif asset == "parking_meters":
+            print(f"Loading parking meters...{job_id}")
             table_name = "meter_policies"
             native_id_col = "meter_policy_id"
             native_location_id_cols = [
@@ -137,6 +150,8 @@ def load_asset_gdfs_from_pg(
             raise ValueError(f"Invalid asset type: {asset}")
 
         with SmartCurbDB(dbname=dbname, schema=schema) as db:
+            if asset == "parking_meters":
+                pass
             assets = db.get_data(
                 table_name=table_name,
                 columns=select_cols,
@@ -160,7 +175,6 @@ def load_asset_gdfs_from_pg(
                 )
 
             # Get asset location geometry
-            job_id = asset_config["job_id"]
             asset_locations = db.get_data(
                 table_name="asset_locations",
                 geom_col="location",
