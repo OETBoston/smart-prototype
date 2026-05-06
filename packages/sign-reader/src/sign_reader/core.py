@@ -50,6 +50,13 @@ def sign_reader(config: SignReaderConfig) -> None:
 async def main(config: SignReaderConfig) -> None:
     logger.info("Running the Sign Reader")
 
+    # Autodetction of job ids must be upstream
+    for job_name, job_id in config.source_jobs:
+        if job_id == "auto":
+            raise RuntimeError(
+                f"Failed to resolve auto-detection of job id for {job_name}"
+            )
+
     # Update log level if debugging
     if config.debug_mode:
         logger.setLevel("DEBUG")
@@ -91,8 +98,12 @@ async def main(config: SignReaderConfig) -> None:
         )
 
     logger.info("Fetching list from database...")
+
+    asset_job_id = config.source_jobs.parking_sign
+    assert asset_job_id != "auto"  # satisfy type checker. actual case handled above.
+
     images_list = get_image_list(
-        asset_job_id=config.sign_assets.job_id if config.sign_assets.job_id else None,
+        asset_job_id=asset_job_id or None,
         re_process=config.sign_assets.re_process,
     )
 
