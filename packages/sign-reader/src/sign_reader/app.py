@@ -17,12 +17,15 @@ import pandas as pd
 import pydeck as pdk
 import requests
 import streamlit as st
+from streamlit_pdf_viewer import pdf_viewer
 from curb_utils.db_utils import SmartCurbDB
 from dotenv import load_dotenv
 from google.cloud import storage
 
 repo_root = Path(__file__).resolve().parents[4]  # …/smart-prototype
 sys.path.append(str(repo_root))
+
+IMAGE_UNAVAILABLE_PATH = Path(__file__).resolve().parent / "image_unavailable.jfif"
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +37,16 @@ st.set_page_config(page_title="Sign Reader Viewer", layout="wide")
 st.title("Sign Reader Viewer")
 
 
+def get_image_unavailable_bytes() -> bytes:
+    try:
+        return IMAGE_UNAVAILABLE_PATH.read_bytes()
+    except Exception:
+        return None
+    
+    
 def get_image_from_gs(
-    bucket_path: str, cache_dir: str = Path(__file__).resolve().parent / "cached_images"
+    bucket_path: str, 
+    cache_dir: str = Path(__file__).resolve().parent / "cached_images"
 ) -> bytes:
     """
     Fetch image bytes from Google Cloud Storage with local caching.
@@ -97,6 +108,21 @@ def get_image_from_url(url: str) -> bytes:
         return response.content
     except Exception as e:
         print(f"Error fetching image: {e}")
+        return None
+
+
+def get_pdf_from_url(url: str) -> bytes:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+    try:
+        response = requests.get(url, timeout=10, headers=headers)
+        response.raise_for_status()
+
+        return response.content
+    except Exception as e:
+        print(f"Error fetching PDF: {e}")
         return None
 
 
@@ -299,20 +325,41 @@ if job_id:
 
         with col_img:
             st.subheader("Sign Image")
-            if "uri" in record and pd.notnull(record["uri"]):
-                if record["uri"].startswith("gs://"):
-                    img_bytes = get_image_from_gs(record["uri"])
-                else:
-                    img_bytes = get_image_from_url(record["uri"])
 
-                st.image(img_bytes, width="stretch")
+            uri = record.get("uri")
+            is_valid_uri = pd.notnull(uri) and uri != ""
+            img_bytes = None
+            is_pdf = str(uri).lower().endswith(".pdf") if is_valid_uri else False
+            
+            if is_valid_uri:
+                try:
+                    if uri.startswith("gs://"):
+                        img_bytes = get_image_from_gs(uri)
+                    elif is_pdf:
+                        img_bytes = get_pdf_from_url(uri)
+                    else:
+                        img_bytes = get_image_from_url(uri)
+                except Exception as e:
+                    st.error(f"Error loading source: {e}")
+                    
+            if img_bytes:
+                if is_pdf:
+                    pdf_viewer(img_bytes) 
+                else:
+                    st.image(img_bytes, width="stretch")
             else:
-                st.info("No image found.")
+                placeholder = get_image_unavailable_bytes()
+                if placeholder:
+                    st.image(placeholder, width="stretch")
+                
+                if not is_valid_uri:
+                    st.info("No URI provided.")
+                else:
+                    st.warning("Image could not be retrieved.")
             
             # Wide Map using PyDeck
             st.subheader("Location")
             if pd.notnull(record["lat"]):
-                
                 # 1. Define the initial view centered on the sign's location
                 view_state = pdk.ViewState(
                     latitude=record["lat"], longitude=record["lon"], zoom=18, pitch=0
