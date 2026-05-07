@@ -17,10 +17,10 @@ import pandas as pd
 import pydeck as pdk
 import requests
 import streamlit as st
-from streamlit_pdf_viewer import pdf_viewer
 from curb_utils.db_utils import SmartCurbDB
 from dotenv import load_dotenv
 from google.cloud import storage
+from streamlit_pdf_viewer import pdf_viewer
 
 repo_root = Path(__file__).resolve().parents[4]  # …/smart-prototype
 sys.path.append(str(repo_root))
@@ -42,11 +42,10 @@ def get_image_unavailable_bytes() -> bytes:
         return IMAGE_UNAVAILABLE_PATH.read_bytes()
     except Exception:
         return None
-    
-    
+
+
 def get_image_from_gs(
-    bucket_path: str, 
-    cache_dir: str = Path(__file__).resolve().parent / "cached_images"
+    bucket_path: str, cache_dir: str = Path(__file__).resolve().parent / "cached_images"
 ) -> bytes:
     """
     Fetch image bytes from Google Cloud Storage with local caching.
@@ -115,7 +114,7 @@ def get_pdf_from_url(url: str) -> bytes:
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
+    }
     try:
         response = requests.get(url, timeout=10, headers=headers)
         response.raise_for_status()
@@ -330,7 +329,7 @@ if job_id:
             is_valid_uri = pd.notnull(uri) and uri != ""
             img_bytes = None
             is_pdf = str(uri).lower().endswith(".pdf") if is_valid_uri else False
-            
+
             if is_valid_uri:
                 try:
                     if uri.startswith("gs://"):
@@ -341,22 +340,22 @@ if job_id:
                         img_bytes = get_image_from_url(uri)
                 except Exception as e:
                     st.error(f"Error loading source: {e}")
-                    
+
             if img_bytes:
                 if is_pdf:
-                    pdf_viewer(img_bytes) 
+                    pdf_viewer(img_bytes)
                 else:
                     st.image(img_bytes, width="stretch")
             else:
                 placeholder = get_image_unavailable_bytes()
                 if placeholder:
                     st.image(placeholder, width="stretch")
-                
+
                 if not is_valid_uri:
                     st.info("No URI provided.")
                 else:
                     st.warning("Image could not be retrieved.")
-            
+
             # Wide Map using PyDeck
             st.subheader("Location")
             if pd.notnull(record["lat"]):
