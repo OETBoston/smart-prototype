@@ -191,7 +191,7 @@ if "record_index" not in st.session_state:
 st.sidebar.header("Data Source Settings")
 
 # Schema Selection
-schema_option = st.sidebar.selectbox("Select Schema", options=["staging_next"], index=0)
+schema_option = st.sidebar.selectbox("Select Schema", options=["staging", "staging_next"], index=0)
 
 jobs_df = load_jobs(schema=schema_option)
 
