@@ -14,7 +14,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import pandas as pd
-import pydeck as pdk  # Add this import
+import pydeck as pdk
 import requests
 import streamlit as st
 from curb_utils.db_utils import SmartCurbDB
@@ -294,51 +294,6 @@ if job_id:
                 unsafe_allow_html=True,
             )
 
-        # TOP SECTION: Wide Map using PyDeck
-        st.subheader("Location")
-        if pd.notnull(record["lat"]):
-            view_state = pdk.ViewState(
-                latitude=record["lat"], longitude=record["lon"], zoom=18, pitch=0
-            )
-
-            # 2. Layer for ALL points (Green)
-            all_points_layer = pdk.Layer(
-                "ScatterplotLayer",
-                data=df,
-                get_position="[lon, lat]",
-                get_color="[0, 200, 0, 150]",
-                get_radius=3,
-            )
-
-            # 3. Layer for the SELECTED point (Red)
-            selected_point_layer = pdk.Layer(
-                "ScatterplotLayer",
-                data=pd.DataFrame([record.to_dict()]),
-                get_position="[lon, lat]",
-                get_color="[255, 0, 0, 255]",
-                get_radius=6,
-            )
-
-            # 4. OpenStreetMap Background
-            base_layer = pdk.Layer(
-                "TileLayer",
-                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                attribution="OpenStreetMap",
-            )
-
-            # 5. Render
-            st.pydeck_chart(
-                pdk.Deck(
-                    initial_view_state=view_state,
-                    layers=[base_layer, all_points_layer, selected_point_layer],
-                    map_style=None,
-                )
-            )
-        else:
-            st.warning("No coordinates available for this record.")
-
-        st.divider()
-
         # image and policy json side by side
         col_img, col_json = st.columns([1, 1])
 
@@ -353,6 +308,51 @@ if job_id:
                 st.image(img_bytes, width="stretch")
             else:
                 st.info("No image found.")
+            
+            # Wide Map using PyDeck
+            st.subheader("Location")
+            if pd.notnull(record["lat"]):
+                
+                # 1. Define the initial view centered on the sign's location
+                view_state = pdk.ViewState(
+                    latitude=record["lat"], longitude=record["lon"], zoom=18, pitch=0
+                )
+
+                # 2. Layer for ALL points (Green)
+                all_points_layer = pdk.Layer(
+                    "ScatterplotLayer",
+                    data=df,
+                    get_position="[lon, lat]",
+                    get_color="[0, 200, 0, 150]",
+                    get_radius=3,
+                )
+
+                # 3. Layer for the SELECTED point (Red)
+                selected_point_layer = pdk.Layer(
+                    "ScatterplotLayer",
+                    data=pd.DataFrame([record.to_dict()]),
+                    get_position="[lon, lat]",
+                    get_color="[255, 0, 0, 255]",
+                    get_radius=6,
+                )
+
+                # 4. OpenStreetMap Background
+                base_layer = pdk.Layer(
+                    "TileLayer",
+                    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    attribution="OpenStreetMap",
+                )
+
+                # 5. Render
+                st.pydeck_chart(
+                    pdk.Deck(
+                        initial_view_state=view_state,
+                        layers=[base_layer, all_points_layer, selected_point_layer],
+                        map_style=None,
+                    )
+                )
+            else:
+                st.warning("No coordinates available for this record.")
 
         with col_json:
             st.subheader("Policy Details")
