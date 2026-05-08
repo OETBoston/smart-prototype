@@ -25,7 +25,7 @@ from streamlit_pdf_viewer import pdf_viewer
 repo_root = Path(__file__).resolve().parents[4]  # …/smart-prototype
 sys.path.append(str(repo_root))
 
-IMAGE_UNAVAILABLE_PATH = Path(__file__).resolve().parent / "image_unavailable.jfif"
+IMAGE_UNAVAILABLE_PATH = Path(__file__).resolve().parent / "IMAGE_UNAVAILBLE.jpg"
 
 logger = logging.getLogger(__name__)
 
