@@ -227,7 +227,7 @@ This package may be run from the project root using:
 uv run python -m blockface_creator
 ```
 
-### curb-segmenter
+## curb-segmenter
 
 The curb segmentation process uses the locations of parking sign and non-sign asset features to divide up the curb based on estimates of
 where different parking rules start and end.
@@ -252,7 +252,7 @@ This package may be run from the project root using:
 uv run python -m curb_segmenter
 ```
 
-### sign-reader
+## sign-reader
 
 The sign reader uses Google Gemini to parse images of parking signs into CDS-compliant policy objects,
 along with important metadata such as the direction of arrows. A pre-processor (also Gemini-based) will
