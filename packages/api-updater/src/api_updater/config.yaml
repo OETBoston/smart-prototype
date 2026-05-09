@@ -1,7 +1,9 @@
+# database settings
 db_name: "cds"
-staging_db_schema: staging_next
-api_db_schema: public_cds_next
+staging_db_schema: staging_next # source data schema
+api_db_schema: public_cds_next # target api schema
 
+# Source job ids
 source_jobs:
   curb-segmenter: "auto"
   policy-handler: 33033544-f7cb-4c36-b3e3-6c7d6a182779
@@ -9,7 +11,7 @@ source_jobs:
 # Number of simultaneous Gemini calls to allow. Defaults to 50.
 gemini_concurrent_limit: 50
 
-# Gemini model settings
+# Gemini model settings (Description Generation)
 gemini_description_settings:
   model: "gemini-3.1-flash-lite-preview"
   thinking_level: null

@@ -329,12 +329,6 @@ To allow for QAQC, the `api-updater` should normally be run targeting a test sch
 (e.g. `public_cds_next`) for testing and \*_not_ the `public_cds` schema, which is used by
 production applications.
 
-This package may be run from the project root using:
-
-```sh
-uv run python -m api_updater
-```
-
 ## curb-utils
 
 This is an interal package containing modules with common utilities used by other SMART Protoype packages, including management of Gemini clients and queries; database connections and queries; file input and output; and logging.
