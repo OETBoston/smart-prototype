@@ -62,7 +62,7 @@ uv run python -m blockface_creator
 
 ## Configuration (`config.yaml`)
 
-All runtime behavior is controlled through a YAML configuration file.
+All runtime behavior is controlled through a YAML configuration file (see: `./src/config.yaml`).
 
 ### Key Parameters
 

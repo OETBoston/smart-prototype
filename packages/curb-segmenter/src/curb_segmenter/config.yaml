@@ -11,7 +11,7 @@
 # All paths should be absolute or relative to the project root.
 # ==============================================================================
 
-# PostgreSQL database settings
+#  Database settings
 db_name: "cds"
 db_schema: "staging_next"
 job_name: "short job name"
@@ -26,7 +26,7 @@ source_jobs:
   parking_meters: "65fe0581-a94c-4d00-afb0-a12460ee898d"
 
 # Project settings
-proj_crs: "epsg:2249"  # Distance unit in US Survey Feet
+proj_crs: "epsg:2249" # Used for distance calculations (in US Survey Feet)
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
 debug_mode: False
@@ -45,15 +45,15 @@ assets:
     asset_type: "nonsign_asset"
     stop_types:
       near_side:
-        range: [ 0.7, 1.0 ]
+        range: [0.7, 1.0]
         inclusive: True
         buffer_multiplier: -1.0
       far_side:
-        range: [ 0.0, 0.3 ]
+        range: [0.0, 0.3]
         inclusive: True
         buffer_multiplier: 1.0
       mid_block:
-        range: [ 0.3, 0.7 ]
+        range: [0.3, 0.7]
         inclusive: False
         buffer_multiplier: -1.0
   fire_hydrant:
