@@ -232,16 +232,6 @@ Detailed documentation can be found within the package [here](packages/curb-segm
 - **Upstream requirements**: Blockface creation step, upload of sign and non-sign assets to the database.
 - **Outputs**: Updates `curb_segments` table
 
-### Run Instructions
-
-Within the package folder, update the `config.yaml` file with job ids for uploads of signs, fire hydrants, bus stops and parking meters.
-
-This package may be run from the project root using:
-
-```sh
-uv run python -m curb_segmenter
-```
-
 ## sign-reader
 
 The sign reader uses Google Gemini to parse images of parking signs into CDS-compliant policy objects,
@@ -255,18 +245,6 @@ Detailed documentation can be found within the package [here](packages/sign-read
 
 - **Upstream requirements**: sign-loader
 - **Outputs**: Updates `sign_policies` table
-
-### Run Instructions
-
-Within the package folder, update the `config.yaml` with relevant values for the asset `job_id`
-for signage data to process (from `sign-loader), as well as settings for Google Gemini settings
-and asynchronous API calls.
-
-This package may be run from the project root using:
-
-```sh
-uv run python -m sign_reader
-```
 
 ## policy-applier
 
@@ -282,16 +260,6 @@ derived from sign locations recorded by the curb segmenter.
 
 - **Upstream requirements**: sign-loader, curb-segmenter, sign-reader. Non-sign assets should be loaded into the database.
 - **Outputs**: Updates `curb_segment_policies` table
-
-### Run Instructions
-
-Within the package folder, update the `config.yaml` with relevant curb segmentation `job_id`.
-
-This package may be run from the project root using:
-
-```sh
-uv run python -m sign_reader
-```
 
 ## api-updater
 
