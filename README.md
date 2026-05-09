@@ -123,11 +123,13 @@ There is no need to install packages independently. Running `uv sync` from the p
 providing access to each package and its dependencies.
 
 # Running Packages in a Pipeline
-The SMART Prototype allows for the CDS-creation process to be run in unified pipeline, or one at a time. 
+
+The SMART Prototype allows for the CDS-creation process to be run in unified pipeline, or one at a time.
 
 Management of the pipeline is taken care of by the core, `smart_prototype` package (located at `smart-prototype/src/smart_prototype`).
 
 The pipeline is currently capable of running the four core, analytical steps sequentially:
+
 1. `blockface-creator`
 1. `curb-segmentater`
 1. `sign-reader`
@@ -136,30 +138,33 @@ The pipeline is currently capable of running the four core, analytical steps seq
 See [packages](#individual-packages) below for details on these steps.
 
 ### Configuration
+
 Within `/src/smart_prototype`, edit the config.yaml file if required. The structure of
 this configuration file is simple as it points directly to the individual `config.yaml`
-used by each individual processing step, along with a run toggle. 
+used by each individual processing step, along with a run toggle.
+
 ```yaml
 steps:
   <step_name>: # using underscore, not hyphen
     path: "path/to/config.yaml" # Usually within the package source
     run: True # or False. Whether to run this step
-   # etc.
-``` 
+    # etc.
+```
 
 Setting `run` to `False` for all but one step provides a convenient entry point for running
 individual processes in sequence (provided the prequisites have been met for each).
 
-Edit each step configuration in the individual package directory as necessary. 
+Edit each step configuration in the individual package directory as necessary.
 
 To run the pipeline, from the project root use:
 
 ```sh
 uv run python /smart-prototype/src/smart_prototype/main.py
 ```
+
 **Auto Job Discovery (In Development)**
-The curb segmenter, sign reader, and policy applier configs each require reference to 
-one or more `job_ids` from upstream processes. By setting these `job_id` values to 
+The curb segmenter, sign reader, and policy applier configs each require reference to
+one or more `job_ids` from upstream processes. By setting these `job_id` values to
 `"auto"`, the SMART Prototype pipeline will pass the relevant job ids to each process.
 Autodiscovery is only avialable when running the curb segmenter, sign reader, and policy
 applier in sequence (i.e. all are set to to `run: True`).
@@ -351,8 +356,6 @@ From the package source folder (`packages/api_db_rollover/src/api_db_rollover`),
 ```sh
 uv run python main.py
 ```
-
-
 
 ## Contributing
 
