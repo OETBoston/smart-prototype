@@ -217,16 +217,6 @@ Detailed documentation can be found within the package [here](packages/blockface
 - **Upstream requirements**: A local copy of the data (`shp`, `.geojson`, `.parquet` or `.feather`) is currently required.
 - **Outputs**: Updates `curb_blockfaces` table
 
-### Run Instructions
-
-Within the package folder, update the `config.yaml` file with paths for roadway centerline data and relevant filters.
-
-This package may be run from the project root using:
-
-```sh
-uv run python -m blockface_creator
-```
-
 ## curb-segmenter
 
 The curb segmentation process uses the locations of parking sign and non-sign asset features to divide up the curb based on estimates of

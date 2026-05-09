@@ -9,6 +9,14 @@ The process is orchestrated by `pipeline.py` (`run_api_update`) and consists of 
 The pipeline reads configuration from `.env` (environment variables) and `config.yaml`.
 When run directly, `pipeline.py` loads default job IDs and database schemas from `config.yaml` and executes the update.
 
+## Usage
+
+From the project root, run:
+
+```sh
+uv run python -m api_updater
+```
+
 ## 1. Data Acquisition (`extractor.py`)
 
 The pipeline connects to the database and pulls data from two distinct schemas:
@@ -75,11 +83,3 @@ The processed datasets are converted into an export dictionary mapping table nam
   - **Appends:** New zone-policy mappings are added (`append_data`).
   - **Deletions:** Expired zone-policy mappings are removed (`delete`).
   - **Upserts:** Core tables (`curb_zones`, `curb_policies`, `curb_policy_rules`, `curb_policy_time_spans`, `curb_policy_rates`) use an `update_or_append` logic based on their primary keys to insert new rows and update modified ones (such as setting an `end_date` for retired zones).
-
-# Usage
-
-From the project root, run:
-
-```sh
-uv run python -m api_updater
-```
