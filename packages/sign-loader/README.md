@@ -23,7 +23,7 @@ From the project root (`smart-prototype/`), run:
 uv run python packages/sign-loader/src/sign_loader/main.py
 ```
 
-## Configuration (`config.yaml`)
+## Configuration
 
 Runtime behavior is controlled through a YAML configuration file (see: `./config.yaml`)
 
