@@ -187,18 +187,12 @@ Various filters can be configured to determine which signs to upload
 
 Detailed documentation can be found within the package [here](packages/sign-loader/README.md).
 
+This step is not yet fully integrated into the pipeline.
+
 ### Inputs and Outputs
 
 - **Upstream requirements**: A local copy of the data (csv format) is currently required.
 - **Outputs**: Updates `asset_locations`, `signs`, and `images` tables
-
-### Run Instructions
-
-This step is not yet fully integrated into the pipeline, and should be run as follows.
-
-1. Navigate to `smart-prototype/packages/sign-loader/src/sign_loader`.
-1. Update the `config.yaml` file with paths for Cartegraph data and additional filters, including a path for geospatial files used to filter the data.
-1. Run `uv run python main.py` from the `/src` directory
 
 ## blockface-creator
 

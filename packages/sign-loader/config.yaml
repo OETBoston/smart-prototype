@@ -11,12 +11,14 @@
 # All paths should be absolute or relative to the project root.
 # ==============================================================================
 
-job_name: "test-job"
-job_description: "this is for testing"
-data_source_name: "Cartegraph"
-
+# Database settings
 dbname: "cds"
 schema: "staging_test"
+job_name: "test-job"
+job_description: "this is for testing"
+
+# If uploading Cartegraph, source should be "Cartegraph"
+data_source_name: "Cartegraph"
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
 debug_mode: False
@@ -55,9 +57,25 @@ column_filters:
     values: ["Missing", "Proposed"]
     mode: "drop"
   - column: "mutcd_code_field"
-    values: ["P-", "MS-", "PB-", "S-", "AC-", "T-", "TS-", "TC-", "R7-107a", "R7-4", "R7-21"]
+    values:
+      [
+        "P-",
+        "MS-",
+        "PB-",
+        "S-",
+        "AC-",
+        "T-",
+        "TS-",
+        "TC-",
+        "R7-107a",
+        "R7-4",
+        "R7-21",
+      ]
     mode: "starts_with"
 
+# Optionally, filter for signs within a specified geography using a GIS file.
+# To include only a specific subset of the polygon data,
+# set the subset_column and subset_values (array)
 geo_filter:
   path: "data/boston_neighborhood_boundaries/Boston_Neighborhood_Boundaries.shp"
   crs: "EPSG:4326"
@@ -66,4 +84,4 @@ geo_filter:
 
 grouping_parameters:
   grouping_distance_ft: 5
-  grouping_crs: "EPSG:2249"
+  grouping_crs: "EPSG:2249" # projected crs for measurement (unit should be US FT)

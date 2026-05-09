@@ -26,7 +26,7 @@ source_jobs:
   parking_meters: "65fe0581-a94c-4d00-afb0-a12460ee898d"
 
 # Project settings
-proj_crs: "epsg:2249" # Used for distance calculations (in US Survey Feet)
+proj_crs: "epsg:2249" # Used for distance calculations (unit should be US Ft)
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
 debug_mode: False
