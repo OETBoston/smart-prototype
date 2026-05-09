@@ -229,7 +229,7 @@ Detailed documentation can be found within the package [here](packages/curb-segm
 
 ### Inputs and Outputs
 
-- **Upstream requirements**: Blockface creation step, upload of sign and non-sign assets to the database.
+- **Upstream requirements**: blockface-creator, sign-loader, upload of non-sign assets to the database.
 - **Outputs**: Updates `curb_segments` table
 
 ## sign-reader
@@ -278,15 +278,6 @@ Detailed information on the structure and set up of the API schema can be found 
 - **Upstream requirements**: curb-segmenter, policy-applier (including their pre-requisites)
 - **Outputs**: Updates all in a API separate database schema
 
-### Run Instructions
-
-Within the package folder, update the `config.yaml` with the `job_ids` for the curb segmenter and
-policy applier jobs, as well as the source staging and target API schema for data transfer.
-
-To allow for QAQC, the `api-updater` should normally be run targeting a test schema
-(e.g. `public_cds_next`) for testing and \*_not_ the `public_cds` schema, which is used by
-production applications.
-
 ## curb-utils
 
 This is an interal package containing modules with common utilities used by other SMART Protoype packages, including management of Gemini clients and queries; database connections and queries; file input and output; and logging.
@@ -298,14 +289,6 @@ Detailed documentation can be found within the package [here](packages/curb-util
 This package is designed to automate the process of rolling over a test API data to the production schema. The business logic is handled by .sql scripts.
 
 Detailed documentation can be found within the package [here](packages/api-db-rollover/README.md)
-
-### Run Instructions
-
-From the package source folder (`packages/api_db_rollover/src/api_db_rollover`), run:
-
-```sh
-uv run python main.py
-```
 
 ## Contributing
 

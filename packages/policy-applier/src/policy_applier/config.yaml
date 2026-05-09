@@ -1,9 +1,16 @@
+# Database settings
 db_name: "cds"
 db_schema: "staging_next"
-source_jobs:
-  curb_segmenter: "c9dc87c2-b318-488c-9c06-ef679923c3ff"
 job_name: "short job name"
 job_description: "longer job description"
+
+# Source Jobs
+source_jobs:
+  curb_segmenter: "c9dc87c2-b318-488c-9c06-ef679923c3ff"
+
+# Whether to include underlying "Parking Anytime (all users)" policy
 default_parking_anytime: false
+
+# Local output for debugging
 write_to_csv: false
 csv_file_path: "curb_policy_output.csv"
