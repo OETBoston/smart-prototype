@@ -6,15 +6,13 @@ This module assigns parking policies to segmented curb goemetries. In the contex
 
 ## Usage
 
-### Running the Policy Applier
-
 From the project root (`smart-prototype/`), run:
 
 ```sh
 uv run python -m policy_applier
 ```
 
-### Config Options
+## Config Options
 
 Runtime options for the policy applier are set in the `config.yaml` file within the package source.
 
