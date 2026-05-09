@@ -345,6 +345,8 @@ This is an interal package containing modules with common utilities used by othe
 
 This package is designed to automate the process of rolling over a test API data to the production schema. The business logic is handled by .sql scripts.
 
+Detailed documentation can be found within the package [here](packages/api-db-rollover/README.md)
+
 ### Run Instructions
 
 From the package source folder (`packages/api_db_rollover/src/api_db_rollover`), run:
