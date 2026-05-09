@@ -291,7 +291,7 @@ production applications.
 
 This is an interal package containing modules with common utilities used by other SMART Protoype packages, including management of Gemini clients and queries; database connections and queries; file input and output; and logging.
 
-(The `db_utils` module is largely deprecated, but contains some code still currently used for reading from Google Cloud Storage.)
+Detailed documentation can be found within the package [here](packages/curb-utils/README.md)
 
 ## api-db-rollover
 
