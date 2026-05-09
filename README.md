@@ -163,6 +163,7 @@ uv run python /smart-prototype/src/smart_prototype/main.py
 ```
 
 **Auto Job Discovery (In Development)**
+
 The curb segmenter, sign reader, and policy applier configs each require reference to
 one or more `job_ids` from upstream processes. By setting these `job_id` values to
 `"auto"`, the SMART Prototype pipeline will pass the relevant job ids to each process.
@@ -209,7 +210,7 @@ This process uses data from [MassDOT's 2024 Roadway Inventory](https://gis.data.
 **NB**: The blockface creation step redigitizes the direction of each curb line to flow with the direction
 of travel in the adjacent lane. This step is important for downstream processes.
 
-Detailed documentation can be found within the package [here](packages/blockface-creator/README.md)
+Detailed documentation can be found within the package [here](packages/blockface-creator/README.md).
 
 ### Inputs and Outputs
 
@@ -234,7 +235,7 @@ where different parking rules start and end.
 Non-sign features used in segmentation are currently limited to fire hydrants, bus stops, and parking meter zones.
 Currently, the non-sign features should be uploaded to the prior to running the curb segmenter.
 
-Detailed documentation can be found within the package [here](packages/curb-segmenter/README.md)
+Detailed documentation can be found within the package [here](packages/curb-segmenter/README.md).
 
 ### Inputs and Outputs
 
@@ -258,7 +259,7 @@ along with important metadata such as the direction of arrows. A pre-processor (
 first examine whether or not the image is parseable based on whether it contains a parking sign with
 legible text. Images that cannot be read are assigned a policy with the "unusable image" activity.
 
-Detailed documentation can be found within the package [here](packages/curb-segmenter/README.md)
+Detailed documentation can be found within the package [here](packages/sign-reader/README.md).
 
 ### Inputs and Outputs
 
@@ -309,7 +310,7 @@ that provides the backend to Boston's CDS Curbs API. The final zones and policie
 
 To ensure consistency over equivalent policies, this step also handles generation of policy descriptions (Gemini-based).
 
-Detailed documentation can be found within the package [here](packages/api-updater/README.md)
+Detailed documentation can be found within the package [here](packages/api-updater/README.md).
 
 The actual API code is hosted in a [smart-curb-api](https://github.com/OETBoston/smart-curb-api) sister repository.
 Detailed information on the structure and set up of the API schema can be found there.
@@ -334,11 +335,6 @@ This package may be run from the project root using:
 uv run python -m api_updater
 ```
 
-## api-db-rollover
-
-This is a utility package for managing the rollover from a test API database schema to
-the production schema.
-
 ## curb-utils
 
 This is an interal package containing modules with common utilities used by other SMART Protoype packages, including management of Gemini clients and queries; database connections and queries; file input and output; and logging.
@@ -359,7 +355,7 @@ uv run python main.py
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for notes on consistent style and tooling for developers of the SMART Grant codebases.git stat
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for notes on consistent style and tooling for developers of the SMART Grant codebases.
 
 ---
 
