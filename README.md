@@ -17,15 +17,6 @@ At the core of the prototype is an AI-powered system to automatically translate 
 
 **Funding:** This work is supported by the U.S. Department of Transportation's SMART Grant program.
 
-## Approach
-
-AT a very high level, this system takes two primary inputs:
-
-1. **Asset Management Data**: Existing streets and curb asset records from Boston's municipal systems
-2. **Street Sign Images**: Digital photographs of physical street signs and curb markings
-
-Using AI and geospatial analysis, the system will interpret this data and convert it into CDS-compliant format for modern curb management applications.
-
 ## About CDS
 
 The [Curb Data Specification (CDS)](https://github.com/openmobilityfoundation/curb-data-specification) is an open standard developed by the Open Mobility Foundation that helps cities digitally manage curb space and communicate with curb users. CDS provides APIs for:
@@ -38,31 +29,6 @@ Learn more about CDS at the [official specification repository](https://github.c
 
 # Boston CDS Asset Translation System
 
-## Overview
-
-**⚠️ This project is currently in development.**
-
-An AI-powered system to automatically translate Boston's existing curb asset data and street signage imagery into standardized [Curb Data Specification (CDS)](https://github.com/openmobilityfoundation/curb-data-specification) format. The goal is to bridge the gap between legacy asset management systems and modern digital curb management by leveraging AI and large language models (LLMs) to interpret and structure curb regulations.
-
-## Project Details
-
-**Partnership:**
-
-- **City of Boston Office of Emerging Technology**
-- **Cambridge Systematics**
-
-**Funding:** This work is supported by the U.S. Department of Transportation's SMART Grant program.
-
-## About CDS
-
-The [Curb Data Specification (CDS)](https://github.com/openmobilityfoundation/curb-data-specification) is an open standard developed by the Open Mobility Foundation that helps cities digitally manage curb space and communicate with curb users. CDS provides APIs for:
-
-- **Curbs API**: Digital representation of curb locations and regulations
-- **Events API**: Real-time and historic curb usage events
-- **Metrics API**: Aggregated statistics on curb utilization
-
-Learn more about CDS at the [official specification repository](https://github.com/openmobilityfoundation/curb-data-specification).
-
 ## Approach
 
 The core workflow for the system includes the following steps:
@@ -73,8 +39,10 @@ The core workflow for the system includes the following steps:
 1. Application of policy information back to the curb segments
 
 Each of these steps can be run independently. Input and output data are managed through a Postgres/PostGIS relational database managment system.
+While the above four processes comprise the main steps for generating CDS Curb Zones and Policies, a number of ancillary packages are included
+which help with initial uploading of data, managing database queries, etc.
 
-More information is provided in <LINK TO PACKAGES>
+More information is provided in the relevant [package descriptions](#individual-packages) below.
 
 # Getting Started
 
@@ -110,7 +78,7 @@ to connect to this server from your local machine. Contact the Office of Emergin
 The script located at `/smart-prototype/sql_schema/00_create_staging.sql` contains prerequisite SQL script for
 creating the required database schema. A description of the schema can be found [here](docs/staging_database.md)
 
-By default, the schema is called `staging_next` -- as it is designed to provide an isolated environment when running the pipeline
+By default, the schema is called `staging_next` as it is designed to provide an isolated environment when running the pipeline
 multiple times in succession, which can be renamed to `staging` after inspection.
 
 # Repository Structure
@@ -148,7 +116,6 @@ steps:
   <step_name>: # using underscore, not hyphen
     path: "path/to/config.yaml" # Usually within the package source
     run: True # or False. Whether to run this step
-    # etc.
 ```
 
 Setting `run` to `False` for all but one step provides a convenient entry point for running
@@ -217,7 +184,7 @@ The curb segmentation process uses the locations of parking sign and non-sign as
 where different parking rules start and end.
 
 Non-sign features used in segmentation are currently limited to fire hydrants, bus stops, and parking meter zones.
-Currently, the non-sign features should be uploaded to the prior to running the curb segmenter.
+Currently, the non-sign features should be uploaded prior to running the curb segmenter.
 
 Detailed documentation can be found within the package [here](packages/curb-segmenter/README.md).
 
