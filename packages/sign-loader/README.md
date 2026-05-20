@@ -2,7 +2,7 @@
 
 A pipeline for preprocessing and loading parking sign data into PostgreSQL/PostGIS database.
 
-## This toolkit automates the ingestion of parking sign data, performs geographic and status-based filtering, groups nearby signs together, and uploads the results to the database in a standardized format.
+This toolkit automates the ingestion of parking sign data, performs geographic and status-based filtering, groups nearby signs together, and uploads the results to the database in a standardized format.
 
 ## Repository Structure
 
@@ -34,19 +34,6 @@ Th config defines:
 - **Filtering rules**: MUTCD codes for parking signs, status filters
 - **Processing parameters**: Grouping distance, output CRS
 
-Below details common paramaters needed no matter the input:
-
-| Parameter        | Description                                                              |
-| ---------------- | ------------------------------------------------------------------------ |
-| job_name         | Name of job being run, to be used in `asset_jobs` table                  |
-| job_description  | A description of the job being run, e.g. Cartegraph data for Charlestown |
-| data_source_name | Name of data source, to be used in `data_sources` table                  |
-| dbname           | Target database name                                                     |
-| schema           | Target schema name                                                       |
-| debug_mode       | If `True`, disables database writes                                      |
-| signs_path       | Path to where signs csv is stored                                        |
-| input_crs        | CRS of input signs file                                                  |
-| output_crs       | CRS to final uploaded files                                              |
 
 #### Cartegraph Input
 
@@ -64,59 +51,20 @@ For Cartegraph data, configure the required column mappings in `cartegraphy_requ
 | `geometry_columns` | array  | Array of column names containing geometry data (latitude/longitude) | `["latitude", "longitude"]` |
 | `date_columns`     | object | Object mapping date field types to column names                     | See example below           |
 
-**Date columns example:**
-
-```yaml
-date_columns:
-  sign_modified_date: "cg_last_modified_field"
-  attachment_modified_date: "attachment_cg_last_modified_field"
-```
-
-**Optional Configuration:**
-
-Column-based filtering can be configured in `column_filters`:
-
-| Field    | Type   | Description                                        |
-| -------- | ------ | -------------------------------------------------- |
-| `column` | string | Name of the column in the source dataset to filter |
-| `values` | array  | List of values to match against                    |
-| `mode`   | string | Filter mode: `starts_with`, `drop`, or `keep`      |
-
-**Example configuration:**
-
-```yaml
-column_filters:
-  - column: "asset_status"
-    values: ["Missing", "Proposed"]
-    mode: "drop"
-```
-
-**Additional Parameters:**
-
-| Parameter              | Type   | Description                                            |
-| ---------------------- | ------ | ------------------------------------------------------ |
-| `grouping_distance_ft` | number | Distance in feet to group nearby signs (default: 5 ft) |
-
-**Data Validation:**
-
 Records are automatically filtered if they meet any of these conditions:
 
 - Missing values in latitude/longitude columns
 - Null or missing MUTCD code
 
+The sign 
+
 #### Other Input
 
-If using a different signs dataset, configure the required and optional columns in `other_data_source` within `config.yaml`:
+If using a different signs dataset, configure the required and optional columns in `other_data_source` within `config.yaml.
 
-| Column Name       | Type   | Required | Description                                            |
-| ----------------- | ------ | -------- | ------------------------------------------------------ |
-| `geometry`        | string | ✓        | Name of the geometry column in the dataset             |
-| `uri`             | string | ✓        | Name of the column containing URLs to sign images      |
-| `source_sign_id`  | string |          | Name of the column containing unique sign identifiers  |
-| `source_image_id` | string |          | Name of the column containing unique image identifiers |
-| `notes_col`       | string |          | Name of the column containing sign notes or metadata   |
+At least following must be configured: `geometry` (the point geometry of the sign location) 
+and `uri` (a publicly available URI pointed at a sign image).
 
----
 
 The script will:
 
@@ -183,40 +131,3 @@ The pipeline creates the following database tables:
 | `images`          | Sign image metadata                              |
 
 To learn more about the fields in these tables, check out the [documentation of the full staging database](https://github.com/OETBoston/smart-prototype/blob/main/docs/staging_database.md)
-
-### Logging
-
-Logs are written to both console and file:
-
-- **Console**: Real-time pipeline progress
-- **File**: `logs/cartegraph_loader_YYYYMMDD_HHMMSS.log`
-
-## Troubleshooting
-
-### `FileNotFoundError: No such file or directory`
-
-Ensure you're running the script from the repository root:
-
-```bash
-cd /path/to/smart-prototype
-uv run python packages/sign-loader/src/sign_loader/main.py
-```
-
-### `.env` parse error
-
-Check that your `.env` file has valid syntax:
-
-```text
-KEY=value
-ANOTHER_KEY=another_value
-```
-
-Avoid spaces around `=` and ensure all values are properly formatted.
-
-### Database connection errors
-
-Verify that:
-
-1. Database credentials are correct in `.env`
-2. The database server is running
-3. The specified schema exists in the database

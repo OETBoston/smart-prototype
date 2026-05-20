@@ -51,7 +51,10 @@ other_data_source:
     source_image_id: None
     notes_col: None
 
-# Cartegraph-related Filters
+# Filter Cartegraph-related by columns and values. Mode can be one of:
+#   "drop" (drop rows with these values).
+#   "keep" (keep only rows with these values).
+#   "starts_with" (drop rows where the column value starts with any of the specified values).
 column_filters:
   - column: "asset_status_field"
     values: ["Missing", "Proposed"]
@@ -82,6 +85,7 @@ geo_filter:
   subset_column: "name"
   subset_values: ["Charlestown"]
 
+# Grouping parameters for clustering signs based on proximity.
 grouping_parameters:
   grouping_distance_ft: 5
   grouping_crs: "EPSG:2249" # projected crs for measurement (unit should be US FT)
