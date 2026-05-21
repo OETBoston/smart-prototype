@@ -25,9 +25,10 @@ image read by the process. To run the app from the project root, use:
 uv run streamlit run packages/sign-reader/src/sign_reader/app.py
 ```
 
-## Configuration (`config.yaml`)
+## Configuration
 
-All runtime behavior is controlled through a YAML configuration file (see: `./src/sign_reader/config.yaml`).
+Runtime behavior is controlled through a YAML configuration file.
+See the [default config file](./src/sign_reader/config.yaml) for details.
 
 ## Resuming After Failure
 

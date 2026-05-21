@@ -12,20 +12,10 @@ From the project root (`smart-prototype/`), run:
 uv run python -m policy_applier
 ```
 
-## Config Options
+## Configuration
 
-Runtime options for the policy applier are set in the `config.yaml` file within the package source.
-
-| Option Name                      | Definition                                                                                                                                                                                                                                                                                       |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| db_name (str)                    | Name of the database used for data processing. Should normally be "cds".                                                                                                                                                                                                                         |
-| db_schema (str)                  | Name of the database schema to use. Should normally be "staging_next".                                                                                                                                                                                                                           |
-| job_name (str)                   | A short name for the job                                                                                                                                                                                                                                                                         |
-| job_description (str)            | Longer job description                                                                                                                                                                                                                                                                           |
-| curb_segmenter_job_id (UUID str) | ID of a valid curb segmentation job to use as an input.                                                                                                                                                                                                                                          |
-| default_parking_anytime (bool)   | If `true`, each curb segment will be assigned (in addition to other policies), a default policy allowing parking for all users/times at a minimal priority level. This underlying policy can be used to explicitly allow parking at times when no other policy takes precedence (e.g. overnight) |
-| write_to_csv (bool)              | If true, will skip writing to the database and instead output results to a CSV file for inspection. Useful for debugging.                                                                                                                                                                        |
-| csv_file_path (str)              | Name of the csv file to use for test outputs                                                                                                                                                                                                                                                     |
+Runtime behavior is controlled by a `config.yaml` file within the package source.
+See the [default config file](./src/policy_applier/config.yaml) for details.                              |
 
 ## Module Structure
 

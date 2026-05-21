@@ -6,8 +6,8 @@ The process is orchestrated by `pipeline.py` (`run_api_update`) and consists of 
 
 ## Overview and Configuration
 
-The pipeline reads configuration from `.env` (environment variables) and `config.yaml`.
-When run directly, `pipeline.py` loads default job IDs and database schemas from `config.yaml` and executes the update.
+Runtime parameters are specified in `config.yaml`. 
+See the [default config file](./src/api_updater/config.yaml) for details.
 
 ## Usage
 

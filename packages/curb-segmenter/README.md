@@ -47,6 +47,7 @@ Curbs are segmented in the following order:
 1. Bus stops
 2. Fire hydrants
 3. Parking signs
+4. Parking meters
 
 Bus stops and fire hydrants define a segment, i.e., a segment is made up of the buffer zone around a bus stop or a fire hydrant.
 This is in contrast to parking signs which are used as the start/end points of a segment.
@@ -57,6 +58,8 @@ This is in contrast to parking signs which are used as the start/end points of a
 - Fire hydrants: The fire hydrants data comes from the City of Boston's open data portal, [Analyze Boston](https://data.boston.gov/dataset/fire-hydrants).
 - Parking signs: Parking signs data comes from the [Cartegraph dataset](https://data.boston.gov/dataset/signs-cartegraph)
   on the City of Boston's open data portal, Analyze Boston.
+- Parking meters: Internal data from the City of Boston Parking Clerk (pre-processed to 
+include a start and end point for each parking zone)
 
 These datasets were externally processed, transformed, and loaded into PostgreSQL database tables for downstream use.
 
@@ -104,32 +107,8 @@ uv run python -m curb_segmenter
 
 ## Configuration (`config.yaml`)
 
-All runtime behavior is controlled through a YAML configuration file (see: `./src/curb_segmenter/config.yaml`)
-
-### Key Parameters
-
-| Section  | Parameter               | Description                                                               |
-| -------- | ----------------------- | ------------------------------------------------------------------------- |
-| Debug    | `debug_mode`            | If `True`, disables database writes                                       |
-| CRS      | `proj_crs`              | CRS in US survey feet (used for offsets & lengths)                        |
-| Database | `dbname`                | PostgreSQL database name                                                  |
-| Database | `schema`                | Target schema                                                             |
-| Database | `bf_tbl_name`           | Blockface table name                                                      |
-| Database | `bf_geom_col`           | Geometry column name in blockface table                                   |
-| Database | `bf_job_id`             | Job ID for blockface table upload to db                                   |
-| Database | `cs_job_name`           | Curb segmentation job label stored in DB                                  |
-| Database | `cs_job_description`    | Curb segmentation job description stored in DB                            |
-| Assets   | `assets`                | Dictionary with sign and non-sign asset data specification and parameters |
-| Process  | `curb_id_col`           | Curb ID column name in blockface table                                    |
-| Process  | `min_curb_len_ft`       | Minimum curb length (feet) to keep                                        |
-| Process  | `eps_fraction`          | Small tolerance for floating point precision                              |
-| Process  | `snap_tolerance_ft`     | Maximum snapping tolerance in feet                                        |
-| Process  | `min_segment_len_ft`    | Minimum length of curb segments in feet                                   |
-| Process  | `tiny_seg_threshold_ft` | Threshold for tiny segments to be merged with adjacent long segment       |
-| Output   | `final_output_dir`      | Output directory for local QA files                                       |
-| Output   | `output_file_name`      | Output filename                                                           |
-| Output   | `output_file_format`    | `GeoJSON` or `Parquet`                                                    |
-| Output   | `output_crs`            | CRS for exported files                                                    |
+All runtime behavior is controlled through a YAML configuration file.  
+See the [default config file](./src/curb_segmenter/config.yaml) for details.
 
 ## Outputs
 

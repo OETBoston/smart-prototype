@@ -40,12 +40,10 @@ flowchart TD
 
 ## Parameters
 
-Parameters are specified in `config.yaml`. These are configurable but unlikely
-to change unless there's a database migration.
+Runtime parameters are specified in `config.yaml`. The only required parameter is
+the name of the Postgres Database (unlikely to change).
 
-| Parameter  | Description             |
-| ---------- | ----------------------- |
-| `database` | Name of target database |
+See the [default config file](./src/api_db_rollover/config.yaml) for details.
 
 ## Usage
 
