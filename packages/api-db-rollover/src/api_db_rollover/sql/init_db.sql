@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 
 CREATE TABLE IF NOT EXISTS curb_zones (
     curb_zone_id UUID PRIMARY KEY,
-    geometry GEOGRAPHY(LINESTRING),
+    geometry public.geometry(linestring, 4326),
     published_date TIMESTAMP,
     last_updated_date TIMESTAMP,
     start_date TIMESTAMP,
