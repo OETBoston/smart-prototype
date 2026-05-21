@@ -62,26 +62,9 @@ uv run python -m blockface_creator
 
 ## Configuration (`config.yaml`)
 
-All runtime behavior is controlled through a YAML configuration file (see: `./src/config.yaml`).
+All runtime behavior is controlled through a YAML configuration file.  
+See the [default config file](./src/blockface_creator/config.yaml) for details.
 
-### Key Parameters
-
-| Section  | Parameter         | Description                                        |
-| -------- | ----------------- | -------------------------------------------------- |
-| Debug    | `debug_mode`      | If `True`, disables database writes                |
-| Input    | `roadway_path`    | Path to roadway centerline dataset                 |
-| Filters  | `include_filters` | Attribute filters to keep                          |
-| Filters  | `exclude_filters` | Attribute filters to remove                        |
-| CRS      | `ft_crs`          | CRS in US survey feet (used for offsets & lengths) |
-| CRS      | `ft_diff`         | Small distance subtracted for buffer cleanup       |
-| Geometry | `adjust_geometry` | If `True`, aligns curb geometry with traffic flow  |
-| Output   | `output_path`     | Local output directory                             |
-| Output   | `output_type`     | `GeoJSON` or `Parquet`                             |
-| Output   | `output_crs`      | CRS for exported files                             |
-| Database | `dbname`          | PostgreSQL database name                           |
-| Database | `schema`          | Target schema                                      |
-| Metadata | `job_name`        | Job label stored in DB                             |
-| Metadata | `job_description` | Job description stored in DB                       |
 
 ## Core Processing Module (`curb_generation.py`)
 
