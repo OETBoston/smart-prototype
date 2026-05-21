@@ -6,7 +6,7 @@ job_description: "longer job description"
 
 # Source Jobs
 source_jobs:
-  curb_segmenter: "c9dc87c2-b318-488c-9c06-ef679923c3ff"
+  curb_segmenter: "27c19c05-c820-4799-bb81-c8427b8fef7f"
 
 # Whether to include underlying "Parking Anytime (all users)" policy
 default_parking_anytime: false

@@ -12,7 +12,7 @@ job_description: "longer job description"
 
 # Source job ids
 source_jobs:
-  parking_sign: null
+  parking_sign: "06e098ea-9a51-45f4-b782-2efa8fd07a07"
 
 # Number of simultaneous Gemini calls to allow. Defaults to 50.
 gemini_concurrent_limit: 50
@@ -35,4 +35,4 @@ max_retries: 3
 
 # Sign source data settings
 sign_assets:
-  re_process: False # True to re-process signs that already have policies. Defaults to False.
+  re_process: True # True to re-process signs that already have policies. Defaults to False.

@@ -5,8 +5,8 @@ api_db_schema: public_cds_demo # target api schema
 
 # Source job ids
 source_jobs:
-  curb-segmenter: "auto"
-  policy-handler: 33033544-f7cb-4c36-b3e3-6c7d6a182779
+  curb-segmenter: 27c19c05-c820-4799-bb81-c8427b8fef7f
+  policy-handler: 3d7fa2a5-29b6-4132-9add-f36082b84108
 
 # Number of simultaneous Gemini calls to allow. Defaults to 50.
 gemini_concurrent_limit: 50

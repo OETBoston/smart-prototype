@@ -19,8 +19,8 @@ job_description: "longer job description"
 
 # Source jobs
 source_jobs:
-  blockface_creator: "9531be73-90da-4661-b1ce-15e5ab83e53d"
-  parking_sign: "a840e9d9-be25-4c32-9817-7131ebeee8d0"
+  blockface_creator: "9a6c39d5-ccd6-46ac-9283-eadf88395d43"
+  parking_sign: "06e098ea-9a51-45f4-b782-2efa8fd07a07"
   fire_hydrant: "e9e630af-2e20-4221-873a-890bb3477646"
   bus_stop: "223c3644-f0cd-4d28-877b-8ffa056cc2fe"
   parking_meters: "65fe0581-a94c-4d00-afb0-a12460ee898d"
