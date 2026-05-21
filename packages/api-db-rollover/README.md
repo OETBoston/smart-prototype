@@ -2,9 +2,10 @@
 
 This code is used to replace the live data in `public_cds` with <b>validated</b>
 data in `public_cds_next`. To do this it:
+
 1. Drops `public_cds_previous` schema and subsequent tables.
 2. Renames the current `public_cds` schema to `public_cds_previous`, so
-there is 1 backup.
+   there is 1 backup.
 3. Renames `public_cds_next` to `public_cds`.
 4. Grants permissions to `public_cds` to the "cds-api" user.
 5. Creates the `public_cds_next` schema and tables.
@@ -13,6 +14,7 @@ there is 1 backup.
 ---
 
 ## Core Structure
+
 ```text
 .
 ├── main.py                 # Entry point – orchestrates the full workflow
@@ -21,6 +23,7 @@ there is 1 backup.
 ```
 
 ## High-level Workflow
+
 ```mermaid
 flowchart TD
     A[Load Config]
@@ -35,20 +38,18 @@ flowchart TD
     D --> E
 ```
 
-
 ## Parameters
-Parameters are specified in `config.yaml`. These are configurable but unlikely
-to change unless there's a database migration.
 
-| Parameter         | Description                        |
-|-------------------|------------------------------------|
-| `database`        | Name of target database            |
+Runtime parameters are specified in `config.yaml`. The only required parameter is
+the name of the Postgres Database (unlikely to change).
 
-## Usage 
+See the [default config file](./src/api_db_rollover/config.yaml) for details.
 
-To run:
+## Usage
 
-```bash 
+From the project root, run:
+
+```bash
 uv run packages/api-db-rollover/src/api_db_rollover/main.py
 ```
 
