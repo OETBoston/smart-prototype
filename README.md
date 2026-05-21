@@ -214,6 +214,8 @@ based on the arrow direction in which the signs are determined to apply. Using c
 for signs and asset locations, this step iterates over the segmented curbs and identifies
 at which segment points each identified policy begins and ends.
 
+Detailed documentation can be found within the package [here](packages/policy-applier/README.md)
+
 **NB**: Currently, the policy applier will attempt to regulate the curb using **all** policies
 derived from sign locations recorded by the curb segmenter.
 
