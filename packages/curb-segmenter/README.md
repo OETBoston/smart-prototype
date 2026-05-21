@@ -15,9 +15,6 @@ The pipeline is configuration-driven, reproducible, and designed to run sequenti
 
 ## Table of Contents
 
-- [Installation](#installation)
-  - [Create and Sync Python Environment](#create-and-sync-python-environment)
-  - [Environment Variables](#environment-variables-env)
 - [Core Structure](#core-structure)
 - [Segmentation Process](#segmentation-process)
   - [Sources of Physical Assets](#sources-of-physical-assets)
