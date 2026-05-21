@@ -13,7 +13,7 @@
 
 # Database settings
 dbname: "cds"
-schema: "staging_test"
+schema: "staging_demo"
 job_name: "test-job"
 job_description: "this is for testing"
 

@@ -1,7 +1,7 @@
 # database settings
 db_name: "cds"
-staging_db_schema: staging_next # source data schema
-api_db_schema: public_cds_next # target api schema
+staging_db_schema: staging_demo # source data schema
+api_db_schema: public_cds_demo # target api schema
 
 # Source job ids
 source_jobs:

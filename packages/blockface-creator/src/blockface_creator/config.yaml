@@ -5,7 +5,7 @@ debug_mode: False
 
 # Postgres DB export settings
 db_name: "cds"
-db_schema: "staging_next"
+db_schema: "staging_demo"
 job_name: "short job name"
 job_description: "longer job description"
 
