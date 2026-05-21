@@ -3,7 +3,7 @@ import uuid
 import pandas as pd
 from curb_utils.db_utils import SmartCurbDB
 
-DB_SCHEMA = "staging_next"
+DB_SCHEMA = "staging_demo"
 
 
 def get_image_list(
