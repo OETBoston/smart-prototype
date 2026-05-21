@@ -99,7 +99,7 @@ Management of the pipeline is taken care of by the core, `smart_prototype` packa
 The pipeline is currently capable of running the four core, analytical steps sequentially:
 
 1. `blockface-creator`
-1. `curb-segmentater`
+1. `curb-segmenter`
 1. `sign-reader`
 1. `policy-applier`
 
