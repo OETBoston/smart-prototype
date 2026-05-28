@@ -126,23 +126,13 @@ def _process_asset_gdf(
     if asset == "sign_assets":
         assets = assets[assets["sign_removed_date"].isna()].drop(columns=["sign_removed_date"])
 
-    # Get filtered asset locations for this job, fallback to all if none match
-    job_id = asset_spec["job_id"]
-    current_locations = asset_locations[asset_locations["job_id"] == job_id].copy()
-    if current_locations.empty:
-        current_locations = asset_locations.copy()
-    current_locations = current_locations.rename(columns={"asset_location_id": "location_id"})
-    current_locations = gpd.GeoDataFrame(
-        current_locations, geometry="geometry", crs=asset_locations.crs
-    )
-
     # Verify GeoDataFrame is properly formatted
-    cs.confirm_gdf(current_locations)
+    cs.confirm_gdf(asset_locations)
 
     # Merge assets with location geometries
-    assets = assets.merge(current_locations[["location_id", "geometry"]], on="location_id")
+    assets = assets.merge(asset_locations[["location_id", "geometry"]], on="location_id")
     assets = cs.check_and_set_crs(
-        gdf=gpd.GeoDataFrame(assets, geometry="geometry", crs=current_locations.crs),
+        gdf=gpd.GeoDataFrame(assets, geometry="geometry", crs=asset_locations.crs),
         proj_crs=target_crs,
     )
 
