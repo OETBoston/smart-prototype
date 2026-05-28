@@ -52,6 +52,7 @@ def run_curb_segmentation_pipeline(
         config: CurbSegmenterConfig,
         curbs: gpd.GeoDataFrame,
         asset_dict: dict,
+        test_mode: bool = False
     ) -> None:
     segment_id_cols = []
     # Clean curb lines
@@ -94,7 +95,9 @@ def run_curb_segmentation_pipeline(
 
     # Format and create a GeoDataFrame consistent with the `curb_segments` table schema
     curb_segments, job_id, ts = cs.create_curb_segments_table(
-        curb_segments_by_pm, output_crs=config.output_crs
+        gdf=curb_segments_by_pm,
+        output_crs=config.output_crs,
+        test=test_mode
     )
 
     # Merge tiny segments

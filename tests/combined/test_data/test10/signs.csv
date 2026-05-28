@@ -1,5 +1,0 @@
-sign_id,sign_location_id,data_source_id,job_id,source_sign_id,added_date
-640e7590-ad55-504b-9f99-7de9a1e64d78,65679baa-59be-5b40-ad63-65904ae64deb,39151016-1909-442e-8257-ca5c0b02df91,test-job,no_parking_left1,2026-04-13 15:31:12
-b08cffb7-2424-58ad-8caa-0f78fd4f926e,15881a64-afc8-5c98-a698-932632483f01,39151016-1909-442e-8257-ca5c0b02df91,test-job,no_parking_right1,2026-04-13 15:31:12
-640e7590-ad55-504b-9f99-7de9a1e64d78,78c03010-e382-562e-82e0-9afa0bd4e3da,39151016-1909-442e-8257-ca5c0b02df91,test-job,no_parking_left1,2026-04-13 15:31:12
-b08cffb7-2424-58ad-8caa-0f78fd4f926e,c87d2734-47c4-55a8-96e1-4eb0bed167ce,39151016-1909-442e-8257-ca5c0b02df91,test-job,no_parking_right1,2026-04-13 15:31:12

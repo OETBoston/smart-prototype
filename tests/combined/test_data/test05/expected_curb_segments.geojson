@@ -1,8 +1,0 @@
-{
-"type": "FeatureCollection",
-"name": "expected_curb_segments",
-"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::2249" } },
-"features": [
-{ "type": "Feature", "properties": { "segment_id": "ee3a1f80-c5b3-53ab-9d51-225363b61521", "blockface_id": "276f5e29-21c1-4a9d-8ac4-b8869a86cdb2", "job_id": "e8a16499-b84e-4d4c-8a9b-bd87c2dae6d6", "segment_seq": 0, "is_left_side_oneway": false, "upstream_location": "65679baa-59be-5b40-ad63-65904ae64deb", "downstream_location": "c87d2734-47c4-55a8-96e1-4eb0bed167ce", "upstream_loc_list": [ "65679baa-59be-5b40-ad63-65904ae64deb" ], "downstream_loc_list": [ "c87d2734-47c4-55a8-96e1-4eb0bed167ce" ] }, "geometry": { "type": "LineString", "coordinates": [ [ 0.999999998825079, 1.000000001498653 ], [ 2.000000000992125, 1.000000001498653 ], [ 100.000000000431598, 0.999999996533443 ], [ 100.000000000431598, 0.999999996533443 ] ] } }
-]
-}

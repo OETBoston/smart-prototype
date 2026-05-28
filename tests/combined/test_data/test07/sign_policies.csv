@@ -1,3 +1,0 @@
-sign_policy_id,sign_id,job_id,run_date,policy_json,policy_arrow
-244946c1-28df-5307-a0bb-e04dbc6e67bd,244946c1-28df-5307-a0bb-e04dbc6e67bd,test-job,2026-04-08 14:28:54,"{'rules': [{'activity': 'no parking', 'user_classes_except': ['accessible']}]}",left
-b48369c6-16ab-5a7d-8fef-655e7cc86b5a,b48369c6-16ab-5a7d-8fef-655e7cc86b5a,test-job,2026-04-08 14:28:54,"{'rules': [{'activity': 'no parking', 'user_classes_except': ['accessible']}]}",right

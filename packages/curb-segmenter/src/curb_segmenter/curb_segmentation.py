@@ -317,7 +317,6 @@ def clean_curb_geometries(
     5. Perform QA summary.
 
     Args:
-<<<<<<< HEAD
         curb_lines (GeoDataFrame): Input curb geometries with "geometry" column (LineString or MultiLineString).
         min_curb_len_ft (float): Minimum curb length (feet) to keep (default: 2.0).
         eps_fraction (float): Small tolerance for floating point precision (default: 1e-6).
@@ -1829,7 +1828,7 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def create_curb_segments_table(
-    gdf: gpd.GeoDataFrame, output_crs: str = "epsg:4326", test: bool = False
+    gdf: gpd.GeoDataFrame,output_crs: str = "epsg:4326", test: bool = False
 ) -> tuple[gpd.GeoDataFrame, uuid.UUID, str]:
     """
     Creates a new GeoDataFrame containing curb segment data derived from an input
@@ -1919,6 +1918,7 @@ def create_curb_segments_table(
     # Create job ID and run date
     if test:
         job_id = uuid.uuid5(MY_NAMESPACE, "test_job")
+        out["job_id"] = job_id
     else:
         job_id = uuid.uuid4().hex
         out["job_id"] = uuid.UUID(job_id)
