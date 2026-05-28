@@ -216,3 +216,6 @@ __marimo__/
 # Curb data inputs and outputs
 inputs
 outputs
+
+# Zensical docs site
+docs/cds-implementation/site
