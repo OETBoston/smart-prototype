@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "curb_segments_job_id_e14c70a4-efa5-4f61-af49-1783d9764191_20260504-231004",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "segment_id": "0f37c69c-b009-4390-a341-46f69f7caf74", "blockface_id": "276f5e29-21c1-4a9d-8ac4-b8869a86cdb2", "job_id": "e14c70a4-efa5-4f61-af49-1783d9764191", "segment_seq": 0, "is_left_side_oneway": false, "upstream_location": "884f2476-871d-521e-bf18-ca72cc78cd29", "downstream_location": "5f911454-a22c-5113-a90d-8fe77b7a8e6a", "upstream_loc_list": [ "884f2476-871d-521e-bf18-ca72cc78cd29", "65679baa-59be-5b40-ad63-65904ae64deb" ], "downstream_loc_list": [ "3348a74e-e033-5362-83d7-5c2c556d1b77", "5f911454-a22c-5113-a90d-8fe77b7a8e6a" ] }, "geometry": { "type": "LineString", "coordinates": [ [ -73.651387708817708, 34.244389543333291 ], [ -73.651384431481674, 34.244389611995409 ], [ -73.651381154145639, 34.24438968065742 ], [ -73.651069807193409, 34.244396203071283 ], [ -73.651066529856777, 34.24439627172324 ], [ -73.651063252520117, 34.244396340375104 ] ] } }
+]
+}

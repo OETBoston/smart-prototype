@@ -1,0 +1,9 @@
+{
+"type": "FeatureCollection",
+"name": "curb_segments_job_id_bf586711-c093-4ddc-9f9d-31f08cc39c3e_20260504-231017",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "segment_id": "759b60f5-2e54-4f06-9393-127c9c1e51b8", "blockface_id": "276f5e29-21c1-4a9d-8ac4-b8869a86cdb2", "job_id": "bf586711-c093-4ddc-9f9d-31f08cc39c3e", "segment_seq": 0, "is_left_side_oneway": false, "upstream_location": null, "downstream_location": "4bb69374-e7f4-5767-aa34-c642442850ef", "upstream_loc_list": null, "downstream_loc_list": [ "4bb69374-e7f4-5767-aa34-c642442850ef" ] }, "geometry": { "type": "LineString", "coordinates": [ [ -73.651387708817708, 34.244389543333291 ], [ -73.651325439432085, 34.244390847895538 ] ] } },
+{ "type": "Feature", "properties": { "segment_id": "1f0f4e44-5103-42a9-baa9-1ac575e12265", "blockface_id": "276f5e29-21c1-4a9d-8ac4-b8869a86cdb2", "job_id": "bf586711-c093-4ddc-9f9d-31f08cc39c3e", "segment_seq": 1, "is_left_side_oneway": false, "upstream_location": "4bb69374-e7f4-5767-aa34-c642442850ef", "downstream_location": null, "upstream_loc_list": [ "4bb69374-e7f4-5767-aa34-c642442850ef" ], "downstream_loc_list": null }, "geometry": { "type": "LineString", "coordinates": [ [ -73.651325439432085, 34.244390847895538 ], [ -73.651063252520117, 34.244396340375104 ] ] } }
+]
+}
