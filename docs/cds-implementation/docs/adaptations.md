@@ -103,6 +103,14 @@ we have modified `loading` to be defined as follows:
 In addition, the `unloading` and `no unloading` activities are not used, as unloading goods
 and passengers is generally permitted wherever `loading` is allowed.
 
+## "Unusuable Image" Activity
+
+If an image is too blurry, contains multiple signs, or does not contain a sign
+with a parking regulation, the Boston CDS pipeline will output policies with a single
+rule with `activity` set to `unusable image`. While this value is not defined in
+CDS, it currently used for compatibility with mapping applications that rely on the 
+`activity` field for symbology rather than handled through a separate flag.
+
 ## Enumerated Values
 
 CDS includes well known values for User Classes and for Purposes. Our implementation
