@@ -124,90 +124,11 @@ def raise_if_tuple(series: pd.Series, column_name: str | None = None) -> None:
         raise ValueError(f"{name} contains tuple values.")
 
 
-def nan_to_none(
-        df: pd.DataFrame | gpd.GeoDataFrame
-) -> pd.DataFrame | gpd.GeoDataFrame:
+def nan_to_none(df: pd.DataFrame | gpd.GeoDataFrame) -> pd.DataFrame | gpd.GeoDataFrame:
     """
-    Replace NaN / NaT with None in a Pandas DataFrame or GeoDataFrame.
-    
-    Preserves GeoDataFrame type when the input is a GeoDataFrame.
+    Replace NaN / NaT with None in a Pandas DataFrame.
     """
-    result = df.where(pd.notna(df), None)
-
-    # Restore GeoDataFrame type if input was a GeoDataFrame
-    if isinstance(df, gpd.GeoDataFrame) and not isinstance(result, gpd.GeoDataFrame):
-        result = gpd.GeoDataFrame(result, geometry=df.geometry.name, crs=df.crs)
-
-    return result
-
-
-def _create_empty_asset_segments(
-    clean_curbs: gpd.GeoDataFrame,
-    curb_id_col: str,
-    segment_id_cols: list[str],
-    id_columns: list[str],
-    suffix: str,
-    parent_cols: list[str] | None = None,
-) -> gpd.GeoDataFrame:
-    """
-    Create empty curb segments when an asset type is not present.
-    
-    This helper function standardizes the pattern of returning a default segmentation
-    when no assets of a particular type are found.
-    
-    Args:
-        clean_curbs (gpd.GeoDataFrame): Base curb GeoDataFrame to copy.
-        curb_id_col (str): Name of the curb ID column.
-        segment_id_cols (list[str]): List of segment ID columns
-            (modified in-place to add id_columns).
-        id_columns (list[str]): ID columns to add and set to None
-            (e.g., ["start_ps_id", "end_ps_id"]).
-        suffix (str): Suffix to append to curb_id_col values
-            (e.g., ":PS1", ":PM1").
-        parent_cols (list[str] | None): Parent column names to create from
-            curb_id_col (e.g., ["parent_blockface_id"]).
-    
-    Returns:
-        gpd.GeoDataFrame: Empty asset segments with proper schema.
-    """
-    # Add ID columns to segment_id_cols if not already present
-    for col in id_columns:
-        if col not in segment_id_cols:
-            segment_id_cols.append(col)
-
-    # Copy base curbs and add ID columns set to None
-    curb_segments = clean_curbs.copy()
-
-    # Add parent columns if specified
-    if parent_cols:
-        for parent_col in parent_cols:
-            curb_segments.insert(
-                loc=0,
-                column=parent_col,
-                value=curb_segments[curb_id_col],
-            )
-
-    # Add ID columns and set to None
-    for col in id_columns:
-        curb_segments[col] = None
-
-    # Update curb ID with suffix
-    curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + suffix
-
-    # Build columns to keep
-    cols_to_keep = []
-    if parent_cols:
-        cols_to_keep.extend(parent_cols)
-    cols_to_keep.extend([
-        curb_id_col,
-        "segment_length_ft",
-        "is_left_side_oneway",
-        "geometry",
-    ])
-    cols_to_keep.extend(segment_id_cols)
-
-    curb_segments = curb_segments[cols_to_keep]
-    return nan_to_none(curb_segments)
+    return df.where(pd.notna(df), None)
 
 
 def length_in_feet(geom, crs) -> float | None:
@@ -551,8 +472,7 @@ def calculate_fractions_for_fh_buffer_zones(
           - If there is overlap:
               - Build one or more disjoint "overlap clusters" along [0,1].
               - For each cluster, take the envelope of all intervals that
-                participate in that cluster: env_min = min(start),
-                env_max = max(end) over those intervals.
+                participate in that cluster: env_min = min(start), env_max = max(end) over those intervals.
               - Collapse boundaries strictly inside each envelope, while keeping:
                     * all boundaries <= env_min or >= env_max,
                     * env_min and env_max themselves,
@@ -1042,21 +962,31 @@ def run_segmentation_by_fire_hydrants(
     logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
     # Get the fire hydrants file
-    fh = asset_dict.get(asset_type)
+    fh = asset_dict[asset_type].copy()
+
     if fh is None or fh.empty:
-        if logger_obj:
-            logger_obj.info("No fire hydrants found. Skipping fire hydrant segmentation.")
+        logger.info("No fire hydrants found. Skipping fire hydrant segmentation.")
 
-        return _create_empty_asset_segments(
-            clean_curbs=clean_curbs,
-            curb_id_col=curb_id_col,
-            segment_id_cols=segment_id_cols,
-            id_columns=[point_id_col],
-            suffix=":FS1",
-            parent_cols=[f"parent_{curb_id_col}"],
+        if point_id_col not in segment_id_cols:
+            segment_id_cols.append(point_id_col)
+
+        curb_segments = clean_curbs.copy()
+        curb_segments.insert(
+            loc=0,
+            column=f"parent_{curb_id_col}",
+            value=curb_segments[curb_id_col],
         )
-
-    fh = fh.copy()
+        curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":FS1"
+        curb_segments[point_id_col] = None
+        cols_to_keep = [
+                            f"parent_{curb_id_col}",
+                            curb_id_col,
+                            "segment_length_ft",
+                            "is_left_side_oneway",
+                            "geometry",
+                        ] + segment_id_cols
+        curb_segments = curb_segments[cols_to_keep]
+        return nan_to_none(curb_segments)
 
     # Snap fire hydrants to the curb
     snapped_fh, unsnapped_fh = snap_points_to_curbs(
@@ -1166,6 +1096,27 @@ def run_segmentation_by_parking_signs(
 
     # Get the parking signs file
     ps = asset_dict[asset_type].copy()
+
+    if ps is None or ps.empty:
+        logger.info("No parking signs found. Skipping parking sign segmentation.")
+
+        for col in ["start_ps_id", "end_ps_id"]:
+            if col not in segment_id_cols:
+                segment_id_cols.append(col)
+
+        curb_segments = clean_curbs.copy()
+        curb_segments["start_ps_id"] = None
+        curb_segments["end_ps_id"] = None
+        curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":PS1"
+        cols_to_keep = [
+                            curb_id_col,
+                            "segment_length_ft",
+                            "is_left_side_oneway",
+                            "geometry",
+                        ] + segment_id_cols
+        curb_segments = curb_segments[cols_to_keep]
+        return nan_to_none(curb_segments)
+
 
     # Snap parking signs to the curb
     snapped_ps, unsnapped_ps = snap_points_to_curbs(
@@ -1334,22 +1285,27 @@ def run_segmentation_by_bus_stops(
 
     logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
-    # High-level bypass: if no bus stops are provided, return clean curbs in a
-    # bus-stop compatible schema and skip all downstream bus-stop operations.
-    bs = asset_dict.get(asset_type)
+    # Get the bus stops file
+    bs = asset_dict[asset_type].copy()
+
     if bs is None or bs.empty:
-        if logger_obj:
-            logger_obj.info("No bus stops found. Skipping bus stop segmentation.")
+        logger.info("No bus stops found. Skipping bus stop segmentation.")
 
-        return _create_empty_asset_segments(
-            clean_curbs=clean_curbs,
-            curb_id_col=curb_id_col,
-            segment_id_cols=segment_id_cols,
-            id_columns=[point_id_col],
-            suffix=":BS1",
-        )
+        if point_id_col not in segment_id_cols:
+            segment_id_cols.append(point_id_col)
 
-    bs = bs.copy()
+        curb_segments = clean_curbs.copy()
+        curb_segments[point_id_col] = None
+        curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":BS1"
+        curb_segments = curb_segments[
+            [
+                curb_id_col,
+                "segment_length_ft",
+                "is_left_side_oneway",
+                "geometry",
+            ] + segment_id_cols
+        ]
+        return nan_to_none(curb_segments)
 
     # Snap bus stops to the curbs previously segmented
     snapped_bs, unsnapped_bs = snap_points_to_curbs(
@@ -1604,21 +1560,28 @@ def run_segmentation_by_parking_meters(
 
     logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
-    pm = asset_dict.get(asset_type)
-    if pm is None or pm.empty:
-        if logger_obj:
-            logger_obj.info("No parking meters found. Skipping parking meter segmentation.")
-
-        return _create_empty_asset_segments(
-            clean_curbs=clean_curbs,
-            curb_id_col=curb_id_col,
-            segment_id_cols=segment_id_cols,
-            id_columns=["start_mp_id", "end_mp_id"],
-            suffix=":PM1",
-        )
-
     # Get the parking meters file
-    pm = pm.copy()
+    pm = asset_dict[asset_type].copy()
+
+    if pm is None or pm.empty:
+        logger.info("No parking meters found. Skipping parking meter segmentation.")
+
+        for col in ["start_mp_id", "end_mp_id"]:
+            if col not in segment_id_cols:
+                segment_id_cols.append(col)
+
+        curb_segments = clean_curbs.copy()
+        curb_segments["start_mp_id"] = None
+        curb_segments["end_mp_id"] = None
+        curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":PM1"
+        cols_to_keep = [
+                            curb_id_col,
+                            "segment_length_ft",
+                            "is_left_side_oneway",
+                            "geometry",
+                        ] + segment_id_cols
+        curb_segments = curb_segments[cols_to_keep]
+        return nan_to_none(curb_segments)
 
     # Snap parking meters to the curb
     snapped_pm, unsnapped_pm = snap_points_to_curbs(
@@ -1947,7 +1910,7 @@ def create_curb_segments_table(
     # Fill upstream and downstream locations with None if they are missing
     out = fill_up_down_locations(out)
 
-    return out, uuid.UUID(job_id), ts_str
+    return out, job_id, ts_str
 
 
 def fill_up_down_locations(

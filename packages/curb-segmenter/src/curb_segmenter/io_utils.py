@@ -232,21 +232,20 @@ def write_curb_segments_to_db(
     """
 
     # Add a record to the table blockface_jobs
-    with SmartCurbDB(dbname=dbname, schema=schema) as db:
-        cs_job = pd.DataFrame(
-            {
-                "job_id": [job_id],
-                "job_name": [f"[{ts}] {job_name}"],
-                "job_description": [f"[{ts}] {job_description}"],
-                "job_timestamp": [datetime.strptime(ts, "%Y%m%d-%H%M%S")],
-            }
-        )
+    if not bool(debug_mode):
+        with SmartCurbDB(dbname=dbname, schema=schema) as db:
+            cs_job = pd.DataFrame(
+                {
+                    "job_id": [job_id],
+                    "job_name": [f"[{ts}] {job_name}"],
+                    "job_description": [f"[{ts}] {job_description}"],
+                    "job_timestamp": [datetime.strptime(ts, "%Y%m%d-%H%M%S")],
+                }
+            )
 
-        if not bool(debug_mode):
+
             db.append_data("curb_segment_jobs", cs_job)
             db.append_data("curb_segments", gdf)
-
-        return None
 
 
 def write_curb_segments_to_file(
