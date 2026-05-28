@@ -22,7 +22,7 @@ jobs:
           python-version: 3.x
       - run: pip install zensical
       - run: zensical build --clean 
-      - working-directory: docs/cds-implementation
+        working-directory: docs/cds-implementation
       - uses: actions/upload-pages-artifact@v5
         with:
           path: docs/cds-implementation/site
