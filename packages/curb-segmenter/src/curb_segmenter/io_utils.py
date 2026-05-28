@@ -30,122 +30,6 @@ import curb_segmenter.curb_segmentation as cs
 # ==============================================================================
 
 
-def _get_asset_table_config(asset: str) -> dict:
-    """
-    Get table and column configuration for a given asset category.
-
-    This centralized configuration avoids duplication across different data source loaders.
-
-    Args:
-        asset (str): Asset category ("sign_assets", "nonsign_assets", "parking_meters").
-
-    Returns:
-        dict: Configuration dict with table_name, native_id_col, native_location_id_col(s), and select_cols.
-
-    Raises:
-        ValueError: If asset type is invalid.
-    """
-    if asset == "sign_assets":
-        return {
-            "table_name": "signs",
-            "native_id_col": "sign_id",
-            "native_location_id_col": "sign_location_id",
-            "select_cols": ["sign_id", "sign_location_id", "sign_removed_date"],
-        }
-    elif asset == "nonsign_assets":
-        return {
-            "table_name": "nonsign_features",
-            "native_id_col": "feature_id",
-            "native_location_id_col": "feature_location",
-            "select_cols": ["feature_id", "feature_location"],
-        }
-    elif asset == "parking_meters":
-        return {
-            "table_name": "meter_policies",
-            "native_id_col": "meter_policy_id",
-            "native_location_id_cols": ["start_asset_location_id", "end_asset_location_id"],
-            "select_cols": ["meter_policy_id", "start_asset_location_id", "end_asset_location_id"],
-        }
-    else:
-        raise ValueError(f"Invalid asset type: {asset}")
-
-
-def _process_asset_gdf(
-        assets: pd.DataFrame,
-        asset_locations: gpd.GeoDataFrame,
-        asset: str,
-        asset_type: str,
-        asset_spec: dict,
-        config: dict,
-        target_crs: str,
-) -> gpd.GeoDataFrame:
-    """
-    Process raw asset data into a properly formatted and projected GeoDataFrame.
-
-    Encapsulates the common transformation logic used by both PostgreSQL and local data loaders.
-    Handles column renaming, sign asset filtering, meter policy melting, location merging, and CRS validation.
-
-    Args:
-        assets (pd.DataFrame): Raw asset data retrieved from source.
-        asset_locations (gpd.GeoDataFrame): Asset locations GeoDataFrame with geometries.
-        asset (str): Asset category ("sign_assets", "nonsign_assets", "parking_meters").
-        asset_type (str): Specific asset type identifier.
-        asset_spec (dict): Asset specification dict with "new_id_col" and "job_id".
-        config (dict): Asset table configuration from _get_asset_table_config().
-        target_crs (str): Target coordinate reference system.
-
-    Returns:
-        gpd.GeoDataFrame: Processed and deduplicated asset GeoDataFrame.
-    """
-    native_id_col = config["native_id_col"]
-    native_location_id_col = config.get("native_location_id_col")
-    native_location_id_cols = config.get("native_location_id_cols")
-
-    # Handle meter_policies melt operation
-    if asset_type == "meter_policies":
-        if assets.dropna().shape[0] == 0:
-            assets = pd.DataFrame(columns=[native_id_col, "location_id"])
-        else:
-            assets = assets.melt(
-                id_vars=native_id_col,
-                value_vars=native_location_id_cols,
-                var_name="location_type",
-                value_name="location_id",
-            )
-        native_location_id_col = "location_id"
-
-    # Rename ID columns
-    assets = assets.rename(
-        columns={
-            native_id_col: asset_spec["new_id_col"],
-            native_location_id_col: "location_id",
-        }
-    )
-
-    # Filter active sign assets (sign_removed_date is null for active assets)
-    if asset == "sign_assets":
-        assets = assets[assets["sign_removed_date"].isna()].drop(columns=["sign_removed_date"])
-
-    # Verify GeoDataFrame is properly formatted
-    cs.confirm_gdf(asset_locations)
-
-    # Merge assets with location geometries
-    assets = assets.merge(asset_locations[["location_id", "geometry"]], on="location_id")
-    assets = cs.check_and_set_crs(
-        gdf=gpd.GeoDataFrame(assets, geometry="geometry", crs=asset_locations.crs),
-        proj_crs=target_crs,
-    )
-
-    # Keep unique locations only; treat location IDs as asset IDs
-    assets = (
-        assets.drop_duplicates(subset=["location_id"])
-        .drop(columns=[asset_spec["new_id_col"]])
-        .rename(columns={"location_id": asset_spec["new_id_col"]})
-    )
-
-    return assets
-
-
 def load_blockface_gdf_from_pg(
     dbname: str,
     schema: str,
@@ -355,33 +239,6 @@ def write_curb_segments_to_db(
         db.append_data("curb_segment_jobs", cs_job)
         db.append_data("curb_segments", gdf)
 
-    
-def _convert_pg_uuid_array_to_list(values: object) -> object:
-    """
-    Convert PostgreSQL UUID array format back to Python lists.
-    
-    Converts strings like "{uuid1,uuid2,uuid3}" or "{}" back to lists.
-    
-    Args:
-        values (object): Value that may be a postgres array string format
-        
-    Returns:
-        object: List if values was a postgres array string, otherwise original value
-    """
-    if values is None:
-        return None
-    if not isinstance(values, str):
-        return values
-    if values == "{}":
-        return []
-    # Remove outer braces and split by comma
-    if values.startswith("{") and values.endswith("}"):
-        inner = values[1:-1]
-        if inner:
-            return inner.split(",")
-        return []
-    return values
-
 
 def write_curb_segments_to_file(
     output_gdf: gpd.GeoDataFrame,
@@ -391,7 +248,6 @@ def write_curb_segments_to_file(
     output_file_name: str,
     file_type: str = "GeoJSON",
     output_crs: str = "epsg:4326",
-    test: bool = False,
 ) -> None:
     """
     Write the curb GeoDataFrame to a file in the specified format.
@@ -411,10 +267,6 @@ def write_curb_segments_to_file(
     Raises:
         ValueError: If File Type specified is not either `GeoJSON` or `Parquet`
     """
-    # Convert postgres UUID array format back to lists for file output
-    for col in ("upstream_loc_list", "downstream_loc_list"):
-        if col in output_gdf.columns:
-            output_gdf[col] = output_gdf[col].map(_convert_pg_uuid_array_to_list)
 
     # Ensure appropriate CRS is set
     try:
@@ -429,8 +281,7 @@ def write_curb_segments_to_file(
 
     # Create the output path if it does not exist
     Path(output_path).mkdir(parents=True, exist_ok=True)
-    if not test:
-        output_file_name = f"{output_file_name}_job_id_{job_id}_{timestamp}"
+    output_file_name = f"{output_file_name}_job_id_{job_id}_{timestamp}"
 
     # Export
     if file_type.lower() == "geojson":
