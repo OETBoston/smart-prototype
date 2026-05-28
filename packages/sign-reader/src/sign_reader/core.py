@@ -103,6 +103,7 @@ async def main(config: SignReaderConfig) -> None:
     assert asset_job_id != "auto"  # satisfy type checker. actual case handled above.
 
     images_list = get_image_list(
+        db_schema=config.db_schema,
         asset_job_id=asset_job_id or None,
         re_process=config.sign_assets.re_process,
     )
@@ -147,6 +148,7 @@ async def main(config: SignReaderConfig) -> None:
                             job_id=job_id,
                             debug_mode=config.debug_mode,
                             output_dir=output_dir,
+                            db_schema=config.db_schema,
                             records_policies=records_policies,
                             batch_size=config.batch_size,
                             progress=progress,
@@ -160,7 +162,9 @@ async def main(config: SignReaderConfig) -> None:
     # 4. Final Batch Upload
     if records_policies:
         logger.info(f"Uploading final remaining {len(records_policies)} records...")
-        append_sign_policies(records_policies, job_id)
+        append_sign_policies(
+            db_schema=config.db_schema, records=records_policies, job_id=job_id
+        )
         logger.info("Database upload complete.")
 
 
@@ -172,6 +176,7 @@ async def process_image(
     user_prompt: str,
     image_uri: str,
     sign_id: uuid.UUID,
+    db_schema: str,
     job_id: uuid.UUID,
     debug_mode: bool,
     output_dir: Path,
@@ -209,6 +214,7 @@ async def process_image(
     write_image(
         parsed_image=parsed_image,
         records_policies=records_policies,
+        db_schema=db_schema,
         job_id=job_id,
         image_uri=image_uri,
         sign_id=sign_id,
@@ -291,6 +297,7 @@ async def evaluate_image(
 def write_image(
     parsed_image: Image | None,
     records_policies: list,
+    db_schema: str,
     job_id: uuid.UUID,
     image_uri: str,
     sign_id: uuid.UUID,
@@ -334,7 +341,9 @@ def write_image(
             logger.info(
                 f"Threshold reached ({len(records_policies)}). Uploading batch..."
             )
-            append_sign_policies(records_policies, job_id)
+            append_sign_policies(
+                db_schema=db_schema, records=records_policies, job_id=job_id
+            )
             records_policies.clear()  # Empty the list for the next batch
             logger.info("Batch upload successful.")
 
