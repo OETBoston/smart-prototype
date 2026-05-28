@@ -1,0 +1,84 @@
+# ==============================================================================
+# Configuration File for Curb Segmentation Pipeline
+# ==============================================================================
+# This YAML file defines all parameters and settings required to run the curb
+# segmentation workflow. It provides centralized control over data input paths,
+# preprocessing options, required parameters, inference thresholds, and output
+# specifications.
+#
+#
+# Modify these parameters as needed for different datasets and environments.
+# All paths should be absolute or relative to the project root.
+# ==============================================================================
+
+#  Database settings
+db_name: "cds"
+db_schema: "staging_next"
+job_name: "short job name"
+job_description: "longer job description"
+
+# Source jobs
+source_jobs:
+  blockface_creator: "9531be73-90da-4661-b1ce-15e5ab83e53d"
+  parking_sign: "a840e9d9-be25-4c32-9817-7131ebeee8d0"
+  fire_hydrant: "e9e630af-2e20-4221-873a-890bb3477646"
+  bus_stop: "223c3644-f0cd-4d28-877b-8ffa056cc2fe"
+  parking_meters: "65fe0581-a94c-4d00-afb0-a12460ee898d"
+
+# Project settings
+proj_crs: "epsg:2249" # Used for distance calculations (unit should be US Ft)
+
+# Debug mode (Set this to True for debugging) True does not write to DB.
+debug_mode: True
+
+# Blockface table specification
+bf_table_name: "curb_blockfaces"
+bf_geom_col: "geography"
+
+# Sign and nonsign asset table specification
+assets:
+  parking_sign:
+    new_id_col: "ps_id"
+    asset_type: "sign_asset"
+  bus_stop:
+    new_id_col: "bs_id"
+    asset_type: "nonsign_asset"
+    stop_types:
+      near_side:
+        range: [0.7, 1.0]
+        inclusive: True
+        buffer_multiplier: -1.0
+      far_side:
+        range: [0.0, 0.3]
+        inclusive: True
+        buffer_multiplier: 1.0
+      mid_block:
+        range: [0.3, 0.7]
+        inclusive: False
+        buffer_multiplier: -1.0
+  fire_hydrant:
+    new_id_col: "fh_id"
+    buffer_distance_ft: 10
+    asset_type: "nonsign_asset"
+  parking_meters:
+    new_id_col: "mp_id"
+    asset_type: "parking_meter"
+
+# Process parameters
+curb_id_col: "blockface_id"
+min_curb_len_ft: 1
+eps_fraction: 1e-6
+snap_tolerance_ft: 30
+min_segment_len_ft: 0.5
+tiny_seg_threshold_ft: 3
+
+# Local export settings
+# =====================
+# Directories
+proj_dir: "./"
+final_output_dir: "../outputs/segments/"
+
+# Output settings
+output_file_name: "curb_segments"
+output_file_format: "GeoJSON"
+output_crs: "epsg:4326"

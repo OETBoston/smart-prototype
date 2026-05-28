@@ -18,6 +18,7 @@ set before running the script.
 
 # Packages
 import warnings
+import geopandas as gpd
 
 from curb_utils.logging import get_logger
 from dotenv import load_dotenv
@@ -28,22 +29,7 @@ from curb_segmenter.config import CurbSegmenterConfig
 
 warnings.filterwarnings("ignore")
 
-
-def curb_segmenter(config: CurbSegmenterConfig) -> None:
-    # Session settings
-    load_dotenv()
-    logger = get_logger(__name__)
-    logger.info("Running Curb Segmentation Pipeline...")
-
-    segment_id_cols = []
-
-    # Autodetection of job ids must be resolved upstream
-    for job_name, job_id in config.source_jobs:
-        if job_id == "auto":
-            raise RuntimeError(
-                f"Failed to resolve auto-detection of job id for {job_name}"
-            )
-
+def load_data(config: CurbSegmenterConfig) -> tuple:
     # Read curb lines
     curbs = io_utils.load_blockface_gdf_from_pg(
         dbname=config.db_name,
@@ -59,7 +45,15 @@ def curb_segmenter(config: CurbSegmenterConfig) -> None:
         config=config.model_dump(),
         target_crs=config.proj_crs,
     )
+    return curbs, asset_dict
 
+
+def run_curb_segmentation_pipeline(
+        config: CurbSegmenterConfig,
+        curbs: gpd.GeoDataFrame,
+        asset_dict: dict,
+    ) -> None:
+    segment_id_cols = []
     # Clean curb lines
     clean_curbs_gdf = cs.clean_curb_geometries(
         curb_lines=curbs,
@@ -132,3 +126,21 @@ def curb_segmenter(config: CurbSegmenterConfig) -> None:
         file_type=config.output_file_format,
         output_crs=config.output_crs,
     )
+
+
+def curb_segmenter(config: CurbSegmenterConfig) -> None:
+    # Session settings
+    load_dotenv()
+    logger = get_logger(__name__)
+    logger.info("Running Curb Segmentation Pipeline...")
+
+    # Autodetection of job ids must be resolved upstream
+    for job_name, job_id in config.source_jobs:
+        if job_id == "auto":
+            raise RuntimeError(
+                f"Failed to resolve auto-detection of job id for {job_name}"
+            )
+
+    # Load in data
+    curbs, asset_dict = load_data(config)
+    run_curb_segmentation_pipeline(config, curbs, asset_dict)
