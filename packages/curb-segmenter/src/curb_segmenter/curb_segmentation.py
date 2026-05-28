@@ -32,6 +32,8 @@ from shapely.ops import linemerge, substring, unary_union
 
 warnings.filterwarnings("ignore")
 
+# For deterministic UUIDs for testing purposes
+MY_NAMESPACE = uuid.UUID("f7c4cc95-2e37-4c9a-a178-6f8d4b6e2c21")
 
 # Functions
 # ==============================================================================
@@ -122,11 +124,86 @@ def raise_if_tuple(series: pd.Series, column_name: str | None = None) -> None:
         raise ValueError(f"{name} contains tuple values.")
 
 
-def nan_to_none(df: pd.DataFrame | gpd.GeoDataFrame) -> pd.DataFrame | gpd.GeoDataFrame:
+def nan_to_none(
+        df: pd.DataFrame | gpd.GeoDataFrame
+) -> pd.DataFrame | gpd.GeoDataFrame:
     """
-    Replace NaN / NaT with None in a Pandas DataFrame.
+    Replace NaN / NaT with None in a Pandas DataFrame or GeoDataFrame.
+    
+    Preserves GeoDataFrame type when the input is a GeoDataFrame.
     """
-    return df.where(pd.notna(df), None)
+    result = df.where(pd.notna(df), None)
+
+    # Restore GeoDataFrame type if input was a GeoDataFrame
+    if isinstance(df, gpd.GeoDataFrame) and not isinstance(result, gpd.GeoDataFrame):
+        result = gpd.GeoDataFrame(result, geometry=df.geometry.name, crs=df.crs)
+
+    return result
+
+
+def _create_empty_asset_segments(
+    clean_curbs: gpd.GeoDataFrame,
+    curb_id_col: str,
+    segment_id_cols: list[str],
+    id_columns: list[str],
+    suffix: str,
+    parent_cols: list[str] | None = None,
+) -> gpd.GeoDataFrame:
+    """
+    Create empty curb segments when an asset type is not present.
+    
+    This helper function standardizes the pattern of returning a default segmentation
+    when no assets of a particular type are found.
+    
+    Args:
+        clean_curbs (gpd.GeoDataFrame): Base curb GeoDataFrame to copy.
+        curb_id_col (str): Name of the curb ID column.
+        segment_id_cols (list[str]): List of segment ID columns (modified in-place to add id_columns).
+        id_columns (list[str]): ID columns to add and set to None (e.g., ["start_ps_id", "end_ps_id"]).
+        suffix (str): Suffix to append to curb_id_col values (e.g., ":PS1", ":PM1").
+        parent_cols (list[str] | None): Parent column names to create from curb_id_col (e.g., ["parent_blockface_id"]).
+    
+    Returns:
+        gpd.GeoDataFrame: Empty asset segments with proper schema.
+    """
+    # Add ID columns to segment_id_cols if not already present
+    for col in id_columns:
+        if col not in segment_id_cols:
+            segment_id_cols.append(col)
+
+    # Copy base curbs and add ID columns set to None
+    curb_segments = clean_curbs.copy()
+
+    # Add parent columns if specified
+    if parent_cols:
+        for parent_col in parent_cols:
+            curb_segments.insert(
+                loc=0,
+                column=parent_col,
+                value=curb_segments[curb_id_col],
+            )
+
+    # Add ID columns and set to None
+    for col in id_columns:
+        curb_segments[col] = None
+
+    # Update curb ID with suffix
+    curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + suffix
+
+    # Build columns to keep
+    cols_to_keep = []
+    if parent_cols:
+        cols_to_keep.extend(parent_cols)
+    cols_to_keep.extend([
+        curb_id_col,
+        "segment_length_ft",
+        "is_left_side_oneway",
+        "geometry",
+    ])
+    cols_to_keep.extend(segment_id_cols)
+
+    curb_segments = curb_segments[cols_to_keep]
+    return nan_to_none(curb_segments)
 
 
 def length_in_feet(geom, crs) -> float | None:
@@ -960,7 +1037,21 @@ def run_segmentation_by_fire_hydrants(
     logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
     # Get the fire hydrants file
-    fh = asset_dict[asset_type].copy()
+    fh = asset_dict.get(asset_type)
+    if fh is None or fh.empty:
+        if logger_obj:
+            logger_obj.info("No fire hydrants found. Skipping fire hydrant segmentation.")
+
+        return _create_empty_asset_segments(
+            clean_curbs=clean_curbs,
+            curb_id_col=curb_id_col,
+            segment_id_cols=segment_id_cols,
+            id_columns=[point_id_col],
+            suffix=":FS1",
+            parent_cols=[f"parent_{curb_id_col}"],
+        )
+
+    fh = fh.copy()
 
     # Snap fire hydrants to the curb
     snapped_fh, unsnapped_fh = snap_points_to_curbs(
@@ -1238,8 +1329,22 @@ def run_segmentation_by_bus_stops(
 
     logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
-    # Get the bus stops file
-    bs = asset_dict[asset_type].copy()
+    # High-level bypass: if no bus stops are provided, return clean curbs in a
+    # bus-stop compatible schema and skip all downstream bus-stop operations.
+    bs = asset_dict.get(asset_type)
+    if bs is None or bs.empty:
+        if logger_obj:
+            logger_obj.info("No bus stops found. Skipping bus stop segmentation.")
+
+        return _create_empty_asset_segments(
+            clean_curbs=clean_curbs,
+            curb_id_col=curb_id_col,
+            segment_id_cols=segment_id_cols,
+            id_columns=[point_id_col],
+            suffix=":BS1",
+        )
+
+    bs = bs.copy()
 
     # Snap bus stops to the curbs previously segmented
     snapped_bs, unsnapped_bs = snap_points_to_curbs(
@@ -1494,8 +1599,21 @@ def run_segmentation_by_parking_meters(
 
     logger.info(f"--> Starting curb segmentation by {asset_type.replace('_', ' ')}...")
 
+    pm = asset_dict.get(asset_type)
+    if pm is None or pm.empty:
+        if logger_obj:
+            logger_obj.info("No parking meters found. Skipping parking meter segmentation.")
+
+        return _create_empty_asset_segments(
+            clean_curbs=clean_curbs,
+            curb_id_col=curb_id_col,
+            segment_id_cols=segment_id_cols,
+            id_columns=["start_mp_id", "end_mp_id"],
+            suffix=":PM1",
+        )
+
     # Get the parking meters file
-    pm = asset_dict[asset_type].copy()
+    pm = pm.copy()
 
     # Snap parking meters to the curb
     snapped_pm, unsnapped_pm = snap_points_to_curbs(
@@ -1705,7 +1823,7 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def create_curb_segments_table(
-    gdf: gpd.GeoDataFrame, output_crs: str = "epsg:4326"
+    gdf: gpd.GeoDataFrame, output_crs: str = "epsg:4326", test: bool = False
 ) -> tuple[gpd.GeoDataFrame, uuid.UUID, str]:
     """
     Creates a new GeoDataFrame containing curb segment data derived from an input
@@ -1725,6 +1843,7 @@ def create_curb_segments_table(
         The function assumes these inputs represent consistent identifiers for
         parking signs, fire hydrants, and bus stops.
         output_crs (str): Coordinate Reference System for the output GeoDataFrame.
+        test (bool): Flag indicating whether the function is being run in test mode.
 
     Returns:
         gpd.GeoDataFrame: Output GeoDataFrame containing the calculated segment
@@ -1758,7 +1877,15 @@ def create_curb_segments_table(
     )
 
     # Generate new UUID per segment
-    out["segment_id"] = [uuid.UUID(uuid.uuid4().hex) for _ in range(len(gdf_4326))]
+    if test:
+        out["segment_id"] = out.apply(
+            lambda x: uuid.uuid5(MY_NAMESPACE, x['geometry'].wkt),
+            axis=1
+        )
+    else:
+        out["segment_id"] = [
+            uuid.UUID(uuid.uuid4().hex) for _ in range(len(gdf_4326))
+        ]
     out["blockface_id"] = gdf_4326["blockface_id"]
     out["is_left_side_oneway"] = gdf_4326["is_left_side_oneway"]
     out["segment_seq"] = gdf_4326["segment_seq"]
@@ -1777,12 +1904,18 @@ def create_curb_segments_table(
     )
 
     out["downstream_location"] = (
-        gdf_4326["end_mp_id"].combine_first(end_ps).combine_first(fh).combine_first(bs)
+        gdf_4326["end_mp_id"]
+        .combine_first(end_ps)
+        .combine_first(fh)
+        .combine_first(bs)
     )
 
     # Create job ID and run date
-    job_id = uuid.uuid4().hex
-    out["job_id"] = uuid.UUID(job_id)
+    if test:
+        job_id = uuid.uuid5(MY_NAMESPACE, "test_job")
+    else:
+        job_id = uuid.uuid4().hex
+        out["job_id"] = uuid.UUID(job_id)
     ts = datetime.now(timezone.utc)
     ts_str = ts.strftime("%Y%m%d-%H%M%S")
 
