@@ -326,8 +326,7 @@ def write_curb_segments_to_db(
     job_id: uuid.UUID,
     job_name: str,
     job_description: str,
-    ts: str,
-    debug_mode: bool = True,
+    ts: str
 ) -> None:
     """
     Writes curb segment data to a database and creates a curb segment job record for the data.
@@ -341,10 +340,6 @@ def write_curb_segments_to_db(
         job_description (str): A description of the job, providing additional context about the data
             being stored.
         ts (str): Timestamp of the job execution.
-        debug_mode (bool): If True, then it will not write the blockface data to the database.
-
-    Returns:
-        None
     """
 
     # Add a record to the table blockface_jobs
@@ -357,12 +352,9 @@ def write_curb_segments_to_db(
                 "job_timestamp": [datetime.strptime(ts, "%Y%m%d-%H%M%S")],
             }
         )
+        db.append_data("curb_segment_jobs", cs_job)
+        db.append_data("curb_segments", gdf)
 
-        if not bool(debug_mode):
-            db.append_data("curb_segment_jobs", cs_job)
-            db.append_data("curb_segments", gdf)
-
-        return None
     
 def _convert_pg_uuid_array_to_list(values: object) -> object:
     """
