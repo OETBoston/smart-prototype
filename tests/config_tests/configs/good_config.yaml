@@ -3,7 +3,7 @@ steps:
     path: "tests/config_tests/configs/empty_config.yaml"
     run: True
   curb_segmenter: 
-    path: "tests/config_tests/configs/empty_config.yaml"
+    path: "tests/config_tests/configs/curb_segmenter_config.yaml"
     run: True
   sign_reader: 
     path: "tests/config_tests/configs/empty_config.yaml"

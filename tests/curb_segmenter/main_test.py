@@ -5,11 +5,9 @@ import geopandas as gpd
 import pytest
 from pandas.testing import assert_frame_equal
 
-# Generate test data at the beginning
-from tests.combined.curb_segmenter_main_test_segments import main as generate_test_data
-generate_test_data()
+import static_curb_segmentation as scs
 
-TEST_DATA_DIR = Path("tests/combined/test_data")
+TEST_DATA_DIR = Path("tests/curb_segmenter/test_data")
 
 
 def get_test_directories():
@@ -23,7 +21,14 @@ def get_test_directories():
     ids=lambda d: d.name,
 )
 def test_curb_segments_match_expected(test_dir):
-    """Compare curb_segments.geojson to expected_curb_segments.geojson, excluding segment_id."""
+    """
+    Runs curb segmentation on static test data
+    Then compares output curb_segments.geojson to expected_curb_segments.geojson
+    """
+    # Run curb segmentation for test data
+    scs.run_static_curb_segmentation_pipeline(test_dir)
+
+    # Check outputs
     actual_path = test_dir / "curb_segments.geojson"
     expected_path = test_dir / "expected_curb_segments.geojson"
 
