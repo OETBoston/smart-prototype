@@ -85,6 +85,7 @@ def run_curb_segmentation_pipeline(
         clean_curbs=curb_segments_by_fh,
         segment_id_cols=segment_id_cols,
     )
+
     # Run segmentation by parking meters
     curb_segments_by_pm = cs.run_segmentation_by_parking_meters(
         configuration=config.model_dump(),
@@ -116,7 +117,7 @@ def run_curb_segmentation_pipeline(
         job_name=config.job_name,
         job_description=config.job_description,
         ts=ts,
-        debug_mode=config.debug_mode,
+        debug_mode=config.debug_mode
     )
 
     # Write curb segments to a local file (for QA)
@@ -128,6 +129,7 @@ def run_curb_segmentation_pipeline(
         output_file_name=config.output_file_name,
         file_type=config.output_file_format,
         output_crs=config.output_crs,
+        test=test_mode
     )
 
 

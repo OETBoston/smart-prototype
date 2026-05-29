@@ -25,10 +25,10 @@ def load_config_from_local_yaml(
 
 
 def load_blockface_gdf_from_local(
-        target_crs: str,
+    target_crs: str,
     input_dir: Union[str, os.PathLike] = "../inputs/policy-applier-test",
-        table_name: str = "curb_blockfaces",
-        geom_col: str = "geography",
+    table_name: str = "curb_blockfaces",
+    geom_col: str = "geography",
     source_crs: Optional[str] = None,
         reproject: bool = True,
 ) -> gpd.GeoDataFrame:
@@ -90,10 +90,7 @@ def read_in_assets(
 def load_asset_gdfs_from_local(
         asset_dict: dict,
         target_crs: str,
-        input_dir: str | os.PathLike = "../inputs/policy-applier-test",
-        asset_locations: pd.DataFrame = pd.DataFrame(),
-        signs: pd.DataFrame = pd.DataFrame(),
-        nonsign_features: pd.DataFrame = pd.DataFrame()
+        input_dir: str | os.PathLike,
 ) -> dict:
     """
     Loads asset GeoDataFrames from local CSV files based on asset type specifications.
@@ -118,26 +115,25 @@ def load_asset_gdfs_from_local(
         dict: A dictionary where keys are asset types from the asset_dict and values are
             GeoDataFrames containing the asset IDs and geometries.
     """
-    if asset_locations.empty:
-        input_dir = Path(input_dir)
-        asset_locations_fp = input_dir / "asset_locations.geojson"
-        if not asset_locations_fp.exists():
-            raise FileNotFoundError(f"Local asset location file not found: {asset_locations_fp}")
+    input_dir = Path(input_dir)
+    asset_locations_fp = input_dir / "asset_locations.geojson"
+    if not asset_locations_fp.exists():
+        raise FileNotFoundError(f"Local asset location file not found: {asset_locations_fp}")
 
-        asset_locations = gpd.read_file(asset_locations_fp)
+    asset_locations = gpd.read_file(asset_locations_fp)
+    job_id = "test-job"
 
     # Define an empty collector dictionary to store the GeoDataFrames
     asset_gdfs = {}
-
     # Loop through asset types and load the GeoDataFrames
-    for asset, asset_cat in asset_dict.items():
+    for asset, asset_info in asset_dict.items():
         # Match the table/column selection used in load_asset_gdfs_from_pg
-        if asset == "sign_assets":
+        if asset == "parking_sign":
             table_name = "signs"
             native_id_col = "sign_id"
             native_location_id_col = "sign_location_id"
             select_cols = [native_id_col, native_location_id_col, "sign_removed_date"]
-        elif asset == "nonsign_assets":
+        elif asset in ["bus_stop", "fire_hydrant"]:
             table_name = "nonsign_features"
             native_id_col = "feature_id"
             native_location_id_col = "feature_location"
@@ -152,77 +148,72 @@ def load_asset_gdfs_from_local(
             select_cols = [native_id_col] + native_location_id_cols
         else:
             raise ValueError(f"Invalid asset type: {asset}")
+    
 
-        if table_name == 'signs' and not signs.empty:
-            assets_table = signs
-        elif table_name == 'nonsign_features' and not nonsign_features.empty:
-            assets_table = nonsign_features
-        else:
-            assets_table = read_in_assets(input_dir, table_name)
+        assets_table = read_in_assets(input_dir, table_name)
+        asset_type = asset_info.get("asset_type", None)
+        assets = assets_table.copy()
+        if asset_type == "nonsign_asset":
+            assets = assets[assets["feature_type"] == asset]
 
-        for asset_type, asset_spec in asset_cat.items():
-            assets = assets_table.copy()
-            if asset == "nonsign_assets":
-                assets = assets[assets["feature_type"] == asset_type]
+        # Mirror DB select behavior
+        if asset_type == "sign_asset" and "sign_removed_date" not in assets.columns:
+            assets["sign_removed_date"] = pd.NA
+        assets = assets[select_cols]
 
-            # Mirror DB select behavior
-            if asset == "sign_assets" and "sign_removed_date" not in assets.columns:
-                assets["sign_removed_date"] = pd.NA
-            assets = assets[select_cols]
-            if asset_type == "meter_policies":
-                if assets.dropna().shape[0] == 0:
-                    assets = pd.DataFrame(columns=[native_id_col, 'location_id'])
-                else:
-                    assets = assets.melt(
-                        id_vars=native_id_col,
-                        value_vars=native_location_id_cols,
-                        var_name="location_type",
-                        value_name="location_id"
-                    )
-                native_location_id_col = "location_id"
+        if asset_type == "parking_meter":
+            if assets.dropna().shape[0] == 0:
+                assets = pd.DataFrame(columns=[native_id_col, 'location_id'])
+            else:
+                assets = assets.melt(
+                    id_vars=native_id_col,
+                    value_vars=native_location_id_cols,
+                    var_name="location_type",
+                    value_name="location_id"
+                )
+            native_location_id_col = "location_id"
 
-            assets = assets.rename(
-                columns={
-                    native_id_col: asset_spec["new_id_col"],
-                    native_location_id_col: "location_id",
-                }
-            )
+        assets = assets.rename(
+            columns={
+                native_id_col: asset_info.get("new_id_col", None),
+                native_location_id_col: "location_id",
+            }
+        )
 
-            # Select active sign assets: sign_removed_date is null for them
-            if asset == "sign_assets":
-                assets = assets[assets["sign_removed_date"].isna()].drop(columns=["sign_removed_date"])
+        # Select active sign assets: sign_removed_date is null for them
+        if asset == "parking_sign":
+            assets = assets[assets["sign_removed_date"].isna()].drop(columns=["sign_removed_date"])
 
-            # Mirror DB location query: filter by job_id; if no match in local test data, fallback to all.
-            job_id = asset_spec["job_id"]
-            current_locations = asset_locations[asset_locations["job_id"] == job_id].copy()
-            if current_locations.empty:
-                current_locations = asset_locations.copy()
-            current_locations = current_locations.rename(
-                columns={
-                    "asset_location_id": "location_id",
-                }
-            )
-            # print(current_locations)
-            current_locations = gpd.GeoDataFrame(
-                current_locations,
-                geometry="geometry",
-                crs=asset_locations.crs
-            )
-            # Check if curb dataset is already in GeoDataFrame
-            cs.confirm_gdf(current_locations)
-            # Merge assets and asset locations and store GeoDataFrames in the collector dictionary
-            assets = assets.merge(current_locations[["location_id", "geometry"]], on="location_id")
-            assets = cs.check_and_set_crs(
-                gdf=gpd.GeoDataFrame(assets, geometry="geometry", crs=current_locations.crs),
-                proj_crs=target_crs,
-            )
-            # Keep unique locations only. Consider location IDs as asset IDs.
-            assets = (
-                assets.drop_duplicates(subset=["location_id"])
-                .drop(columns=[asset_spec["new_id_col"]])
-                .rename(columns={"location_id": asset_spec["new_id_col"]})
-            )
-            asset_gdfs[asset_type] = assets
+        # Mirror DB location query: filter by job_id; if no match in local test data, fallback to all.
+        job_id = asset_info.get("job_id", None)
+        current_locations = asset_locations[asset_locations["job_id"] == job_id].copy()
+        if current_locations.empty:
+            current_locations = asset_locations.copy()
+        current_locations = current_locations.rename(
+            columns={
+                "asset_location_id": "location_id",
+            }
+        )
+        current_locations = gpd.GeoDataFrame(
+            current_locations,
+            geometry="geometry",
+            crs=asset_locations.crs
+        )
+        # Check if curb dataset is already in GeoDataFrame
+        cs.confirm_gdf(current_locations)
+        # Merge assets and asset locations and store GeoDataFrames in the collector dictionary
+        assets = assets.merge(current_locations[["location_id", "geometry"]], on="location_id")
+        assets = cs.check_and_set_crs(
+            gdf=gpd.GeoDataFrame(assets, geometry="geometry", crs=current_locations.crs),
+            proj_crs=target_crs,
+        )
+        # Keep unique locations only. Consider location IDs as asset IDs.
+        assets = (
+            assets.drop_duplicates(subset=["location_id"])
+            .drop(columns=[asset_info.get("new_id_col", None)])
+            .rename(columns={"location_id": asset_info.get("new_id_col", None)})
+        )
+        asset_gdfs[asset] = assets
 
     return asset_gdfs
 
@@ -272,4 +263,9 @@ def run_static_curb_segmentation_pipeline(
         config,
         curbs,
         asset_dict,
+        test_mode=True
     )
+
+
+if __name__ == "__main__":
+    run_static_curb_segmentation_pipeline()
