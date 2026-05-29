@@ -9,6 +9,12 @@ from smart_prototype.config import Config, StepConfig
 
 # may be of use later
 TEST_CONFIGS_DIR = Path(__file__).parent / "configs"
+CURB_SEGMENTER_CONFIG_FILE = TEST_CONFIGS_DIR / "curb_segmenter_config.yaml"
+
+
+def load_curb_segmenter_config_contents() -> dict:
+    """Load the shared curb-segmenter config used by tests."""
+    return load_from_yaml(CURB_SEGMENTER_CONFIG_FILE)
 
 
 def test_step_config_valid_path(tmp_path) -> None:

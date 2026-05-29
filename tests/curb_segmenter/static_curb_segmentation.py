@@ -1,4 +1,9 @@
+"""
+Runs curb segmentation pipeline on data loaded from local files
+without any database connections
+"""
 import os
+import sys
 from pathlib import Path
 from typing import Optional, Union
 import geopandas as gpd
@@ -12,13 +17,19 @@ from curb_utils.io_tools import load_from_yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TEST_INPUT_DIR = REPO_ROOT / "tests" / "curb_segmenter" / "test_data" / "test00"
 
+sys.path.insert(0, str(REPO_ROOT / "tests"))
+from config_tests.test_config import load_curb_segmenter_config_contents
+
 
 def load_config_from_local_yaml(
     config_file: Optional[Union[str, os.PathLike]] = None,
 ) -> CurbSegmenterConfig:
-    """Load the curb-segmenter config from tests/combined/config.yaml by default."""
+    """Load the curb-segmenter config from tests/config_tests by default."""
+    if config_file is None:
+        return CurbSegmenterConfig(**load_curb_segmenter_config_contents())
+
     local_path = Path(__file__).resolve().parent
-    resolved_config = Path(config_file) if config_file else local_path / "config.yaml"
+    resolved_config = Path(config_file)
     if not resolved_config.is_absolute():
         resolved_config = local_path / resolved_config
     return CurbSegmenterConfig(**load_from_yaml(resolved_config))
