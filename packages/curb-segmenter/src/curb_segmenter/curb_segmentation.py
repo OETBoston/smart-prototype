@@ -2232,8 +2232,11 @@ def _remove_none_from_location_lists(
         return [value for value in values if value is not None]
 
     def replace_none_list(values: object) -> object:
-        if isinstance(values, list) and len(values) == 1 and values[0] is None:
-            return None
+        if isinstance(values, list):
+            if len(values) == 0:
+                return None
+            if len(values) == 1 and values[0] is None:
+                return None
         return values
 
     df = df.copy()
@@ -2272,6 +2275,71 @@ def _remove_none_from_location_lists(
             df[col] = df[col].map(to_pg_uuid_array)
 
     return df
+
+
+def _aggregate_location_list(
+    grp: pd.DataFrame,
+    is_tiny: np.ndarray,
+    has_tiny: bool,
+    has_non_tiny: bool,
+    position: str,
+) -> list:
+    """
+    Aggregate location or asset values from a group of segments.
+
+    Core strategy:
+    - upstream_locations: the STARTING anchor(s) of the merged segment
+    - downstream_locations: all ENDING anchors of each row (junctions + final endpoint)
+    
+    For non-mixed groups (all tiny or all non-tiny), collect from specified column.
+    For mixed groups, apply row-by-row logic based on merge direction.
+
+    Args:
+        grp (pd.DataFrame): Group of segments to aggregate
+        is_tiny (np.ndarray): Boolean array of which rows are tiny
+        has_tiny (bool): Whether group has any tiny
+        has_non_tiny (bool): Whether group has any non-tiny
+        position (str): "upstream_location" or "downstream_location"
+
+    Returns:
+        list: Aggregated location values, excluding NaN
+    """
+    grp = grp.reset_index(drop=True)
+    if not (has_tiny and has_non_tiny):
+        # Homogeneous group: collect all from the specified column
+        values = grp[position].dropna().tolist()
+        return values
+
+    # Mixed group: apply smart extraction
+    values = []
+    past_nontiny = False
+    for idx, row in grp.iterrows():
+        if not is_tiny[idx]:
+            past_nontiny = True
+        if position == "upstream_location":
+            if idx == 0:
+            # For upstream: take ONLY the starting anchor of the entire group
+            # Always use first row's upstream
+                value = row["upstream_location"]
+                if pd.notna(value):
+                    values.append(value)
+
+            if is_tiny[idx] and not past_nontiny:
+                # if first row tiny add downstream of first row to upstream
+                value = row["downstream_location"]
+                if pd.notna(value):
+                    values.append(value)
+        else:
+            # For downstream: collect ALL row downstreams except possibly the first if it's tiny
+            # (since leading tiny's downstream already became the upstream)
+            if idx == 0 and is_tiny[idx]:
+                # Skip first row if it's leading tiny (already in upstream)
+                continue
+            if past_nontiny:
+                value = row["downstream_location"]
+                if pd.notna(value):
+                    values.append(value)
+    return list(set(values))
 
 
 def merge_tiny_curb_segments(
@@ -2400,42 +2468,34 @@ def merge_tiny_curb_segments(
         starts = np.flatnonzero(change)
         ends = np.r_[starts[1:], len(group_ids)]
 
+        prev_downstream_locations = None
         for new_seq, (start, end) in enumerate(zip(starts, ends, strict=False)):
             grp = bf.iloc[start:end]
             first = grp.iloc[0]
-            last = grp.iloc[-1]
             grp_is_tiny = is_tiny[start:end]
             has_tiny = bool(np.any(grp_is_tiny))
             has_non_tiny = bool(np.any(~grp_is_tiny))
-            is_middle_group = start > 0 and end < len(bf)
 
-            if is_middle_group and has_tiny and has_non_tiny:
-                if grp_is_tiny[0] and not grp_is_tiny[-1]:
-                    # Middle tiny run merged downstream into the next non-tiny.
-                    # upstream_locations = grp.loc[grp_is_tiny, "upstream_location"].tolist()
-                    upstream_locations = grp["upstream_location"].tolist()
-                    downstream_locations = [last["downstream_location"]]
-                    # upstream_assets = grp.loc[grp_is_tiny, "upstream_asset"].tolist()
-                    upstream_assets = grp["upstream_asset"].tolist()
-                    downstream_assets = [last["downstream_asset"]]
-                elif not grp_is_tiny[0] and grp_is_tiny[-1]:
-                    # Middle tiny run merged upstream into the previous non-tiny.
-                    upstream_locations = [first["upstream_location"]]
-                    # downstream_locations = grp.loc[grp_is_tiny, "downstream_location"].tolist()
-                    downstream_locations = grp["downstream_location"].tolist()
-                    upstream_assets = [first["upstream_asset"]]
-                    # downstream_assets = grp.loc[grp_is_tiny, "downstream_asset"].tolist()
-                    downstream_assets = [first["downstream_asset"]]
-                else:
-                    upstream_locations = grp["upstream_location"].tolist()
-                    downstream_locations = grp["downstream_location"].tolist()
-                    upstream_assets = grp["upstream_asset"].tolist()
-                    downstream_assets = grp["downstream_asset"].tolist()
-            else:
-                upstream_locations = grp["upstream_location"].tolist()
-                downstream_locations = grp["downstream_location"].tolist()
-                upstream_assets = grp["upstream_asset"].tolist()
-                downstream_assets = grp["downstream_asset"].tolist()
+            # Aggregate locations and assets based on segment size mixing
+            upstream_locations = _aggregate_location_list(
+                grp=grp,
+                is_tiny=grp_is_tiny,
+                has_tiny=has_tiny,
+                has_non_tiny=has_non_tiny,
+                position="upstream_location",
+            )
+
+            downstream_locations = _aggregate_location_list(
+                grp=grp,
+                is_tiny=grp_is_tiny,
+                has_tiny=has_tiny,
+                has_non_tiny=has_non_tiny,
+                position="downstream_location",
+            )
+
+            # Apply carryover logic: upstream of current row = downstream of previous row
+            if prev_downstream_locations is not None:
+                upstream_locations = prev_downstream_locations + upstream_locations
 
             row = {
                 "blockface_id": blockface_id,
@@ -2444,8 +2504,6 @@ def merge_tiny_curb_segments(
                 "seg_length": float(grp["seg_length"].sum()),
                 "upstream_locations": upstream_locations,
                 "downstream_locations": downstream_locations,
-                "upstream_assets": upstream_assets,
-                "downstream_assets": downstream_assets,
                 "source_segment_ids": grp["segment_id"].tolist(),
                 "source_segment_seqs": grp["segment_seq"].tolist(),
                 "source_segment_count": int(len(grp)),
@@ -2459,6 +2517,9 @@ def merge_tiny_curb_segments(
                 row[geometry_col] = _safe_merge_lines(grp[geometry_col].to_list())
 
             out_rows.append(row)
+
+            # Store downstream for carryover to next row's upstream
+            prev_downstream_locations = downstream_locations
 
     if is_geo:
         out = gpd.GeoDataFrame(out_rows, geometry=geometry_col, crs=gdf.crs)
