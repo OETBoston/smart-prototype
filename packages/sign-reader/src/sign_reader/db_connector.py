@@ -3,11 +3,9 @@ import uuid
 import pandas as pd
 from curb_utils.db_utils import SmartCurbDB
 
-DB_SCHEMA = "staging_next"
-
 
 def get_image_list(
-    re_process: bool = False, asset_job_id: uuid.UUID | None = None
+    db_schema: str, re_process: bool = False, asset_job_id: uuid.UUID | None = None
 ) -> list[tuple[str, uuid.UUID]]:
     """
     Fetches image URIs and their corresponding sign IDs.
@@ -26,7 +24,7 @@ def get_image_list(
     if asset_job_id:
         filter = f"job_id = '{asset_job_id}'"
 
-    with SmartCurbDB(dbname="cds", schema=DB_SCHEMA) as db:
+    with SmartCurbDB(dbname="cds", schema=db_schema) as db:
         df_images = db.get_data("images", columns=["uri", "sign_id"], filter=filter)
 
         if not re_process:
@@ -40,9 +38,11 @@ def get_image_list(
     return list(zip(df_images["uri"], df_images["sign_id"], strict=True))
 
 
-def append_sign_policies(records: list[dict], job_id: uuid.UUID) -> None:
+def append_sign_policies(
+    db_schema: str, records: list[dict], job_id: uuid.UUID
+) -> None:
     """Appends sign policy records to the database."""
     records_policies = pd.DataFrame(records)
     records_policies["job_id"] = str(job_id)
-    with SmartCurbDB(dbname="cds", schema=DB_SCHEMA) as db:
+    with SmartCurbDB(dbname="cds", schema=db_schema) as db:
         db.append_data("sign_policies", records_policies)
