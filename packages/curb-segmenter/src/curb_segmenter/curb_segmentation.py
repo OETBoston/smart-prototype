@@ -1190,7 +1190,8 @@ def create_curb_segments_with_parking_asset(
         curb_id = curb_row[curb_id_col]
 
         # Get fractions for this curb
-        fractions = fraction_df[fraction_df[curb_id_col] == curb_id].copy()
+        fractions = fraction_df[fraction_df[curb_id_col] == curb_id].copy(). \
+            reset_index(drop=True)
 
         # check if any breaks in the original segment
         if len(fractions) < 1:
