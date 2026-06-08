@@ -1,0 +1,3 @@
+sign_policy_id,sign_id,job_id,run_date,policy_json,policy_arrow
+244946c1-28df-5307-a0bb-e04dbc6e67bd,244946c1-28df-5307-a0bb-e04dbc6e67bd,test-job,4/22/2026 12:12,"{""rules"": [{""activity"": ""no parking"", ""user_classes_except"": [""accessible""]}], ""priority"": 53}",left
+b48369c6-16ab-5a7d-8fef-655e7cc86b5a,b48369c6-16ab-5a7d-8fef-655e7cc86b5a,test-job,4/22/2026 12:12,"{""rules"": [{""activity"": ""no parking"", ""user_classes_except"": [""accessible""]}], ""priority"": 53}",right
