@@ -327,7 +327,7 @@ def snap_points_to_curbs(
     curb_id_col: str,
     snap_tolerance_ft: float = 25,
     proj_crs: str = "epsg:2249",
-    preserve_cols: list = []
+    preserve_cols: list | None = None
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """
     Snap points to the nearest curb lines within a specified tolerance.
@@ -340,7 +340,7 @@ def snap_points_to_curbs(
         snap_tolerance_ft (float): Maximum snapping tolerance in feet.
         proj_crs (CRS): Projection CRS.
         preserve_cols (list, optional): List of column names from points_clean to preserve
-            in the output. Defaults to empty list (no additional columns preserved).
+            in the output. Defaults to none (no additional columns preserved).
 
     Returns:
         projected_points (gpd.GeoDataFrame): GeoDataFrame of snapped points.
@@ -427,9 +427,10 @@ def snap_points_to_curbs(
                     "curb_geometry": best_curb_geom
                 }
             # Add preserved columns from the original point
-            for col in preserve_cols:
-                snapped_record[col] = point_row[col]
-            
+            if preserve_cols:
+                for col in preserve_cols:
+                    snapped_record[col] = point_row[col]
+
             snapped_data.append(snapped_record)
         else:
             unsnapped_ids.append(point_id)
