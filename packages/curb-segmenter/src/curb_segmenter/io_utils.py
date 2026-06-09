@@ -211,7 +211,7 @@ def write_curb_segments_to_db(
     job_name: str,
     job_description: str,
     ts: str,
-    debug_mode: bool = True,
+    debug_mode: bool = True
 ) -> None:
     """
     Writes curb segment data to a database and creates a curb segment job record for the data.
@@ -232,21 +232,47 @@ def write_curb_segments_to_db(
     """
 
     # Add a record to the table blockface_jobs
-    with SmartCurbDB(dbname=dbname, schema=schema) as db:
-        cs_job = pd.DataFrame(
-            {
-                "job_id": [job_id],
-                "job_name": [f"[{ts}] {job_name}"],
-                "job_description": [f"[{ts}] {job_description}"],
-                "job_timestamp": [datetime.strptime(ts, "%Y%m%d-%H%M%S")],
-            }
-        )
+    if not bool(debug_mode):
+        with SmartCurbDB(dbname=dbname, schema=schema) as db:
+            cs_job = pd.DataFrame(
+                {
+                    "job_id": [job_id],
+                    "job_name": [f"[{ts}] {job_name}"],
+                    "job_description": [f"[{ts}] {job_description}"],
+                    "job_timestamp": [datetime.strptime(ts, "%Y%m%d-%H%M%S")],
+                }
+            )
 
-        if not bool(debug_mode):
+
             db.append_data("curb_segment_jobs", cs_job)
             db.append_data("curb_segments", gdf)
 
+
+def _convert_pg_uuid_array_to_list(values: object) -> object:
+    """
+    Convert PostgreSQL UUID array format back to Python lists.
+    
+    Converts strings like "{uuid1,uuid2,uuid3}" or "{}" back to lists.
+    
+    Args:
+        values (object): Value that may be a postgres array string format
+        
+    Returns:
+        object: List if values was a postgres array string, otherwise original value
+    """
+    if values is None:
         return None
+    if not isinstance(values, str):
+        return values
+    if values == "{}":
+        return []
+    # Remove outer braces and split by comma
+    if values.startswith("{") and values.endswith("}"):
+        inner = values[1:-1]
+        if inner:
+            return inner.split(",")
+        return []
+    return values
 
 
 def write_curb_segments_to_file(
@@ -257,6 +283,7 @@ def write_curb_segments_to_file(
     output_file_name: str,
     file_type: str = "GeoJSON",
     output_crs: str = "epsg:4326",
+    test: bool = False
 ) -> None:
     """
     Write the curb GeoDataFrame to a file in the specified format.
@@ -269,6 +296,8 @@ def write_curb_segments_to_file(
         output_file_name (str): Name of the spatial file to write (without extension)
         file_type (str): Output format
         output_crs (str): Output CRS
+        test (bool): If True, then curb segments file won't have job ID and
+            timestamp in its name. For testing, want file name to remain constant
 
     Returns:
         None
@@ -276,6 +305,22 @@ def write_curb_segments_to_file(
     Raises:
         ValueError: If File Type specified is not either `GeoJSON` or `Parquet`
     """
+    # Make a copy to avoid modifying the original
+    output_gdf = output_gdf.copy()
+    
+    # Convert postgres UUID array format back to lists for file output
+    for col in ("upstream_loc_list", "downstream_loc_list"):
+        if col in output_gdf.columns:
+            output_gdf[col] = output_gdf[col].map(_convert_pg_uuid_array_to_list)
+
+
+    # Create the output path if it does not exist
+    Path(output_path).mkdir(parents=True, exist_ok=True)
+    if test:
+        output_file_name = f"{output_file_name}"
+        output_crs = "epsg:2249"
+    else:
+        output_file_name = f"{output_file_name}_job_id_{job_id}_{timestamp}"
 
     # Ensure appropriate CRS is set
     try:
@@ -287,10 +332,6 @@ def write_curb_segments_to_file(
         raise ValueError(
             f"Output CRS {output_crs} was incorrect or unsupported: {e}"
         ) from e
-
-    # Create the output path if it does not exist
-    Path(output_path).mkdir(parents=True, exist_ok=True)
-    output_file_name = f"{output_file_name}_job_id_{job_id}_{timestamp}"
 
     # Export
     if file_type.lower() == "geojson":

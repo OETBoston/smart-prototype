@@ -32,6 +32,8 @@ from shapely.ops import linemerge, substring, unary_union
 
 warnings.filterwarnings("ignore")
 
+# For deterministic UUIDs for testing purposes
+MY_NAMESPACE = uuid.UUID("f7c4cc95-2e37-4c9a-a178-6f8d4b6e2c21")
 
 # Functions
 # ==============================================================================
@@ -962,6 +964,30 @@ def run_segmentation_by_fire_hydrants(
     # Get the fire hydrants file
     fh = asset_dict[asset_type].copy()
 
+    if fh is None or fh.empty:
+        logger.info("No fire hydrants found. Skipping fire hydrant segmentation.")
+
+        if point_id_col not in segment_id_cols:
+            segment_id_cols.append(point_id_col)
+
+        curb_segments = clean_curbs.copy()
+        curb_segments.insert(
+            loc=0,
+            column=f"parent_{curb_id_col}",
+            value=curb_segments[curb_id_col],
+        )
+        curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":FS1"
+        curb_segments[point_id_col] = None
+        cols_to_keep = [
+                            f"parent_{curb_id_col}",
+                            curb_id_col,
+                            "segment_length_ft",
+                            "is_left_side_oneway",
+                            "geometry",
+                        ] + segment_id_cols
+        curb_segments = curb_segments[cols_to_keep]
+        return nan_to_none(curb_segments)
+
     # Snap fire hydrants to the curb
     snapped_fh, unsnapped_fh = snap_points_to_curbs(
         points_clean=fh,
@@ -1071,6 +1097,27 @@ def run_segmentation_by_parking_signs(
     # Get the parking signs file
     ps = asset_dict[asset_type].copy()
 
+    if ps is None or ps.empty:
+        logger.info("No parking signs found. Skipping parking sign segmentation.")
+
+        for col in ["start_ps_id", "end_ps_id"]:
+            if col not in segment_id_cols:
+                segment_id_cols.append(col)
+
+        curb_segments = clean_curbs.copy()
+        curb_segments["start_ps_id"] = None
+        curb_segments["end_ps_id"] = None
+        curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":PS1"
+        cols_to_keep = [
+                            curb_id_col,
+                            "segment_length_ft",
+                            "is_left_side_oneway",
+                            "geometry",
+                        ] + segment_id_cols
+        curb_segments = curb_segments[cols_to_keep]
+        return nan_to_none(curb_segments)
+
+
     # Snap parking signs to the curb
     snapped_ps, unsnapped_ps = snap_points_to_curbs(
         points_clean=ps,
@@ -1143,7 +1190,8 @@ def create_curb_segments_with_parking_asset(
         curb_id = curb_row[curb_id_col]
 
         # Get fractions for this curb
-        fractions = fraction_df[fraction_df[curb_id_col] == curb_id].copy()
+        fractions = fraction_df[fraction_df[curb_id_col] == curb_id].copy(). \
+            reset_index(drop=True)
 
         # check if any breaks in the original segment
         if len(fractions) < 1:
@@ -1240,6 +1288,25 @@ def run_segmentation_by_bus_stops(
 
     # Get the bus stops file
     bs = asset_dict[asset_type].copy()
+
+    if bs is None or bs.empty:
+        logger.info("No bus stops found. Skipping bus stop segmentation.")
+
+        if point_id_col not in segment_id_cols:
+            segment_id_cols.append(point_id_col)
+
+        curb_segments = clean_curbs.copy()
+        curb_segments[point_id_col] = None
+        curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":BS1"
+        curb_segments = curb_segments[
+            [
+                curb_id_col,
+                "segment_length_ft",
+                "is_left_side_oneway",
+                "geometry",
+            ] + segment_id_cols
+        ]
+        return nan_to_none(curb_segments)
 
     # Snap bus stops to the curbs previously segmented
     snapped_bs, unsnapped_bs = snap_points_to_curbs(
@@ -1497,6 +1564,26 @@ def run_segmentation_by_parking_meters(
     # Get the parking meters file
     pm = asset_dict[asset_type].copy()
 
+    if pm is None or pm.empty:
+        logger.info("No parking meters found. Skipping parking meter segmentation.")
+
+        for col in ["start_mp_id", "end_mp_id"]:
+            if col not in segment_id_cols:
+                segment_id_cols.append(col)
+
+        curb_segments = clean_curbs.copy()
+        curb_segments["start_mp_id"] = None
+        curb_segments["end_mp_id"] = None
+        curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":PM1"
+        cols_to_keep = [
+                            curb_id_col,
+                            "segment_length_ft",
+                            "is_left_side_oneway",
+                            "geometry",
+                        ] + segment_id_cols
+        curb_segments = curb_segments[cols_to_keep]
+        return nan_to_none(curb_segments)
+
     # Snap parking meters to the curb
     snapped_pm, unsnapped_pm = snap_points_to_curbs(
         points_clean=pm,
@@ -1705,7 +1792,7 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def create_curb_segments_table(
-    gdf: gpd.GeoDataFrame, output_crs: str = "epsg:4326"
+    gdf: gpd.GeoDataFrame,output_crs: str = "epsg:4326", test: bool = False
 ) -> tuple[gpd.GeoDataFrame, uuid.UUID, str]:
     """
     Creates a new GeoDataFrame containing curb segment data derived from an input
@@ -1725,6 +1812,7 @@ def create_curb_segments_table(
         The function assumes these inputs represent consistent identifiers for
         parking signs, fire hydrants, and bus stops.
         output_crs (str): Coordinate Reference System for the output GeoDataFrame.
+        test (bool): Flag indicating whether the function is being run in test mode.
 
     Returns:
         gpd.GeoDataFrame: Output GeoDataFrame containing the calculated segment
@@ -1758,7 +1846,15 @@ def create_curb_segments_table(
     )
 
     # Generate new UUID per segment
-    out["segment_id"] = [uuid.UUID(uuid.uuid4().hex) for _ in range(len(gdf_4326))]
+    if test:
+        out["segment_id"] = out.apply(
+            lambda x: uuid.uuid5(MY_NAMESPACE, x['geometry'].wkt),
+            axis=1
+        )
+    else:
+        out["segment_id"] = [
+            uuid.UUID(uuid.uuid4().hex) for _ in range(len(gdf_4326))
+        ]
     out["blockface_id"] = gdf_4326["blockface_id"]
     out["is_left_side_oneway"] = gdf_4326["is_left_side_oneway"]
     out["segment_seq"] = gdf_4326["segment_seq"]
@@ -1777,12 +1873,19 @@ def create_curb_segments_table(
     )
 
     out["downstream_location"] = (
-        gdf_4326["end_mp_id"].combine_first(end_ps).combine_first(fh).combine_first(bs)
+        gdf_4326["end_mp_id"]
+        .combine_first(end_ps)
+        .combine_first(fh)
+        .combine_first(bs)
     )
 
     # Create job ID and run date
-    job_id = uuid.uuid4().hex
-    out["job_id"] = uuid.UUID(job_id)
+    if test:
+        job_id = uuid.uuid5(MY_NAMESPACE, "test_job")
+        out["job_id"] = job_id
+    else:
+        job_id = uuid.uuid4().hex
+        out["job_id"] = uuid.UUID(job_id)
     ts = datetime.now(timezone.utc)
     ts_str = ts.strftime("%Y%m%d-%H%M%S")
 
@@ -1808,7 +1911,7 @@ def create_curb_segments_table(
     # Fill upstream and downstream locations with None if they are missing
     out = fill_up_down_locations(out)
 
-    return out, uuid.UUID(job_id), ts_str
+    return out, job_id, ts_str
 
 
 def fill_up_down_locations(
@@ -2130,8 +2233,11 @@ def _remove_none_from_location_lists(
         return [value for value in values if value is not None]
 
     def replace_none_list(values: object) -> object:
-        if isinstance(values, list) and len(values) == 1 and values[0] is None:
-            return None
+        if isinstance(values, list):
+            if len(values) == 0:
+                return None
+            if len(values) == 1 and values[0] is None:
+                return None
         return values
 
     df = df.copy()
@@ -2170,6 +2276,71 @@ def _remove_none_from_location_lists(
             df[col] = df[col].map(to_pg_uuid_array)
 
     return df
+
+
+def _aggregate_location_list(
+    grp: pd.DataFrame,
+    is_tiny: np.ndarray,
+    has_tiny: bool,
+    has_non_tiny: bool,
+    position: str,
+) -> list:
+    """
+    Aggregate location or asset values from a group of segments.
+
+    Core strategy:
+    - upstream_locations: the STARTING anchor(s) of the merged segment
+    - downstream_locations: all ENDING anchors of each row (junctions + final endpoint)
+    
+    For non-mixed groups (all tiny or all non-tiny), collect from specified column.
+    For mixed groups, apply row-by-row logic based on merge direction.
+
+    Args:
+        grp (pd.DataFrame): Group of segments to aggregate
+        is_tiny (np.ndarray): Boolean array of which rows are tiny
+        has_tiny (bool): Whether group has any tiny
+        has_non_tiny (bool): Whether group has any non-tiny
+        position (str): "upstream_location" or "downstream_location"
+
+    Returns:
+        list: Aggregated location values, excluding NaN
+    """
+    grp = grp.reset_index(drop=True)
+    if not (has_tiny and has_non_tiny):
+        # Homogeneous group: collect all from the specified column
+        values = grp[position].dropna().tolist()
+        return values
+
+    # Mixed group: apply smart extraction
+    values = []
+    past_nontiny = False
+    for idx, row in grp.iterrows():
+        if not is_tiny[idx]:
+            past_nontiny = True
+        if position == "upstream_location":
+            if idx == 0:
+            # For upstream: take ONLY the starting anchor of the entire group
+            # Always use first row's upstream
+                value = row["upstream_location"]
+                if pd.notna(value):
+                    values.append(value)
+
+            if is_tiny[idx] and not past_nontiny:
+                # if first row tiny add downstream of first row to upstream
+                value = row["downstream_location"]
+                if pd.notna(value):
+                    values.append(value)
+        else:
+            # For downstream: collect ALL row downstreams except possibly the first if it's tiny
+            # (since leading tiny's downstream already became the upstream)
+            if idx == 0 and is_tiny[idx]:
+                # Skip first row if it's leading tiny (already in upstream)
+                continue
+            if past_nontiny:
+                value = row["downstream_location"]
+                if pd.notna(value):
+                    values.append(value)
+    return list(set(values))
 
 
 def merge_tiny_curb_segments(
@@ -2298,42 +2469,34 @@ def merge_tiny_curb_segments(
         starts = np.flatnonzero(change)
         ends = np.r_[starts[1:], len(group_ids)]
 
+        prev_downstream_locations = None
         for new_seq, (start, end) in enumerate(zip(starts, ends, strict=False)):
             grp = bf.iloc[start:end]
             first = grp.iloc[0]
-            last = grp.iloc[-1]
             grp_is_tiny = is_tiny[start:end]
             has_tiny = bool(np.any(grp_is_tiny))
             has_non_tiny = bool(np.any(~grp_is_tiny))
-            is_middle_group = start > 0 and end < len(bf)
 
-            if is_middle_group and has_tiny and has_non_tiny:
-                if grp_is_tiny[0] and not grp_is_tiny[-1]:
-                    # Middle tiny run merged downstream into the next non-tiny.
-                    # upstream_locations = grp.loc[grp_is_tiny, "upstream_location"].tolist()
-                    upstream_locations = grp["upstream_location"].tolist()
-                    downstream_locations = [last["downstream_location"]]
-                    # upstream_assets = grp.loc[grp_is_tiny, "upstream_asset"].tolist()
-                    upstream_assets = grp["upstream_asset"].tolist()
-                    downstream_assets = [last["downstream_asset"]]
-                elif not grp_is_tiny[0] and grp_is_tiny[-1]:
-                    # Middle tiny run merged upstream into the previous non-tiny.
-                    upstream_locations = [first["upstream_location"]]
-                    # downstream_locations = grp.loc[grp_is_tiny, "downstream_location"].tolist()
-                    downstream_locations = grp["downstream_location"].tolist()
-                    upstream_assets = [first["upstream_asset"]]
-                    # downstream_assets = grp.loc[grp_is_tiny, "downstream_asset"].tolist()
-                    downstream_assets = [first["downstream_asset"]]
-                else:
-                    upstream_locations = grp["upstream_location"].tolist()
-                    downstream_locations = grp["downstream_location"].tolist()
-                    upstream_assets = grp["upstream_asset"].tolist()
-                    downstream_assets = grp["downstream_asset"].tolist()
-            else:
-                upstream_locations = grp["upstream_location"].tolist()
-                downstream_locations = grp["downstream_location"].tolist()
-                upstream_assets = grp["upstream_asset"].tolist()
-                downstream_assets = grp["downstream_asset"].tolist()
+            # Aggregate locations and assets based on segment size mixing
+            upstream_locations = _aggregate_location_list(
+                grp=grp,
+                is_tiny=grp_is_tiny,
+                has_tiny=has_tiny,
+                has_non_tiny=has_non_tiny,
+                position="upstream_location",
+            )
+
+            downstream_locations = _aggregate_location_list(
+                grp=grp,
+                is_tiny=grp_is_tiny,
+                has_tiny=has_tiny,
+                has_non_tiny=has_non_tiny,
+                position="downstream_location",
+            )
+
+            # Apply carryover logic: upstream of current row = downstream of previous row
+            if prev_downstream_locations is not None:
+                upstream_locations = prev_downstream_locations + upstream_locations
 
             row = {
                 "blockface_id": blockface_id,
@@ -2342,8 +2505,6 @@ def merge_tiny_curb_segments(
                 "seg_length": float(grp["seg_length"].sum()),
                 "upstream_locations": upstream_locations,
                 "downstream_locations": downstream_locations,
-                "upstream_assets": upstream_assets,
-                "downstream_assets": downstream_assets,
                 "source_segment_ids": grp["segment_id"].tolist(),
                 "source_segment_seqs": grp["segment_seq"].tolist(),
                 "source_segment_count": int(len(grp)),
@@ -2357,6 +2518,9 @@ def merge_tiny_curb_segments(
                 row[geometry_col] = _safe_merge_lines(grp[geometry_col].to_list())
 
             out_rows.append(row)
+
+            # Store downstream for carryover to next row's upstream
+            prev_downstream_locations = downstream_locations
 
     if is_geo:
         out = gpd.GeoDataFrame(out_rows, geometry=geometry_col, crs=gdf.crs)
