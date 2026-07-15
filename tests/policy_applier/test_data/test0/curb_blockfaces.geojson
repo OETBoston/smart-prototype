@@ -1,0 +1,7 @@
+{
+"type": "FeatureCollection",
+"name": "test_blockface",
+"features": [
+{ "type": "Feature", "properties": { "blockface_id": "276f5e29-21c1-4a9d-8ac4-b8869a86cdb2", "job_id": "test-job", "direction_of_flow": "forward", "is_left_side_oneway": false},  "geometry": { "type": "LineString", "coordinates": [ [ 1.0, 1.0 ], [ 100.0, 1.0 ] ] } }
+]
+}

@@ -1,0 +1,24 @@
+[project]
+name = "curb-segmenter"
+version = "0.1.0"
+description = "Segment blockfaces based on asset locations"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "folium>=0.20.0",
+    "geopandas>=1.1.1",
+    "mapclassify>=2.10.0",
+    "matplotlib>=3.10.7",
+    "notebook>=7.4.7",
+    "pandas>=2.3.3",
+    "rtree>=1.4.1",
+    "shapely>=2.1.2",
+    "curb-utils",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/curb_segmenter"]

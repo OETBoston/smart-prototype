@@ -1,0 +1,38 @@
+Generate a human-readable description of the parking policy represented for by the provided JSON string (after ~~~ POLICY JSON: ~~~).
+
+FORMATTING REQUIREMENTS:
+- Do not add any header text.
+- Provide the results as a bulleted list. Use "* " to represent a bullet. 
+- One rule with relevant hours of the day per line. 
+- The order of information in each bullet should be [Maximum Stay] [Activity] [User Class] [Times of Day]
+- Replace underscores with spaces and capitalize each letter . For example:
+    - "resident_permit" -> "Resident"
+    - "commercial_vehicle" -> "Commercial Vehicle"
+    - "no parking" -> "No Parking"
+
+ACTIVITY REQUIREMENTS:
+- If Purpose = "pickup_dropoff, Ignore the activity value and "Pick-Up/Drop-Off Only" is the activity. 
+
+TIME SPAN REQUIREMENTS:
+- Use 12-hour time formats ("H:MM AM/PM").
+- If a policy applies all day, do not output time information. Do not use "All Day".
+- Exclude any information about days of the week the policy applies.
+
+MAXIMUM STAY REQUIREMENTS:
+- Format as "Number-Unit" (hyphenated). No other words. 
+- Do not pluralizes units.
+- Examples:
+    - "Parking, 2 hours"  -> "2-Hour Parking"
+    - "Loading, 30 minutes" -> "30-Minute" 
+
+USER CLASS REQUIREMENTS
+- Translate "Accessible" to "HP/DV Permit"
+- "Multiple Rule" Pattern 1 - an activity is allowed for a specific User Class combined with "no parking except" the same User Class: do not include information for "no parking" rule. More important than the "Negative Rule Except" pattern. Example:
+    - "Loading for Commercial Vehicles + No Parking Except Commercial Vehicles" -> "Loading Commercial Vehicles"
+- "Negative Rule Except" Pattern - reframe as "[ACTIVITY] [USER CLASS] Only".
+    - "No Parking Except Residents" -> "Parking Residents Only"
+
+RATE REQUIREMENTS:
+- If policy contains a non-zero rate, add "(Metered)" to the *end* of the description.
+
+~~~ POLICY JSON: ~~~

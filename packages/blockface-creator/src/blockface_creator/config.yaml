@@ -1,0 +1,31 @@
+# Configurations for curb geometry creation
+
+# Debug mode (Set this to True for debugging) True does not write to DB.
+debug_mode: False
+
+# Postgres DB export settings
+db_name: "cds"
+db_schema: "staging_next"
+job_name: "short job name"
+job_description: "longer job description"
+
+# Input settings
+roadway_path: "inputs/Road_Inventory_2024.feather"
+
+# Dictionary of values to keep
+include_filters: {'City': [35]}
+
+# Dictionary of values to exclude
+exclude_filters: {'F_F_Class': [1, 2], 'Route_System': ['I', 'M', 'R']}
+
+# Process parameters
+ft_crs: "epsg:2249"
+ft_diff: 0.001
+
+# Geometry adjustment
+adjust_geometry: True
+
+# Local output settings
+output_path: "outputs"
+output_type: "GeoJSON" # "GeoJSON" or "Parquet"
+output_crs: "epsg:4326"

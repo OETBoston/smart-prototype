@@ -1,0 +1,356 @@
+"""Main entry point for the Sign Reader CLI using Gemini API.
+
+This script loads environment variables, initializes the Gemini client,
+reads a list of image URLs from a text file, performs structured sign analysis,
+and saves the parsed output into JSON files.
+
+Author:
+    Ray Huang
+"""
+
+import asyncio
+import uuid
+from pathlib import Path
+
+from curb_utils.ai_client import GeminiOptions, init_gemini_client
+from curb_utils.db_utils import append_job
+from curb_utils.io_tools import load_from_txt
+from curb_utils.logging import get_console, get_logger
+from dotenv import load_dotenv
+from google import genai
+from rich.progress import Progress, TaskID, TextColumn, TimeElapsedColumn
+
+from sign_reader.config import SignReaderConfig
+from sign_reader.db_connector import (
+    append_sign_policies,
+    get_image_list,
+)
+from sign_reader.io_utils.image_utils import get_image
+from sign_reader.io_utils.storage import (
+    save_parsed_output,
+)
+from sign_reader.models import (
+    Image,
+    Policy,
+)
+from sign_reader.pre_reader import pre_test_image
+from sign_reader.priority_engine import get_policy_priority
+from sign_reader.progress import ConditionalBar, ConditionalSpinner
+from sign_reader.reader import get_image_policy
+from sign_reader.unusable import unusable_image
+
+load_dotenv()
+logger = get_logger(__name__)
+
+
+def sign_reader(config: SignReaderConfig) -> None:
+    asyncio.run(main(config))
+
+
+async def main(config: SignReaderConfig) -> None:
+    logger.info("Running the Sign Reader")
+
+    # Autodetction of job ids must be upstream
+    for job_name, job_id in config.source_jobs:
+        if job_id == "auto":
+            raise RuntimeError(
+                f"Failed to resolve auto-detection of job id for {job_name}"
+            )
+
+    # Update log level if debugging
+    if config.debug_mode:
+        logger.setLevel("DEBUG")
+
+    # Define external files
+    local_path = Path(__file__).resolve().parent
+    instruction_file = local_path / "instructions/default_instruction.txt"
+    pre_instruction_file = local_path / "instructions/preprocess_instruction.txt"
+    user_prompt_file = local_path / "instructions/default_user_prompt.txt"
+
+    # Load external data
+    system_instruction = load_from_txt(instruction_file)
+    pre_system_instruction = load_from_txt(pre_instruction_file)
+    user_prompt = load_from_txt(user_prompt_file)
+
+    # Gemini Settings
+    model_opts = config.gemini_settings
+    pre_model_opts = config.gemini_preprocess_settings
+
+    # Set up the semaphore - defaulting to max 1 if not set
+    sem = asyncio.Semaphore(config.gemini_concurrent_limit)
+
+    # If in debug mode, save the parsed outputs to disk
+    output_dir = Path("outputs/sign_reader")
+    if config.debug_mode:
+        output_dir.mkdir(parents=True, exist_ok=True)  # create dir if not exists
+        job_id = uuid.uuid4()  # placeholder job for debug mode
+    else:
+        logger.info("Registering job...")
+        job_id = append_job(
+            db_name=config.db_name,
+            db_schema=config.db_schema,
+            db_table="sign_reader_jobs",
+            job_name=config.job_name,
+            job_desc=config.job_description,
+            model_settings=model_opts.model_dump_json(),
+            system_instruction=system_instruction,
+            prompt=user_prompt,
+        )
+
+    logger.info("Fetching list from database...")
+
+    asset_job_id = config.source_jobs.parking_sign
+    assert asset_job_id != "auto"  # satisfy type checker. actual case handled above.
+
+    images_list = get_image_list(
+        db_schema=config.db_schema,
+        asset_job_id=asset_job_id or None,
+        re_process=config.sign_assets.re_process,
+    )
+
+    # Debug - image limit
+    if (
+        config.max_images
+        and config.max_images > 0
+        and config.max_images < len(images_list)
+    ):
+        START_AT = 0
+        images_list = images_list[START_AT : config.max_images + START_AT]
+
+    # Processing Loop
+    logger.info(f"Queueing {len(images_list)} images for processing.")
+    records_policies = []
+
+    with init_gemini_client() as client:
+        with Progress(
+            ConditionalSpinner(),
+            TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
+            ConditionalBar(),
+            console=get_console(),
+        ) as progress:
+            loop_task = progress.add_task(
+                f"Processing {len(images_list)} Images",
+                total=len(images_list),
+                use_spinner=False,
+            )
+            async with asyncio.TaskGroup() as tg:
+                for image_uri, sign_id in images_list:
+                    tg.create_task(
+                        process_image(
+                            client=client,
+                            sem=sem,
+                            pre_system_instruction=pre_system_instruction,
+                            system_instruction=system_instruction,
+                            user_prompt=user_prompt,
+                            image_uri=image_uri,
+                            sign_id=sign_id,
+                            job_id=job_id,
+                            debug_mode=config.debug_mode,
+                            output_dir=output_dir,
+                            db_schema=config.db_schema,
+                            records_policies=records_policies,
+                            batch_size=config.batch_size,
+                            progress=progress,
+                            loop_task=loop_task,
+                            pre_model_opts=pre_model_opts,
+                            model_opts=model_opts,
+                            max_retries=config.max_retries,
+                        )
+                    )
+
+    # 4. Final Batch Upload
+    if records_policies:
+        logger.info(f"Uploading final remaining {len(records_policies)} records...")
+        append_sign_policies(
+            db_schema=config.db_schema, records=records_policies, job_id=job_id
+        )
+        logger.info("Database upload complete.")
+
+
+async def process_image(
+    client: genai.Client,
+    sem: asyncio.Semaphore,
+    pre_system_instruction: str,
+    system_instruction: str,
+    user_prompt: str,
+    image_uri: str,
+    sign_id: uuid.UUID,
+    db_schema: str,
+    job_id: uuid.UUID,
+    debug_mode: bool,
+    output_dir: Path,
+    records_policies: list,
+    batch_size: int,
+    progress: Progress,
+    loop_task: TaskID,
+    pre_model_opts: GeminiOptions | None = None,
+    model_opts: GeminiOptions | None = None,
+    max_retries: int = 3,
+) -> None:
+    async with sem:
+        # Log image start
+        logger = get_logger(__name__)
+        info = f"Processing Sign ID: {sign_id}"
+        info_extended = f"{info} | URI: {image_uri}"
+        logger.info(info_extended)
+        progress.advance(loop_task, 0.5)
+        task = progress.add_task(info, total=None, use_spinner=True)
+
+        parsed_image = await evaluate_image(
+            client=client,
+            pre_system_instruction=pre_system_instruction,
+            system_instruction=system_instruction,
+            user_prompt=user_prompt,
+            image_uri=image_uri,
+            sign_id=sign_id,
+            progress=progress,
+            task=task,
+            pre_model_opts=pre_model_opts,
+            model_opts=model_opts,
+            max_retries=max_retries,
+        )
+
+    write_image(
+        parsed_image=parsed_image,
+        records_policies=records_policies,
+        db_schema=db_schema,
+        job_id=job_id,
+        image_uri=image_uri,
+        sign_id=sign_id,
+        output_dir=output_dir,
+        debug_mode=debug_mode,
+        progress=progress,
+        task=task,
+        batch_size=batch_size,
+    )
+
+    _end_task(progress, loop_task, task)
+
+
+async def evaluate_image(
+    client: genai.Client,
+    pre_system_instruction: str,
+    system_instruction: str,
+    user_prompt: str,
+    image_uri: str,
+    sign_id: uuid.UUID,
+    progress: Progress,
+    task: TaskID,
+    pre_model_opts: GeminiOptions | None = None,
+    model_opts: GeminiOptions | None = None,
+    max_retries: int = 3,
+) -> Image | None:
+    # Fetch the image
+    logger = get_logger(__name__)
+    try:
+        progress.update(task, description=f"Fetching Sign ID: {sign_id}")
+        image_bytes = get_image(image_uri)
+    except Exception:
+        logger.warning(f"Failed to load {image_uri}:", exc_info=True)
+        return
+
+    # Pre-process the image
+    try:
+        progress.update(task, description=f"Pre-Checking Sign ID: {sign_id}")
+        pre_check = await pre_test_image(
+            client=client,
+            system_instruction=pre_system_instruction,
+            image_bytes=image_bytes,
+            image_uri=image_uri,
+            model_opts=pre_model_opts,
+            check_multiple=False,
+        )
+    except Exception:
+        logger.warning(f"Failed to pre-process {image_uri}:")
+        return
+
+    if not pre_check[0]:
+        logger.warning(f"Image {image_uri} failed pre-check.")
+        logger.warning(pre_check[1])
+
+        return
+
+    # Process the image
+    progress.update(task, description=f"Reading Sign ID: {sign_id}")
+    try:
+        parsed_image = await get_image_policy(
+            client,
+            system_instruction=system_instruction,
+            user_prompt=user_prompt,
+            model_opts=model_opts,
+            image_bytes=image_bytes,
+            image_uri=image_uri,
+            max_retries=max_retries,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to parse {image_uri}: {e}", exc_info=True)
+        return
+
+    if parsed_image is None or not parsed_image.signs:
+        logger.warning("Detection empty: No signs extracted")
+        return
+
+    return parsed_image
+
+
+def write_image(
+    parsed_image: Image | None,
+    records_policies: list,
+    db_schema: str,
+    job_id: uuid.UUID,
+    image_uri: str,
+    sign_id: uuid.UUID,
+    output_dir: Path,
+    debug_mode: bool,
+    progress: Progress,
+    task: TaskID,
+    batch_size: int,
+) -> None:
+    logger = get_logger(__name__)
+    # Turn None into unusable image
+    image_or_unusable = parsed_image or unusable_image()
+
+    # Save raw AI output to local disk - debug mode only
+    if debug_mode:
+        debug_message = f"Writing output from Sign ID: {sign_id}"
+        logger.debug(debug_message)
+        progress.update(task, description=debug_message)
+
+        save_parsed_output(image_or_unusable, output_dir, image_uri, str(sign_id))
+
+    else:  # Only write to the database if not in debug mode
+        progress.update(task, description=f"Post-processing Sign ID: {sign_id}")
+
+        for s in image_or_unusable.signs:
+            arrow_value = s.arrow if s.arrow and s.arrow.lower() != "none" else None
+
+            # Compute priority for usable images
+            if isinstance(s.policy, Policy):
+                s.policy.priority = get_policy_priority(s.policy)
+
+            records_policies.append(
+                {
+                    "sign_policy_id": uuid.uuid4(),
+                    "sign_id": sign_id,
+                    "policy_json": s.policy.model_dump_json(indent=4),
+                    "policy_arrow": arrow_value,
+                }
+            )
+        if len(records_policies) >= batch_size:
+            logger.info(
+                f"Threshold reached ({len(records_policies)}). Uploading batch..."
+            )
+            append_sign_policies(
+                db_schema=db_schema, records=records_policies, job_id=job_id
+            )
+            records_policies.clear()  # Empty the list for the next batch
+            logger.info("Batch upload successful.")
+
+    logger.debug(f"Successfully parsed {len(image_or_unusable.signs)} signs.")
+
+
+def _end_task(progress: Progress, loop_task: TaskID, image_task: TaskID) -> None:
+    """Remove a task and increment the loop task by 0.5"""
+    progress.remove_task(image_task)
+    progress.advance(loop_task, 0.5)

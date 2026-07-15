@@ -1,0 +1,38 @@
+# Configuration for sign reader
+
+# Debug mode (Set this to True for debugging) True does not write to DB.
+debug_mode: False
+max_images: null # For debugging - run only the first n images. Omit or set to null to run all images
+
+# Postgres DB export settings
+db_name: "cds"
+db_schema: "staging_next"
+job_name: "short job name"
+job_description: "longer job description"
+
+# Source job ids
+source_jobs:
+  parking_sign: null
+
+# Number of simultaneous Gemini calls to allow. Defaults to 50.
+gemini_concurrent_limit: 50
+
+# Gemini model settings
+gemini_preprocess_settings:
+  model: "gemini-3.1-flash-lite-preview"
+  thinking_level: "minimal"
+  temperature: 0 # Must be from 0 to 2 (inclusive)
+  mock_ai: False # For debugging, mock the AI call instead of running it
+
+gemini_settings:
+  model: "gemini-3-flash-preview"
+  thinking_level: "low"
+  temperature: 0 # Must be from 0 to 2 (inclusive)
+  mock_ai: False # For debugging, mock the AI call instead of running it
+
+# Maximum number of retries if Gemini does not produce valid JSON
+max_retries: 3
+
+# Sign source data settings
+sign_assets:
+  re_process: False # True to re-process signs that already have policies. Defaults to False.

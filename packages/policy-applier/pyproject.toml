@@ -1,0 +1,20 @@
+[project]
+name = "policy-applier"
+version = "0.1.0"
+description = "Apply policies to curb segments"
+readme = "README.md"
+authors = []
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.12.5",
+    "streamlit>=1.52.1",
+    "folium>=0.20.0",
+    "streamlit-folium>=0.26.1",
+    "google-cloud-storage>=3.8.0",
+    "dummylog>=0.0.4",
+    "rich",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.8,<0.12.0"]
+build-backend = "uv_build"

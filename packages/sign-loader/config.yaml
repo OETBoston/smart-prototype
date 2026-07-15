@@ -1,0 +1,91 @@
+# ==============================================================================
+# Configuration File for Sign Loader
+# ==============================================================================
+# This YAML file defines all parameters and settings required to run the
+# Sign Loader workflow. It provides centralized control over data input paths,
+# preprocessing options, required parameters, inference thresholds, and output
+# specifications.
+#
+#
+# Modify these parameters as needed for different datasets and environments.
+# All paths should be absolute or relative to the project root.
+# ==============================================================================
+
+# Database settings
+dbname: "cds"
+schema: "staging_test"
+job_name: "test-job"
+job_description: "this is for testing"
+
+# If uploading Cartegraph, source should be "Cartegraph"
+data_source_name: "Cartegraph"
+
+# Debug mode (Set this to True for debugging) True does not write to DB.
+debug_mode: False
+signs_path: "data/boston-cartegraph.csv"
+input_crs: "EPSG:4326"
+output_crs: "EPSG:4326"
+
+# Columns in the input data
+# Required columns if using Cartegraph input
+cartegraph_required_columns:
+  source_sign_id: "oid"
+  source_image_id: "attachment_oid"
+  uri: "attachment_public_url"
+  sign_type_code: "mutcd_code_field"
+  added_date: "entry_date_field"
+  geometry_columns:
+    - "latitude"
+    - "longitude"
+  date_columns:
+    sign_modified_date: "cg_last_modified_field"
+    attachment_modified_date: "attachment_cg_last_modified_field"
+
+# Required columns if not using Cartegraph input
+other_data_source:
+  required_columns:
+    geometry: "geometry_col"
+    uri: "image_url_col"
+  optional_columns:
+    source_sign_id: None
+    source_image_id: None
+    notes_col: None
+
+# Filter Cartegraph-related by columns and values. Mode can be one of:
+#   "drop" (drop rows with these values).
+#   "keep" (keep only rows with these values).
+#   "starts_with" (drop rows where the column value starts with any of the specified values).
+column_filters:
+  - column: "asset_status_field"
+    values: ["Missing", "Proposed"]
+    mode: "drop"
+  - column: "mutcd_code_field"
+    values:
+      [
+        "P-",
+        "MS-",
+        "PB-",
+        "S-",
+        "AC-",
+        "T-",
+        "TS-",
+        "TC-",
+        "R7-107a",
+        "R7-4",
+        "R7-21",
+      ]
+    mode: "starts_with"
+
+# Optionally, filter for signs within a specified geography using a GIS file.
+# To include only a specific subset of the polygon data,
+# set the subset_column and subset_values (array)
+geo_filter:
+  path: "data/boston_neighborhood_boundaries/Boston_Neighborhood_Boundaries.shp"
+  crs: "EPSG:4326"
+  subset_column: "name"
+  subset_values: ["Charlestown"]
+
+# Grouping parameters for clustering signs based on proximity.
+grouping_parameters:
+  grouping_distance_ft: 5
+  grouping_crs: "EPSG:2249" # projected crs for measurement (unit should be US FT)

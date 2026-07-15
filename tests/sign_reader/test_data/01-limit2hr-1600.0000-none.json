@@ -1,0 +1,32 @@
+{
+  "signs": [
+    {
+      "arrow": "none",
+      "policy": {
+        "priority": null,
+        "rules": [
+          {
+            "activity": "parking",
+            "max_stay": 2,
+            "max_stay_unit": "hour"
+          }
+        ],
+        "time_spans": [
+          {
+            "days_of_week": [
+              "sun",
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "time_of_day_start": "16:00",
+            "time_of_day_end": "00:00"
+          }
+        ]
+      }
+    }
+  ]
+}
