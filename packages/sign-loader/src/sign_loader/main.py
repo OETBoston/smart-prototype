@@ -27,6 +27,7 @@ from preprocess import (
     preprocess_cartegraph_signs,
     preprocess_other_signs,
 )
+from survey123 import load_survey123, load_survey_shapefile
 from utils import check_required_input_columns
 
 
@@ -78,6 +79,16 @@ def main() -> None:
             signs_gdf = preprocess_cartegraph_signs(
                 signs_df=cartegraph_df, config=config, base_path=base_path
             )
+
+        elif config["data_source_name"].lower() in ("survey123", "arcgis"):
+            survey_cfg = config.get("survey123", {})
+            if survey_cfg.get("use_shapefile_fallback"):
+                logger.info("Loading survey data from local shapefile export...")
+                signs_gdf = load_survey_shapefile(config=config, base_path=base_path)
+            else:
+                logger.info("Loading survey data from ArcGIS feature service...")
+                signs_gdf = load_survey123(config=config, base_path=base_path)
+            logger.info("Loaded %d survey sign records", len(signs_gdf))
 
         else:
             # assume formatted geospatial file

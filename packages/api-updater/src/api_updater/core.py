@@ -25,16 +25,16 @@ def api_updater(config: ApiUpdaterConfig) -> None:
 
     # 1. Acquire Data
     jobs = config.source_jobs
-    if isinstance(jobs.curb_segmenter, str) or isinstance(jobs.policy_handler, str):
+    if jobs.policy_handler is None:
         raise ValueError(
-            'Job IDs must be specified as UUID or None. "'
-            '"auto" is only allowed when running in automated pipeline mode.'
+            "source_jobs.policy_handler must be set to a policy_handling_jobs UUID; "
+            "running unfiltered consolidates all jobs and duplicates curb policies."
         )
     segments_filter = (
-        None if not jobs.curb_segmenter else f"job_id = {jobs.curb_segmenter}"
+        None if not jobs.curb_segmenter else f"job_id = '{jobs.curb_segmenter}'"
     )
     policies_filter = (
-        None if not jobs.policy_handler else f"job_id = {jobs.policy_handler}"
+        None if not jobs.policy_handler else f"job_id = '{jobs.policy_handler}'"
     )
     staging_data_dict = read_db_tables(
         dbname=config.db_name,

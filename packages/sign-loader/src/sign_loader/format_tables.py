@@ -1,14 +1,15 @@
-""" 
-This module contains functions to format the signs geodataframe into tables 
+"""
+This module contains functions to format the signs geodataframe into tables
 for upload to the staging database.
 """
+
 import datetime
 import uuid
 
 import geopandas as gpd
 import pandas as pd
-
 from curb_utils.logging import get_logger
+
 
 def add_columns_for_tbls(df: pd.DataFrame, col_lst: list) -> pd.DataFrame:
     """Add any necessary columns to the dataframe for db table format."""
@@ -42,32 +43,49 @@ def format_data_sources(data_source_id: str, config: dict) -> pd.DataFrame:
 
 
 def format_asset_locations(
-        base_signs: gpd.GeoDataFrame,
-        data_source_id: str,
-        job_id: str,
-        config: dict
+    base_signs: gpd.GeoDataFrame, data_source_id: str, job_id: str, config: dict
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Formats data for asset_locations table and returns an asset location
     id lookup dataframe for merging with signs."""
-    if config["data_source_name"].lower() == "cartegraph":
-        sign_id_col = config["cartegraph_required_columns"]["source_sign_id"]
-    else:
-        sign_id_col = config.get("other_data_source", {}).get("optional_columns", {}).get("source_sign_id", None)
-    if "source_sign_id" in base_signs.columns:
+    # Determine SRID for EWKT so inserts match the geometry(point, 4326) column.
+    try:
+        srid = base_signs.crs.to_epsg() if base_signs.crs else None
+    except Exception:
+        srid = None
+    srid = srid or 4326
+
+    if "source_location_id" in base_signs.columns:
+        # Sources (e.g. Survey123) that carry a real location id: one location
+        # per geometry, using the provided source location id.
         asset_locations = (
-            base_signs.groupby("geometry")["source_sign_id"]
-            .apply(
-                lambda x: (
-                    f"{sign_id_col}: "
-                    + ", ".join(str(v) for v in x if pd.notna(v))
-                )
-            )
+            base_signs.groupby("geometry")["source_location_id"]
+            .first()
             .to_frame(name="source_location_id")
             .reset_index()
         )
     else:
-        asset_locations = base_signs[["geometry"]].drop_duplicates()
-        asset_locations["source_location_id"] = None
+        if config["data_source_name"].lower() == "cartegraph":
+            sign_id_col = config["cartegraph_required_columns"]["source_sign_id"]
+        else:
+            sign_id_col = (
+                config.get("other_data_source", {})
+                .get("optional_columns", {})
+                .get("source_sign_id", None)
+            )
+        if "source_sign_id" in base_signs.columns:
+            asset_locations = (
+                base_signs.groupby("geometry")["source_sign_id"]
+                .apply(
+                    lambda x: (
+                        f"{sign_id_col}: " + ", ".join(str(v) for v in x if pd.notna(v))
+                    )
+                )
+                .to_frame(name="source_location_id")
+                .reset_index()
+            )
+        else:
+            asset_locations = base_signs[["geometry"]].drop_duplicates()
+            asset_locations["source_location_id"] = None
     asset_locations["asset_location_id"] = [
         str(uuid.uuid4().hex) for _ in range(len(asset_locations))
     ]
@@ -75,7 +93,7 @@ def format_asset_locations(
     asset_locations["job_id"] = job_id
     # Convert geometry to WKT for database storage
     asset_locations["location"] = asset_locations["geometry"].apply(
-        lambda geom: geom.wkt
+        lambda geom: f"SRID={srid};{geom.wkt}"
     )
     asset_lu = asset_locations[["geometry", "asset_location_id"]]
     asset_locations = asset_locations[
@@ -91,11 +109,11 @@ def format_asset_locations(
 
 
 def format_signs(
-        base_signs: gpd.GeoDataFrame,
-        data_source_id: str,
-        job_id: str,
-        asset_lu: pd.DataFrame,
-        config: dict
+    base_signs: gpd.GeoDataFrame,
+    data_source_id: str,
+    job_id: str,
+    asset_lu: pd.DataFrame,
+    config: dict,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Formats data for signs table and returns updated base signs dataframe
     for sign_id in images tables."""
@@ -127,10 +145,13 @@ def format_signs(
 
 
 def format_images(base_signs: pd.DataFrame) -> pd.DataFrame:
-    """Formats data for images table."""
-    images = base_signs[base_signs["uri"].notnull()]
-    images["image_id"] = [str(uuid.uuid4().hex) for _ in range(len(images))]
-    images["image_date"] = datetime.datetime.now()
+    """Formats data for images table.
+
+    Supports two shapes of input:
+      - an ``attachments`` list column (one dict ``{uri, source_image_id}`` per
+        photo), which is exploded to one image row per photo; or
+      - a single ``uri`` column (one image per sign), as used by other sources.
+    """
     image_cols = [
         "image_id",
         "sign_id",
@@ -140,12 +161,35 @@ def format_images(base_signs: pd.DataFrame) -> pd.DataFrame:
         "image_date",
         "source_image_id",
     ]
+
+    if "attachments" in base_signs.columns:
+        keep = ["sign_id", "data_source_id", "job_id", "attachments"]
+        images = base_signs[keep].explode("attachments")
+        images = images[images["attachments"].notna()].copy()
+        if not images.empty:
+            images["uri"] = images["attachments"].apply(
+                lambda a: a.get("uri") if isinstance(a, dict) else a
+            )
+            images["source_image_id"] = images["attachments"].apply(
+                lambda a: a.get("source_image_id") if isinstance(a, dict) else None
+            )
+        else:
+            images["uri"] = None
+            images["source_image_id"] = None
+    elif "uri" in base_signs.columns:
+        images = base_signs[base_signs["uri"].notnull()].copy()
+    else:
+        images = pd.DataFrame(
+            columns=["sign_id", "data_source_id", "job_id", "uri", "source_image_id"]
+        )
+
+    images["image_id"] = [str(uuid.uuid4().hex) for _ in range(len(images))]
+    images["image_date"] = datetime.datetime.now()
     images = add_columns_for_tbls(images, image_cols)
     return images
 
 
-def format_sign_tbls(
-    signs_gdf: gpd.GeoDataFrame, config: dict) -> dict:
+def format_sign_tbls(signs_gdf: gpd.GeoDataFrame, config: dict) -> dict:
     """Format signs geodataframe into tables for asset_jobs, data_sources,
     asset_locations, signs, and images. Order of tables created matters.
     """
@@ -160,10 +204,7 @@ def format_sign_tbls(
 
     # Format for data_sources table
     data_source_id = str(uuid.uuid4().hex)
-    data_sources = format_data_sources(
-        data_source_id=data_source_id,
-        config=config
-    )
+    data_sources = format_data_sources(data_source_id=data_source_id, config=config)
     logger.info("Sucessfully formatted data_sources table")
 
     # Format for asset_locations table
@@ -171,18 +212,18 @@ def format_sign_tbls(
         base_signs=base_signs,
         data_source_id=data_source_id,
         job_id=job_id,
-        config=config
+        config=config,
     )
 
     logger.info("Sucessfully formatted asset_locations table")
 
     # Format for signs table
-    signs, base_signs= format_signs(
+    signs, base_signs = format_signs(
         base_signs=base_signs,
         data_source_id=data_source_id,
         job_id=job_id,
         asset_lu=asset_lu,
-        config=config
+        config=config,
     )
     logger.info("Sucessfully formatted signs table")
 

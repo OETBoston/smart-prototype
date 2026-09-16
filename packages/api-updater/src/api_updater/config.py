@@ -11,6 +11,9 @@ class ApiUpdaterConfig(BaseModel):
     api_db_schema: str
 
     class Jobs(BaseModel):
+        # Forbid extra keys so misspelled/hyphenated job names fail loudly instead
+        # of silently defaulting to None (which would read every job unfiltered).
+        model_config = ConfigDict(extra="forbid")
         curb_segmenter: UUID | None = Field(None)
         policy_handler: UUID | None = Field(None)
 

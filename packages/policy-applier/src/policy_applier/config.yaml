@@ -1,12 +1,15 @@
 # Database settings
 db_name: "cds"
-db_schema: "staging_next"
-job_name: "short job name"
-job_description: "longer job description"
+db_schema: "seaport_cds"
+job_name: "seaport-curb-policies"
+job_description: "Policy application for Seaport Survey123 import (curb segments job cee21fcb, sign reader job 8c953a3d)"
 
 # Source Jobs
 source_jobs:
-  curb_segmenter: "c9dc87c2-b318-488c-9c06-ef679923c3ff"
+  curb_segmenter: "cee21fcb-219b-43c4-ae24-df8249192fdd"
+  # TODO: set to the sign_reader_jobs UUID whose readings should be applied.
+  # null keeps the old behavior (apply ALL sign-reader jobs -> possible duplicates).
+  sign_reader: "8c953a3d-89b5-48bc-a49f-4f2b5f617ea7"
 
 # Whether to include underlying "Parking Anytime (all users)" policy
 default_parking_anytime: false

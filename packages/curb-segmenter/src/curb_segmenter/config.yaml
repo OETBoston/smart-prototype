@@ -13,14 +13,14 @@
 
 #  Database settings
 db_name: "cds"
-db_schema: "staging_next"
-job_name: "short job name"
-job_description: "longer job description"
+db_schema: "seaport_cds"
+job_name: "seaport-curb-segments"
+job_description: "Curb segmentation for Seaport Survey123 import (signs job 18e15a72) over the isolated Seaport blockface subset"
 
 # Source jobs
 source_jobs:
-  blockface_creator: "9531be73-90da-4661-b1ce-15e5ab83e53d"
-  parking_sign: "a840e9d9-be25-4c32-9817-7131ebeee8d0"
+  blockface_creator: "8750bbf2-1d06-4fea-9201-3f7398618c02"
+  parking_sign: "18e15a72-88e9-4d2d-9b82-52fef6c29442"
   fire_hydrant: "e9e630af-2e20-4221-873a-890bb3477646"
   bus_stop: "223c3644-f0cd-4d28-877b-8ffa056cc2fe"
   parking_meters: "65fe0581-a94c-4d00-afb0-a12460ee898d"
@@ -76,7 +76,7 @@ tiny_seg_threshold_ft: 3
 # =====================
 # Directories
 proj_dir: "./"
-final_output_dir: "../outputs/segments/"
+final_output_dir: "outputs/segments/"
 
 # Output settings
 output_file_name: "curb_segments"

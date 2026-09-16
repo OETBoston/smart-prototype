@@ -6,13 +6,13 @@ max_images: null # For debugging - run only the first n images. Omit or set to n
 
 # Postgres DB export settings
 db_name: "cds"
-db_schema: "staging_next"
-job_name: "short job name"
-job_description: "longer job description"
+db_schema: "seaport_cds"
+job_name: "seaport-sign-reader"
+job_description: "Sign reading for Seaport Survey123 import (asset job 18e15a72-88e9-4d2d-9b82-52fef6c29442)"
 
 # Source job ids
 source_jobs:
-  parking_sign: null
+  parking_sign: "18e15a72-88e9-4d2d-9b82-52fef6c29442"
 
 # Number of simultaneous Gemini calls to allow. Defaults to 50.
 gemini_concurrent_limit: 50
