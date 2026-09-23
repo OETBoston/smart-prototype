@@ -62,7 +62,9 @@ def load_test_data(test_name) -> dict[str, pd.DataFrame | gpd.GeoDataFrame]:
     }
 
 
-def run_policy_applier_test(test_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def run_policy_applier_test(
+    test_name: str, output_dir: pathlib.Path
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Run the policy applier main function with mocked dependencies.
     Returns (df_actual, df_expected)"""
     test_info = load_test_data(test_name)
@@ -75,8 +77,6 @@ def run_policy_applier_test(test_name: str) -> tuple[pd.DataFrame, pd.DataFrame]
     df_nonsign_features = test_info["nonsign_features"]
     df_expected = test_info["expected_df"]
 
-    test_folder = TEST_DATA_DIR / test_name
-
     df_actual = core.process_segment_policies(
         df_segments=df_segments,
         df_signs=df_signs,
@@ -86,7 +86,7 @@ def run_policy_applier_test(test_name: str) -> tuple[pd.DataFrame, pd.DataFrame]
         df_nonsign_features=df_nonsign_features,
     )
 
-    df_actual.to_csv(test_folder / "curb_policy_output.csv", index=False)
+    df_actual.to_csv(output_dir / "curb_policy_output.csv", index=False)
     df_actual["policy_list"] = df_actual["policy_list"].apply(json.loads)
 
     return df_actual, df_expected
@@ -116,7 +116,7 @@ def remove_policy_priority_unordered(policy_list: list[dict]) -> list[str]:
 
 
 @pytest.mark.parametrize("test_name", TEST_NAMES, ids=TEST_DESCRIPTIONS)
-def test_one_test_policies_ordered(test_name: str) -> None:
+def test_one_test_policies_ordered(test_name: str, tmp_path: pathlib.Path) -> None:
     """
     Runs test for policy applier based on test data defined in the
     test_data/test_name folder.
@@ -124,7 +124,7 @@ def test_one_test_policies_ordered(test_name: str) -> None:
     i.e. policies must be in same order in actual vs expected for test to pass,
     but the actual policy priority number is not checked
     """
-    df_actual, df_expected = run_policy_applier_test(test_name)
+    df_actual, df_expected = run_policy_applier_test(test_name, tmp_path)
     # Normalize policies: keep order by key, normalize internal dict ordering
     for df in [df_actual, df_expected]:
         df["policy_list"] = df["policy_list"].apply(remove_policy_priority_ordered)
@@ -133,14 +133,14 @@ def test_one_test_policies_ordered(test_name: str) -> None:
 
 
 @pytest.mark.parametrize("test_name", TEST_NAMES, ids=TEST_DESCRIPTIONS)
-def test_one_test_policies_unordered(test_name: str) -> None:
+def test_one_test_policies_unordered(test_name: str, tmp_path: pathlib.Path) -> None:
     """
     Runs test for policy applier based on test data defined in the
     test_data/test_name folder.
     Ignores policy priority order in comparison,
     i.e. policies can be in any order in actual vs expected for test to pass
     """
-    df_actual, df_expected = run_policy_applier_test(test_name)
+    df_actual, df_expected = run_policy_applier_test(test_name, tmp_path)
 
     # Normalize policies: ignore both key order and value ordering
     for df in [df_actual, df_expected]:

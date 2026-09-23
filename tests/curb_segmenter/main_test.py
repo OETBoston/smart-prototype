@@ -8,7 +8,7 @@ import pytest
 import static_curb_segmentation as scs
 from pandas.testing import assert_frame_equal
 
-TEST_DATA_DIR = Path("tests/curb_segmenter/test_data")
+TEST_DATA_DIR = Path(__file__).resolve().parent / "test_data"
 
 
 def get_test_directories() -> list[Path]:
@@ -21,22 +21,20 @@ def get_test_directories() -> list[Path]:
     get_test_directories(),
     ids=lambda d: d.name,
 )
-def test_curb_segments_match_expected(test_dir) -> None:
+def test_curb_segments_match_expected(test_dir: Path, tmp_path: Path) -> None:
     """
     Runs curb segmentation on static test data
     Then compares output curb_segments.geojson to expected_curb_segments.geojson
     """
     # Run curb segmentation for test data
-    scs.run_static_curb_segmentation_pipeline(test_dir)
+    scs.run_static_curb_segmentation_pipeline(test_dir, output_dir=tmp_path)
 
     # Check outputs
-    actual_path = test_dir / "curb_segments.geojson"
+    actual_path = tmp_path / "curb_segments.geojson"
     expected_path = test_dir / "expected_curb_segments.geojson"
 
-    if not actual_path.exists():
-        pytest.skip("curb_segments.geojson not found")
-    if not expected_path.exists():
-        pytest.skip("expected_curb_segments.geojson not found")
+    assert actual_path.is_file(), "Segmentation did not produce curb_segments.geojson"
+    assert expected_path.is_file(), f"Missing expected fixture: {expected_path}"
 
     # Read and drop segment_id
     # this is bc this changes on each curb segmentation run

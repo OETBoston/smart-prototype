@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "asset_locations",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::2249" } },
+"features": [
+{ "type": "Feature", "properties": { "asset_location_id": "4bb69374-e7f4-5767-aa34-c642442850ef", "data_source_id": "4fbb6640-d849-4d7b-b1dc-4b93d28a974e", "job_id": "test-job", "source_location_id": "street_cleaning1", "location_x": 20, "location_y": 1 }, "geometry": { "type": "Point", "coordinates": [ 20.0, 1.0 ] } }
+]
+}

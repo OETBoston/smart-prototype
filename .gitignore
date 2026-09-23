@@ -220,8 +220,10 @@ outputs
 # Zensical docs site
 docs/cds-implementation/site
 
-# Data files
+# Local pipeline artifacts
 output/
-*.csv
-*.geojson
-*.txt
+
+# Generated test outputs; inputs and expected results remain versioned.
+/tests/curb_segmenter/test_data/*/curb_segments.geojson
+/tests/curb_segmenter/test_data/*/curb_policy_output.csv
+/tests/policy_applier/test_data/*/curb_policy_output.csv

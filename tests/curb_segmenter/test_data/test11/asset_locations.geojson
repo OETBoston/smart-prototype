@@ -1,0 +1,11 @@
+{
+"type": "FeatureCollection",
+"name": "asset_locations",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::2249" } },
+"features": [
+{ "type": "Feature", "properties": { "asset_location_id": "65679baa-59be-5b40-ad63-65904ae64deb", "data_source_id": "ff0ed5d4-924f-4e59-9f93-11f4c6b84dbd", "job_id": "test-job", "source_location_id": "no_parking_left1", "location_x": 2, "location_y": 1 }, "geometry": { "type": "Point", "coordinates": [ 2.0, 1.0 ] } },
+{ "type": "Feature", "properties": { "asset_location_id": "884f2476-871d-521e-bf18-ca72cc78cd29", "data_source_id": "ff0ed5d4-924f-4e59-9f93-11f4c6b84dbd", "job_id": "test-job", "source_location_id": "no_parking_right1", "location_x": 3, "location_y": 1 }, "geometry": { "type": "Point", "coordinates": [ 3.0, 1.0 ] } },
+{ "type": "Feature", "properties": { "asset_location_id": "5f911454-a22c-5113-a90d-8fe77b7a8e6a", "data_source_id": "ff0ed5d4-924f-4e59-9f93-11f4c6b84dbd", "job_id": "test-job", "source_location_id": "no_parking_left1", "location_x": 98, "location_y": 1 }, "geometry": { "type": "Point", "coordinates": [ 98.0, 1.0 ] } },
+{ "type": "Feature", "properties": { "asset_location_id": "3348a74e-e033-5362-83d7-5c2c556d1b77", "data_source_id": "ff0ed5d4-924f-4e59-9f93-11f4c6b84dbd", "job_id": "test-job", "source_location_id": "no_parking_right1", "location_x": 99, "location_y": 1 }, "geometry": { "type": "Point", "coordinates": [ 99.0, 1.0 ] } }
+]
+}

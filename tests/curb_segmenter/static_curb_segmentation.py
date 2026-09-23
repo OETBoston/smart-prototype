@@ -272,6 +272,7 @@ def load_data(
 
 def run_static_curb_segmentation_pipeline(
     input_dir: Optional[Union[str, os.PathLike]] = None,
+    output_dir: Optional[Union[str, os.PathLike]] = None,
 ) -> None:
     resolved_input_dir = (
         Path(input_dir).resolve() if input_dir is not None else DEFAULT_TEST_INPUT_DIR
@@ -279,7 +280,11 @@ def run_static_curb_segmentation_pipeline(
     config = load_config_from_local_yaml().model_copy(
         update={
             "proj_dir": str(resolved_input_dir),
-            "final_output_dir": str(resolved_input_dir),
+            "final_output_dir": str(
+                Path(output_dir).resolve()
+                if output_dir is not None
+                else resolved_input_dir
+            ),
         }
     )
 
