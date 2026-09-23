@@ -19,6 +19,7 @@ set before running the script.
 # Packages
 import warnings
 
+import geopandas as gpd
 from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
@@ -29,21 +30,7 @@ from curb_segmenter.config import CurbSegmenterConfig
 warnings.filterwarnings("ignore")
 
 
-def curb_segmenter(config: CurbSegmenterConfig) -> None:
-    # Session settings
-    load_dotenv()
-    logger = get_logger(__name__)
-    logger.info("Running Curb Segmentation Pipeline...")
-
-    segment_id_cols = []
-
-    # Autodetection of job ids must be resolved upstream
-    for job_name, job_id in config.source_jobs:
-        if job_id == "auto":
-            raise RuntimeError(
-                f"Failed to resolve auto-detection of job id for {job_name}"
-            )
-
+def load_data(config: CurbSegmenterConfig) -> tuple:
     # Read curb lines
     curbs = io_utils.load_blockface_gdf_from_pg(
         dbname=config.db_name,
@@ -59,7 +46,16 @@ def curb_segmenter(config: CurbSegmenterConfig) -> None:
         config=config.model_dump(),
         target_crs=config.proj_crs,
     )
+    return curbs, asset_dict
 
+
+def run_curb_segmentation_pipeline(
+    config: CurbSegmenterConfig,
+    curbs: gpd.GeoDataFrame,
+    asset_dict: dict,
+    test_mode: bool = False,
+) -> None:
+    segment_id_cols = []
     # Clean curb lines
     clean_curbs_gdf = cs.clean_curb_geometries(
         curb_lines=curbs,
@@ -90,6 +86,7 @@ def curb_segmenter(config: CurbSegmenterConfig) -> None:
         clean_curbs=curb_segments_by_fh,
         segment_id_cols=segment_id_cols,
     )
+
     # Run segmentation by parking meters
     curb_segments_by_pm = cs.run_segmentation_by_parking_meters(
         configuration=config.model_dump(),
@@ -100,7 +97,7 @@ def curb_segmenter(config: CurbSegmenterConfig) -> None:
 
     # Format and create a GeoDataFrame consistent with the `curb_segments` table schema
     curb_segments, job_id, ts = cs.create_curb_segments_table(
-        curb_segments_by_pm, output_crs=config.output_crs
+        gdf=curb_segments_by_pm, output_crs=config.output_crs, test=test_mode
     )
 
     # Merge tiny segments
@@ -131,4 +128,23 @@ def curb_segmenter(config: CurbSegmenterConfig) -> None:
         output_file_name=config.output_file_name,
         file_type=config.output_file_format,
         output_crs=config.output_crs,
+        test=test_mode,
     )
+
+
+def curb_segmenter(config: CurbSegmenterConfig) -> None:
+    # Session settings
+    load_dotenv()
+    logger = get_logger(__name__)
+    logger.info("Running Curb Segmentation Pipeline...")
+
+    # Autodetection of job ids must be resolved upstream
+    for job_name, job_id in config.source_jobs:
+        if job_id == "auto":
+            raise RuntimeError(
+                f"Failed to resolve auto-detection of job id for {job_name}"
+            )
+
+    # Load in data
+    curbs, asset_dict = load_data(config)
+    run_curb_segmentation_pipeline(config, curbs, asset_dict)

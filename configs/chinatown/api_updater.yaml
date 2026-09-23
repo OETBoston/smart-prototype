@@ -1,0 +1,12 @@
+db_name: cds
+staging_db_schema: chinatown_cds
+api_db_schema: chinatown_cds
+source_jobs:
+  curb_segmenter: 5ec9b7af-2126-4136-94df-d66891c6c28c
+  policy_handler: 525262a4-24d6-4ba9-8174-5515d50175d7
+gemini_concurrent_limit: 5
+gemini_description_settings:
+  model: gemini-3.1-flash-lite-preview
+  thinking_level: null
+  temperature: 0.1
+  mock_ai: false

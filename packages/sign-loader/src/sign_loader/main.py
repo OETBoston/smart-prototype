@@ -14,6 +14,7 @@ set before running the script.
 ==============================================================================
 """
 
+import argparse
 from pathlib import Path
 
 import geopandas as gpd
@@ -55,7 +56,7 @@ def upload_sign_tbls(
                 )
 
 
-def main() -> None:
+def main(config_path: Path | None = None) -> None:
     """Main function to run the ETL process for loading parking sign data
     into the database."""
     base_path = Path(__file__).resolve().parent.parent.parent
@@ -67,8 +68,9 @@ def main() -> None:
         # Read in config & files
         logger.info("Loading configuration and input files...")
 
-        config = load_from_yaml(base_path / "config.yaml")
-        logger.info("Loaded config from %s", f"{base_path / 'config.yaml'}")
+        config_path = config_path or base_path / "config.yaml"
+        config = load_from_yaml(config_path)
+        logger.info("Loaded config from %s", config_path)
         if config["data_source_name"].lower() == "cartegraph":
             # Clean for relevant signs
 
@@ -122,7 +124,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Load sign assets")
+    parser.add_argument("--config", type=Path, default=None)
+    args = parser.parse_args()
     logger = get_logger(__name__)
     logger.info("Running Sign Loader Pipeline Process...")
     load_dotenv()
-    main()
+    main(args.config)

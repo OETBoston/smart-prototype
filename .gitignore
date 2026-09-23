@@ -219,3 +219,9 @@ outputs
 
 # Zensical docs site
 docs/cds-implementation/site
+
+# Data files
+output/
+*.csv
+*.geojson
+*.txt

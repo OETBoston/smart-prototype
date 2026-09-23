@@ -16,6 +16,7 @@ from curb_utils.ai_client import GeminiOptions
 from curb_utils.logging import get_logger
 from shapely import wkb
 
+from api_updater.descriptions import is_missing_description
 from api_updater.utils import (
     get_policy_descriptions,
     get_policy_json,
@@ -24,6 +25,42 @@ from api_updater.utils import (
 from api_updater.utils_geo import consolidate_curb_segments
 
 logger = get_logger(__name__)
+
+
+def normalize_designated_period(value: object) -> list | None:
+    """Accept existing text storage and native PostgreSQL array values."""
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    if value is None or pd.isna(value):
+        return None
+    parsed = ast.literal_eval(value)
+    if not isinstance(parsed, (list, tuple)):
+        raise ValueError("designated_period must contain a list")
+    return list(parsed)
+
+
+def fill_missing_policy_descriptions(
+    policies: pd.DataFrame,
+    gemini_settings: GeminiOptions,
+    gemini_concurrent_limit: int,
+) -> pd.DataFrame:
+    """Fill missing descriptions without changing policy IDs or existing text."""
+    policies = policies.copy()
+    policies["description"] = policies["description"].astype(object)
+    missing = policies["description"].map(is_missing_description)
+    if not missing.any():
+        return policies
+    pending = policies.loc[missing]
+    logger.info("Generating %s missing policy descriptions.", len(pending))
+    descriptions = asyncio.run(
+        get_policy_descriptions(pending, gemini_settings, gemini_concurrent_limit)
+    )
+    if len(descriptions) != len(pending) or any(
+        is_missing_description(value) for value in descriptions
+    ):
+        raise ValueError("Description generation incomplete; API export cancelled")
+    policies.loc[missing, "description"] = [value.strip() for value in descriptions]
+    return policies
 
 
 def extract_unique_policies(
@@ -154,10 +191,64 @@ def build_policy_tables(
         rates.extend(rt)
 
     return (
-        pd.DataFrame(policies),
-        pd.DataFrame(rules),
-        pd.DataFrame(spans),
-        pd.DataFrame(rates),
+        pd.DataFrame(
+            policies,
+            columns=[
+                "curb_policy_id",
+                "name",
+                "description",
+                "published_date",
+                "priority",
+                "policy_color_id",
+            ],
+        ),
+        pd.DataFrame(
+            rules,
+            columns=[
+                "rule_id",
+                "curb_policy_id",
+                "activity",
+                "max_stay",
+                "max_stay_unit",
+                "no_return",
+                "no_return_unit",
+                "user_classes",
+                "user_classes_except",
+                "purposes",
+            ],
+        ),
+        pd.DataFrame(
+            spans,
+            columns=[
+                "time_span_id",
+                "curb_policy_id",
+                "start_date",
+                "end_date",
+                "days_of_week",
+                "days_of_month",
+                "weeks_of_month",
+                "months",
+                "time_of_day_start",
+                "time_of_day_end",
+                "designated_period",
+                "designated_period_except",
+            ],
+        ),
+        pd.DataFrame(
+            rates,
+            columns=[
+                "rate_id",
+                "curb_policy_id",
+                "rate",
+                "rate_unit",
+                "rate_unit_period",
+                "increment_duration",
+                "increment_amount",
+                "start_duration",
+                "end_duration",
+                "max_fee",
+            ],
+        ),
         json_to_id_map,
     )
 
@@ -226,7 +317,7 @@ def transform_policy_updates(
 
     # Vectorized eval
     old_spans["designated_period"] = old_spans["designated_period"].apply(
-        lambda x: list(ast.literal_eval(x)) if pd.notna(x) else None
+        normalize_designated_period
     )
 
     old_policies["policy_json"] = get_policy_json(
@@ -285,26 +376,36 @@ def transform_policy_updates(
     new_rates = new_rates[~new_rates["curb_policy_id"].isin(mapping_dict.keys())]
 
     # 4. Change Detection
-    # Spatial join to find candidates
-    zones_change = gpd.sjoin(
-        new_zones,
-        old_zones,
-        how="inner",
-        predicate="intersects",
-        lsuffix="new",
-        rsuffix="old",
-    )
-    left_geom = zones_change.geometry
-    right_geom = gpd.GeoSeries(
-        old_zones.loc[zones_change["index_old"], "geometry"].values,
-        index=zones_change.index,
-        crs=zones_change.crs,
-    )
-    zones_change["geometry_existing"] = right_geom
-    intersections = left_geom.intersection(right_geom)
-    zones_change = zones_change[
-        intersections.geom_type.isin(["LineString", "MultiLineString"])
-    ]
+    # Reprojection/snapping can move a line by floating-point rounding. Exact
+    # intersections then miss its previous version and leave duplicate zones.
+    # Compare in local meters with a 1 mm tolerance; crossing lines and shared
+    # endpoints must not count as overlapping curb coverage.
+    comparison_crs = new_zones.estimate_utm_crs()
+    new_projected = new_zones.to_crs(comparison_crs)
+    old_projected = old_zones.to_crs(comparison_crs)
+    tolerance_m = 0.001
+    replacements = []
+    for new_index, new_line in new_projected.geometry.items():
+        candidates = old_projected.sindex.query(new_line.buffer(tolerance_m))
+        for old_position in candidates:
+            old_row = old_projected.iloc[old_position]
+            old_line = old_row.geometry
+            overlap = new_line.intersection(
+                old_line.buffer(tolerance_m, cap_style=2)
+            ).length
+            if overlap <= 10 * tolerance_m:
+                continue
+            equivalent = (
+                new_line.hausdorff_distance(old_line) <= tolerance_m
+                and abs(new_line.length - old_line.length) <= 2 * tolerance_m
+            )
+            replacements.append(
+                (
+                    new_zones.at[new_index, "curb_zone_id"],
+                    old_row.curb_zone_id,
+                    equivalent,
+                )
+            )
 
     # Pre-map policies to zones
     new_zone_policies_dict = (
@@ -320,12 +421,8 @@ def transform_policy_updates(
     zones_to_expire_in_old = set()
     zone_id_replacements = {}
 
-    # Iterating only over intersections is faster, but we use dict lookups inside
-    for _, row in zones_change.iterrows():
-        n_id, o_id = row["curb_zone_id_new"], row["curb_zone_id_old"]
-
-        # Check geometry equality
-        if row["geometry"].equals(row["geometry_existing"]):
+    for n_id, o_id, equivalent in replacements:
+        if equivalent:
             zones_to_drop_from_new.add(n_id)
             if new_zone_policies_dict.get(n_id) == old_zone_policies_dict.get(o_id):
                 # Identical: just update timestamp and discard the "new" one
@@ -383,28 +480,24 @@ def transform_policy_updates(
         [old_policies, old_rules, old_spans, old_rates], active_policy_ids
     )
 
-    logger.info("Generating %s descriptions.", len(new_policies))
-    new_policies["description"] = asyncio.run(
-        get_policy_descriptions(new_policies, gemini_settings, gemini_concurrent_limit)
-    )
-    logger.info("Policy generation complete.")
-
     # --- 6. FINAL CONCATENATION ---
     curb_zones = pd.concat([new_zones, old_zones]).reset_index(drop=True)
-    curb_policies = (
-        pd.concat([new_policies, old_policies])
-        .drop(columns=["policy_json", "signature"])
-        .reset_index(drop=True)
-    )
+    curb_policies = fill_missing_policy_descriptions(
+        pd.concat([new_policies, old_policies], ignore_index=True),
+        gemini_settings,
+        gemini_concurrent_limit,
+    ).drop(columns=["policy_json", "signature"])
     curb_policy_rules = pd.concat([new_rules, old_rules]).reset_index(drop=True)
     curb_policy_time_spans = pd.concat([new_spans, old_spans]).reset_index(drop=True)
     curb_policy_rates = pd.concat([new_rates, old_rates]).reset_index(drop=True)
 
-    curb_zone_policies = pd.concat([new_zone_policies, old_zone_policies]).reset_index(
-        drop=True
+    curb_zone_policies = (
+        pd.concat([new_zone_policies, old_zone_policies])
+        .reset_index(drop=True)
+        .drop_duplicates(["curb_zone_id", "curb_policy_id"])
     )
     curb_zone_policies_diff = curb_zone_policies.merge(
-        api_data_dict["curb_zone_policies"],
+        old_zone_policies,
         on=["curb_zone_id", "curb_policy_id"],
         how="left",
         indicator=True,

@@ -12,6 +12,8 @@ from typing import Any
 
 import requests
 from curb_utils.logging import get_logger
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = get_logger(__name__)
 
@@ -51,6 +53,19 @@ class ArcGISClient:
         self._password = password
         self._token = token
         self._session = requests.Session()
+        # Service metadata and queries are read-only, including POST queries.
+        self._session.mount(
+            "https://",
+            HTTPAdapter(
+                max_retries=Retry(
+                    total=3,
+                    connect=3,
+                    read=0,
+                    backoff_factor=0.5,
+                    allowed_methods=frozenset({"GET", "POST"}),
+                )
+            ),
+        )
         # Referer-based tokens must be used with a matching Referer header.
         self._session.headers.update({"Referer": self.portal_url})
 
@@ -99,19 +114,19 @@ class ArcGISClient:
                 data["token"] = tok
             else:
                 params["token"] = tok
-        resp = self._session.request(
-            method,
-            url,
-            params=params,
-            data=data or None,
-            timeout=self.timeout,
-        )
         try:
+            resp = self._session.request(
+                method,
+                url,
+                params=params,
+                data=data or None,
+                timeout=self.timeout,
+            )
             resp.raise_for_status()
         except requests.RequestException as exc:
             raise ArcGISError(
-                f"ArcGIS request failed with HTTP {resp.status_code}: {url}"
-            ) from exc
+                f"ArcGIS {method} failed ({type(exc).__name__}): {url.split('?')[0]}"
+            ) from None
         payload = resp.json()
         if isinstance(payload, dict) and "error" in payload:
             raise ArcGISError(f"ArcGIS error from {url}: {payload['error']}")
@@ -211,13 +226,13 @@ class ArcGISClient:
         tok = self.token
         if tok:
             params["token"] = tok
-        resp = self._session.get(url, params=params, timeout=self.timeout)
         try:
+            resp = self._session.get(url, params=params, timeout=self.timeout)
             resp.raise_for_status()
         except requests.RequestException as exc:
             raise ArcGISError(
                 "ArcGIS attachment download failed for "
                 f"layer={layer_id}, object={object_id}, attachment={attachment_id}, "
-                f"HTTP {resp.status_code}"
-            ) from exc
+                f"error={type(exc).__name__}"
+            ) from None
         return resp.content

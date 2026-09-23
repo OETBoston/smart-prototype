@@ -2,7 +2,7 @@
 
 The `api_update` package handles the ingestion, processing, and synchronization of curb regulations from staging tables into the public-facing API database (CDS format).
 
-The process is orchestrated by `pipeline.py` (`run_api_update`) and consists of three main phases: Data Acquisition, Data Transformation, and Data Export.
+The process is orchestrated by `core.py` and consists of three main phases: Data Acquisition, Data Transformation, and Data Export. `prepare_api_update` returns the proposed tables without publishing them; `api_updater` prepares and exports them.
 
 ## Overview and Configuration
 
@@ -15,6 +15,8 @@ From the project root, run:
 
 ```sh
 uv run python -m api_updater
+# Or select a dedicated configuration:
+uv run python -m api_updater --config configs/chinatown/api_updater.yaml
 ```
 
 ## 1. Data Acquisition (`extractor.py`)
@@ -23,7 +25,7 @@ The pipeline connects to the database and pulls data from two distinct schemas:
 
 - **Staging Data (`staging_db_schema`):**
   - Reads `curb_segments` and `curb_segment_policies`.
-  - Data is optionally filtered by specific `job_id`s to process individual segmentation/handling jobs. If no `job_id` is provided, all available staging data is fetched.
+  - Both `source_jobs.curb_segmenter` and `source_jobs.policy_handler` must select explicit job IDs. Unfiltered historical jobs can duplicate policies.
 - **API Data (`api_db_schema`):**
   - Reads the current state of the CDS API tables: `curb_zones` (filtered to active zones where `end_date IS NULL`), `curb_policies`, `curb_zone_policies`, `curb_policy_rules`, `curb_policy_time_spans`, and `curb_policy_rates`.
 
@@ -69,7 +71,7 @@ A spatial join (`gpd.sjoin` with `intersects` predicate) is performed between th
 ### Cleanup & Enhancements
 
 - **Orphan Removal:** The logic filters all policy elements to ensure that only policies actually linked to an active `curb_zone_id` (either new or existing) are retained. Orphan policies, rules, time spans, and rates are discarded.
-- **AI Policy Descriptions:** For any brand new policies that survive the deduplication process, the pipeline asynchronously calls the Gemini API (`get_policy_descriptions`) to generate human-readable text descriptions for the `description` column.
+- **AI Policy Descriptions:** After deduplication and active-policy filtering, the pipeline fills null, blank, and generator-placeholder descriptions for both new and reused policies. Valid text and policy IDs are preserved. The Gemini prompt includes schedules, exceptions and rates; inspect generated wording before publication. An empty or failed response stops the update. A complete description set makes no Gemini calls.
 - **Final Assembly:** Uses `pd.concat` to merge new and old dataframes together, ready for export.
 
 ## 3. Data Export (`exporter.py`)
@@ -79,7 +81,9 @@ The processed datasets are converted into an export dictionary mapping table nam
 - **Local CSV Backup (`export_to_csv`):**
   - Intermediate tables are saved to the local `output/` directory for debugging, tracking, and backup. Empty dataframes are gracefully skipped.
 - **Database Upsert (`export_to_db`):**
-  - The updated records are pushed to the target `api_db_schema` using the `SmartCurbDB` context.
+  - All related writes use one `SmartCurbDB` transaction. Failure rolls back the entire export. Removed associations are deleted before their replacements are inserted, including policies retained on a changed zone.
   - **Appends:** New zone-policy mappings are added (`append_data`).
   - **Deletions:** Expired zone-policy mappings are removed (`delete`).
   - **Upserts:** Core tables (`curb_zones`, `curb_policies`, `curb_policy_rules`, `curb_policy_time_spans`, `curb_policy_rates`) use an `update_or_append` logic based on their primary keys to insert new rows and update modified ones (such as setting an `end_date` for retired zones).
+
+See the [Chinatown runbook](../../docs/chinatown_refresh.md) for the frozen source, reviewed publication workflow and current run status.

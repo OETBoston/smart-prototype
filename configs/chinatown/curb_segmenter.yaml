@@ -1,0 +1,59 @@
+db_name: cds
+db_schema: chinatown_cds
+job_name: chinatown-curb-segmenter-20260923
+job_description: Chinatown full Survey123 refresh 2026-09-23; explicit source jobs
+  recorded in run manifest
+source_jobs:
+  blockface_creator: e7ff4630-94dd-4098-aad6-aec7f7c3a12d
+  parking_sign: 21375052-7829-4715-b1f9-9e0e490986ca
+  fire_hydrant: e9e630af-2e20-4221-873a-890bb3477646
+  bus_stop: 223c3644-f0cd-4d28-877b-8ffa056cc2fe
+  parking_meters: 65fe0581-a94c-4d00-afb0-a12460ee898d
+proj_crs: epsg:2249
+debug_mode: false
+bf_table_name: curb_blockfaces
+bf_geom_col: geography
+assets:
+  parking_sign:
+    new_id_col: ps_id
+    asset_type: sign_asset
+  bus_stop:
+    new_id_col: bs_id
+    asset_type: nonsign_asset
+    stop_types:
+      near_side:
+        range:
+        - 0.7
+        - 1.0
+        inclusive: true
+        buffer_multiplier: -1.0
+      far_side:
+        range:
+        - 0.0
+        - 0.3
+        inclusive: true
+        buffer_multiplier: 1.0
+      mid_block:
+        range:
+        - 0.3
+        - 0.7
+        inclusive: false
+        buffer_multiplier: -1.0
+  fire_hydrant:
+    new_id_col: fh_id
+    buffer_distance_ft: 10
+    asset_type: nonsign_asset
+  parking_meters:
+    new_id_col: mp_id
+    asset_type: parking_meter
+curb_id_col: blockface_id
+min_curb_len_ft: 1
+eps_fraction: 1e-6
+snap_tolerance_ft: 30
+min_segment_len_ft: 0.5
+tiny_seg_threshold_ft: 3
+proj_dir: ./
+final_output_dir: output/chinatown_run_20260923/segments
+output_file_name: curb_segments
+output_file_format: GeoJSON
+output_crs: epsg:4326

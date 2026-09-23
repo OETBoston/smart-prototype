@@ -231,6 +231,8 @@ that provides the backend to Boston's CDS Curbs API. The final zones and policie
 
 To ensure consistency over equivalent policies, this step also handles generation of policy descriptions (Gemini-based).
 
+The [Chinatown refresh runbook](docs/chinatown_refresh.md) records dedicated configurations, source selection, job lineage, description backfill, validation, and remaining refresh steps. Processing modules and the sign loader accept `--config` while retaining their existing defaults.
+
 Detailed documentation can be found within the package [here](packages/api-updater/README.md).
 
 The actual API code is hosted in a [smart-curb-api](https://github.com/OETBoston/smart-curb-api) sister repository.

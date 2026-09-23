@@ -1,38 +1,49 @@
-Generate a human-readable description of the parking policy represented for by the provided JSON string (after ~~~ POLICY JSON: ~~~).
+Describe the curb policy in the JSON below in concise, plain English.
 
-FORMATTING REQUIREMENTS:
-- Do not add any header text.
-- Provide the results as a bulleted list. Use "* " to represent a bullet. 
-- One rule with relevant hours of the day per line. 
-- The order of information in each bullet should be [Maximum Stay] [Activity] [User Class] [Times of Day]
-- Replace underscores with spaces and capitalize each letter . For example:
-    - "resident_permit" -> "Resident"
-    - "commercial_vehicle" -> "Commercial Vehicle"
-    - "no parking" -> "No Parking"
+Use a bulleted list ("* "), without a heading. Describe each rule and its applicable
+schedule. JSON values may contain numbers or lists encoded as strings; interpret
+their values normally. Use only the supplied policy. Do not invent permissions,
+restrictions, exceptions, hours or charges, or infer a rule from a policy name.
 
-ACTIVITY REQUIREMENTS:
-- If Purpose = "pickup_dropoff, Ignore the activity value and "Pick-Up/Drop-Off Only" is the activity. 
+RULES AND EXCEPTIONS:
+- Preserve the activity: "no parking" and "no stopping" are different restrictions.
+- user_classes limits the rule to the listed users. user_classes_except exempts
+  the listed users from THAT rule; it never means the rule applies only to them.
+- Example: parking, max_stay 2 hours, user_classes_except resident_permit means
+  "Parking up to 2 hours, except resident permit holders". It does NOT mean
+  "2-hour parking for residents only". Describe any separate resident rule too.
+- Example: no parking, user_classes_except accessible means
+  "No parking except for accessible permit holders". Never omit "except".
+- Do not turn an exception to a prohibition into an unconditional permission.
+- State pickup/drop-off, loading, emergency-use and other purposes when supplied.
+  Preserve whether the activity is allowed or prohibited for those purposes.
+- For prohibitions with fire_hydrant, bus_stop or emergency_use purposes, state
+  the restriction and give the location's purpose in parentheses: "No stopping
+  (fire hydrant)", "No stopping (bus stop)", "No parking (emergency-use area)".
+- Include maximum stays with their units, no-return limits, and user restrictions.
+- An absent maximum stay is unspecified; do not describe it as unlimited parking.
+  "accessible" means accessible (HP/DV) permit holders; "resident_permit" means
+  resident permit holders. Replace underscores with spaces in other labels.
+- If the activity is "unusable image", say "Sign image unusable; policy needs
+  review". Do not imply that parking is permitted or prohibited.
 
-TIME SPAN REQUIREMENTS:
-- Use 12-hour time formats ("H:MM AM/PM").
-- If a policy applies all day, do not output time information. Do not use "All Day".
-- Exclude any information about days of the week the policy applies.
+SCHEDULES:
+- Include applicable days of the week, months, weeks of the month, dates, and
+  designated conditions such as snow emergencies, including any exceptions.
+- Multiple time_spans are alternatives. Do not combine their day/time restrictions
+  into a broader schedule. Qualify each interval separately when they differ.
+- Use 12-hour times with AM/PM. An overnight interval ends on the following day.
+- Equal start/end times indicate all day. Omit the hours in that case, but retain
+  calendar and designated-period restrictions. Omit a seven-day list if there are
+  no other day restrictions; otherwise state the selected days accurately.
+- Example: Monday, weeks 1 and 3, months 4 through 11, 08:00-12:00 means
+  "on the first and third Mondays, April-November, 8:00 AM-12:00 PM".
 
-MAXIMUM STAY REQUIREMENTS:
-- Format as "Number-Unit" (hyphenated). No other words. 
-- Do not pluralizes units.
-- Examples:
-    - "Parking, 2 hours"  -> "2-Hour Parking"
-    - "Loading, 30 minutes" -> "30-Minute" 
-
-USER CLASS REQUIREMENTS
-- Translate "Accessible" to "HP/DV Permit"
-- "Multiple Rule" Pattern 1 - an activity is allowed for a specific User Class combined with "no parking except" the same User Class: do not include information for "no parking" rule. More important than the "Negative Rule Except" pattern. Example:
-    - "Loading for Commercial Vehicles + No Parking Except Commercial Vehicles" -> "Loading Commercial Vehicles"
-- "Negative Rule Except" Pattern - reframe as "[ACTIVITY] [USER CLASS] Only".
-    - "No Parking Except Residents" -> "Parking Residents Only"
-
-RATE REQUIREMENTS:
-- If policy contains a non-zero rate, add "(Metered)" to the *end* of the description.
+RATES:
+- Include non-zero rates and their units, as well as any duration tiers, payment
+  increments, or maximum fee. CDS amounts are in cents for these Boston policies:
+  rate 200 and rate_unit hour means "$2.00 per hour". Do not use only "Metered".
+- Do not infer a payment requirement from a policy name. Do not infer free parking
+  from absent rates. A supplied zero rate may be described as free for its interval.
 
 ~~~ POLICY JSON: ~~~

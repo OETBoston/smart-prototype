@@ -1,0 +1,23 @@
+debug_mode: false
+max_images: null
+db_name: cds
+db_schema: chinatown_cds
+job_name: chinatown-sign-reader-20260923
+job_description: Chinatown full Survey123 refresh 2026-09-23; explicit source jobs
+  recorded in run manifest
+source_jobs:
+  parking_sign: 21375052-7829-4715-b1f9-9e0e490986ca
+gemini_concurrent_limit: 10
+gemini_preprocess_settings:
+  model: gemini-3.1-flash-lite-preview
+  thinking_level: minimal
+  temperature: 0
+  mock_ai: false
+gemini_settings:
+  model: gemini-3-flash-preview
+  thinking_level: low
+  temperature: 0
+  mock_ai: false
+max_retries: 3
+sign_assets:
+  re_process: true
