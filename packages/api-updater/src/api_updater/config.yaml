@@ -5,8 +5,12 @@ api_db_schema: public_cds_next # target api schema
 
 # Source job ids
 source_jobs:
-  curb-segmenter: "auto"
-  policy-handler: 33033544-f7cb-4c36-b3e3-6c7d6a182779
+  # Manual MUTCD-derived load: policy_handling_jobs "Backfilled job (staging_next
+  # curb_segment_policies load)" = the curb_segment_policies derived from rules on
+  # MUTCD codes (not from sign images). Publishing this job overwrites the API set.
+  policy_handler: "a53c275d-2d2a-5cfe-b029-84e218f03d47"
+  # The only curb_segment_jobs run in staging_next ("Citywide Run ... 260506").
+  curb_segmenter: "30dc99c3-78b0-4a45-ae6e-d038df79ca64"
 
 # Number of simultaneous Gemini calls to allow. Defaults to 50.
 gemini_concurrent_limit: 50

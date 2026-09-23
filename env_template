@@ -6,3 +6,14 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USER=<your username>
 DB_PASSWORD=<your password>
+
+# Boston Maps (ArcGIS Online) credentials for the Survey123 importer (sign-loader)
+BMAPS_USERNAME=<your arcgis online username>
+BMAPS_PASSWORD=<your arcgis online password>
+# Optional: paste a short-lived ArcGIS token instead of using username/password
+# ARCGIS_TOKEN=<token>
+
+# Required only when storing survey images in cloud storage
+# (sign-loader image_storage.backend: gcs, and the sign-reader when reading from GCS)
+GCS_TOKEN_PATH=<path to gcp service account json>
+GCS_PREFIX=<gs://bucket/path/prefix>

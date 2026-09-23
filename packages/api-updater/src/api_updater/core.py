@@ -15,9 +15,9 @@ load_dotenv()
 logger = get_logger(__name__)
 
 
-def api_updater(config: ApiUpdaterConfig) -> None:
+def prepare_api_update(config: ApiUpdaterConfig) -> dict:
     """
-    Runs curb policy update processing.
+    Prepare an API update for inspection without writing to the database.
     Args:
         config (Config): config object as defined in config.py
     """
@@ -25,16 +25,18 @@ def api_updater(config: ApiUpdaterConfig) -> None:
 
     # 1. Acquire Data
     jobs = config.source_jobs
-    if isinstance(jobs.curb_segmenter, str) or isinstance(jobs.policy_handler, str):
+    if jobs.policy_handler is None:
         raise ValueError(
-            'Job IDs must be specified as UUID or None. "'
-            '"auto" is only allowed when running in automated pipeline mode.'
+            "source_jobs.policy_handler must be set to a policy_handling_jobs UUID; "
+            "running unfiltered consolidates all jobs and duplicates curb policies."
         )
+    if jobs.curb_segmenter is None:
+        raise ValueError("source_jobs.curb_segmenter must select one segmentation job")
     segments_filter = (
-        None if not jobs.curb_segmenter else f"job_id = {jobs.curb_segmenter}"
+        None if not jobs.curb_segmenter else f"job_id = '{jobs.curb_segmenter}'"
     )
     policies_filter = (
-        None if not jobs.policy_handler else f"job_id = {jobs.policy_handler}"
+        None if not jobs.policy_handler else f"job_id = '{jobs.policy_handler}'"
     )
     staging_data_dict = read_db_tables(
         dbname=config.db_name,
@@ -72,7 +74,12 @@ def api_updater(config: ApiUpdaterConfig) -> None:
         gemini_concurrent_limit=config.gemini_concurrent_limit,
     )
 
-    # 3. Export Data
+    return processed
+
+
+def api_updater(config: ApiUpdaterConfig) -> None:
+    """Prepare and atomically publish a curb policy update."""
+    processed = prepare_api_update(config)
     export_to_db(
         db_name=config.db_name, data_dict=processed, api_db_schema=config.api_db_schema
     )

@@ -3399,6 +3399,7 @@ dependencies = [
     { name = "geopandas" },
     { name = "logging" },
     { name = "pandas" },
+    { name = "requests" },
     { name = "shapely" },
 ]
 
@@ -3414,6 +3415,7 @@ requires-dist = [
     { name = "geopandas", specifier = ">=1.1.3" },
     { name = "logging", specifier = ">=0.4.9.6" },
     { name = "pandas", specifier = ">=3.0.2" },
+    { name = "requests", specifier = ">=2.32.0" },
     { name = "shapely", specifier = ">=2.1.2" },
 ]
 

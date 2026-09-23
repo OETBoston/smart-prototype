@@ -54,11 +54,12 @@ def check_and_set_crs(gdf: gpd.GeoDataFrame, proj_crs: str) -> gpd.GeoDataFrame:
     return gdf
 
 
-def confirm_gdf(gdf: gpd.GeoDataFrame):
+def confirm_gdf(gdf: gpd.GeoDataFrame) -> None:
     """
     Checks if the provided object is a GeoDataFrame.
 
-    This function verifies that the input object is an instance of GeoPandas' GeoDataFrame.
+    This function verifies that the input object is an instance of GeoPandas'
+    GeoDataFrame.
     If the input does not match the expected type, a TypeError is raised.
 
     Args:
@@ -73,7 +74,7 @@ def confirm_gdf(gdf: gpd.GeoDataFrame):
         pass
 
 
-def convert_point_to_line(geom):
+def convert_point_to_line(geom) -> BaseGeometry:
     """Convert a Point geometry to a LineString geometry."""
     if geom.geom_type == "Point":
         return LineString([geom.coords[0], geom.coords[0]])
@@ -179,7 +180,8 @@ def add_upstream_downstream_assets(
     """
     Add upstream_asset and downstream_asset columns based on asset ID lookups.
 
-    Asset priority order: parking sign (PS), fire hydrant (FH), bus stop (BS), meter policy (MP).
+    Asset priority order: parking sign (PS), fire hydrant (FH), bus stop (BS),
+    meter policy (MP).
     """
     ps = asset_dict.get("parking_sign")
     fh = asset_dict.get("fire_hydrant")
@@ -199,7 +201,7 @@ def add_upstream_downstream_assets(
         set(mp["mp_id"].dropna()) if mp is not None and "mp_id" in mp.columns else set()
     )
 
-    def lookup_asset(value):
+    def lookup_asset(value) -> str | None:
         if pd.isna(value):
             return None
         if value in ps_ids:
@@ -238,9 +240,11 @@ def clean_curb_geometries(
     5. Perform QA summary.
 
     Args:
-        curb_lines (GeoDataFrame): Input curb geometries with "geometry" column (LineString or MultiLineString).
+        curb_lines (GeoDataFrame): Input curb geometries with "geometry" column
+            (LineString or MultiLineString).
         min_curb_len_ft (float): Minimum curb length (feet) to keep (default: 2.0).
-        eps_fraction (float): Small tolerance for floating point precision (default: 1e-6).
+        eps_fraction (float): Small tolerance for floating point precision
+            (default: 1e-6).
 
     Returns:
         curbs_clean (gpd.GeoDataFrame): Cleaned curb geometries.
@@ -296,7 +300,8 @@ def clean_curb_geometries(
     ].copy()
     curbs_clean.reset_index(drop=True, inplace=True)
     curbs_clean["segment_length_ft"] = curbs_clean["curb_length_ft"]
-    # Reduce columns; dropped columns can be merged again from the initial curb DataFrame
+    # Reduce columns; dropped columns can be merged again from the initial
+    # curb DataFrame.
     columns_to_keep = [
         "blockface_id",
         "is_left_side_oneway",
@@ -327,7 +332,7 @@ def snap_points_to_curbs(
     curb_id_col: str,
     snap_tolerance_ft: float = 25,
     proj_crs: str = "epsg:2249",
-    preserve_cols: list | None = None
+    preserve_cols: list | None = None,
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """
     Snap points to the nearest curb lines within a specified tolerance.
@@ -339,8 +344,9 @@ def snap_points_to_curbs(
         curb_id_col (str): Column name of curb ID.
         snap_tolerance_ft (float): Maximum snapping tolerance in feet.
         proj_crs (CRS): Projection CRS.
-        preserve_cols (list, optional): List of column names from points_clean to preserve
-            in the output. Defaults to none (no additional columns preserved).
+        preserve_cols (list, optional): List of column names from points_clean
+            to preserve in the output. Defaults to none (no additional columns
+            preserved).
 
     Returns:
         projected_points (gpd.GeoDataFrame): GeoDataFrame of snapped points.
@@ -418,14 +424,14 @@ def snap_points_to_curbs(
         # Check if the minimum distance is within snap tolerance
         if min_dist <= snap_tolerance_ft:
             snapped_record = {
-                    points_id_col: point_id,
-                    curb_id_col: best_curb_id,
-                    "segment_length_ft": best_curb_length,
-                    "projected_fraction": best_fraction,
-                    "distance_ft": min_dist,
-                    "geometry": best_projected_point,
-                    "curb_geometry": best_curb_geom
-                }
+                points_id_col: point_id,
+                curb_id_col: best_curb_id,
+                "segment_length_ft": best_curb_length,
+                "projected_fraction": best_fraction,
+                "distance_ft": min_dist,
+                "geometry": best_projected_point,
+                "curb_geometry": best_curb_geom,
+            }
             # Add preserved columns from the original point
             if preserve_cols:
                 for col in preserve_cols:
@@ -473,7 +479,8 @@ def calculate_fractions_for_fh_buffer_zones(
 ) -> tuple[dict[int | str, list[float]], pd.DataFrame]:
     """
     For each curb:
-      * Compute buffer intervals [start_fraction, end_fraction] around each projected point.
+      * Compute buffer intervals [start_fraction, end_fraction] around each
+        projected point.
       * Detect regions where at least 2 buffers overlap (coverage count >= 2).
       * On that curb:
           - If no overlap anywhere:
@@ -481,7 +488,8 @@ def calculate_fractions_for_fh_buffer_zones(
           - If there is overlap:
               - Build one or more disjoint "overlap clusters" along [0,1].
               - For each cluster, take the envelope of all intervals that
-                participate in that cluster: env_min = min(start), env_max = max(end) over those intervals.
+                participate in that cluster: env_min = min(start),
+                env_max = max(end) over those intervals.
               - Collapse boundaries strictly inside each envelope, while keeping:
                     * all boundaries <= env_min or >= env_max,
                     * env_min and env_max themselves,
@@ -498,7 +506,8 @@ def calculate_fractions_for_fh_buffer_zones(
     """
     logger = get_logger(__name__)
     logger.info(
-        "Calculating fractions for buffer zones (with multi-cluster overlap envelopes)...",
+        "Calculating fractions for buffer zones "
+        "(with multi-cluster overlap envelopes)...",
     )
 
     # Validate inputs
@@ -524,11 +533,13 @@ def calculate_fractions_for_fh_buffer_zones(
     ]
     if len(invalid_fractions) > 0:
         logger.warning(
-            f"Warning: {len(invalid_fractions):,} points have fraction outside [0,1] range."
+            f"Warning: {len(invalid_fractions):,} points have fraction "
+            "outside [0,1] range."
         )
         raise ValueError("Invalid fractions found.")
 
-    # First pass: compute intervals per curb: curb_id -> list[(start_fraction, end_fraction)]
+    # First pass: compute intervals per curb:
+    # curb_id -> list[(start_fraction, end_fraction)]
     curb_intervals: dict[int | str, list[tuple[float, float]]] = defaultdict(list)
     stats = {"points_processed": 0, "curbs_updated": 0, "curbs_reused": 0}
     seen_curbs = set()
@@ -627,7 +638,8 @@ def calculate_fractions_for_fh_buffer_zones(
         # Step 4: build final fractions
         final_fracs = set(raw_fracs)
 
-        # For each envelope [env_min, env_max], remove interior boundaries and keep envelope edges
+        # For each envelope [env_min, env_max], remove interior boundaries
+        # and keep envelope edges.
         for env_min, env_max in envelopes:
             to_remove = {f for f in final_fracs if env_min < f < env_max}
             final_fracs.difference_update(to_remove)
@@ -642,7 +654,9 @@ def calculate_fractions_for_fh_buffer_zones(
     logger.debug(f"Completed: {stats['curbs_reused']:,} curbs reused multiple times")
     logger.debug(
         "Completed: Average "
-        f"{sum(len(f) for f in fractions_dict.values()) / max(len(fractions_dict), 1):.1f} "
+        f"{
+            sum(len(f) for f in fractions_dict.values())
+            / max(len(fractions_dict), 1):.1f} "
         "fractions/curb",
     )
 
@@ -676,7 +690,7 @@ def collapse_fire_hydrant_ids(
     # Group by all non-fh_id columns (including geometry, considering strict equality)
     group_cols = [c for c in gdf.columns if c != fh_col]
 
-    def agg_fh(series: pd.Series):
+    def agg_fh(series: pd.Series) -> tuple[object, ...] | None:
         vals = series.dropna().unique().tolist()
         if sort_ids:
             vals = sorted(vals)
@@ -709,7 +723,8 @@ def create_curb_segments_with_fh_point_buffer(
     Args:
         curbs_clean (gpd.GeoDataFrame): Cleaned curb geometries.
         curb_id_col (str): Column name of curb ID.
-        fraction_dict (dict[int, list[float]]): Fractions for buffer boundaries for each curb.
+        fraction_dict (dict[int, list[float]]): Fractions for buffer boundaries
+            for each curb.
         projected_points (gpd.GeoDataFrame): Projected point geometries.
         points_id_col (str): Column name of point ID.
         seg_prefix (str): Prefix string for segment name.
@@ -834,7 +849,8 @@ def create_curb_segments_with_fh_point_buffer(
         unique_point_assignments = len(point_assignments_df[points_id_col].unique())
         if unique_point_assignments != pt_df_len:
             logger.info(
-                f"VALIDATION ISSUE: {pt_df_len - unique_point_assignments} duplicate point assignments!"
+                f"VALIDATION ISSUE: {pt_df_len - unique_point_assignments} "
+                "duplicate point assignments!"
             )
         else:
             logger.info("All points assigned to exactly one segment")
@@ -872,7 +888,8 @@ def create_curb_segments_with_fh_point_buffer(
 
         # Keep just one Fire Hydrant ID per segment.
         # When overlapping buffer zones are present, we keep the first one.
-        # Those fire hydrant zones will have a longer length. It should not impact downstream processes.
+        # Those fire hydrant zones will have a longer length. It should not
+        # impact downstream processes.
         segments_gdf[points_id_col] = keep_tuple_item(
             segments_gdf[points_id_col], "first"
         )
@@ -988,12 +1005,12 @@ def run_segmentation_by_fire_hydrants(
         curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":FS1"
         curb_segments[point_id_col] = None
         cols_to_keep = [
-                            f"parent_{curb_id_col}",
-                            curb_id_col,
-                            "segment_length_ft",
-                            "is_left_side_oneway",
-                            "geometry",
-                        ] + segment_id_cols
+            f"parent_{curb_id_col}",
+            curb_id_col,
+            "segment_length_ft",
+            "is_left_side_oneway",
+            "geometry",
+        ] + segment_id_cols
         curb_segments = curb_segments[cols_to_keep]
         return nan_to_none(curb_segments)
 
@@ -1118,14 +1135,13 @@ def run_segmentation_by_parking_signs(
         curb_segments["end_ps_id"] = None
         curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":PS1"
         cols_to_keep = [
-                            curb_id_col,
-                            "segment_length_ft",
-                            "is_left_side_oneway",
-                            "geometry",
-                        ] + segment_id_cols
+            curb_id_col,
+            "segment_length_ft",
+            "is_left_side_oneway",
+            "geometry",
+        ] + segment_id_cols
         curb_segments = curb_segments[cols_to_keep]
         return nan_to_none(curb_segments)
-
 
     # Snap parking signs to the curb
     snapped_ps, unsnapped_ps = snap_points_to_curbs(
@@ -1165,20 +1181,24 @@ def create_curb_segments_with_parking_asset(
     min_segment_len_ft: float = 1.0,
 ) -> gpd.GeoDataFrame | None:
     """
-    Create curb segments using fractions for parking signs points and parking meter points.
+    Create curb segments using fractions for parking signs points and
+    parking meter points.
 
     Args:
-        curbs_clean (gpd.GeoDataFrame): Clean curbs segmented by fire hydrants and bus stops.
+        curbs_clean (gpd.GeoDataFrame): Clean curbs segmented by fire hydrants
+            and bus stops.
         curb_id_col (str): Column name of curb ID.
-        fraction_df (gpd.GeoDataFrame): GeoDataFrame of snapped parking signs to the curbs,
-            including the location of the sign on the curb as a fraction of the curb.
+        fraction_df (gpd.GeoDataFrame): GeoDataFrame of snapped parking signs
+            to the curbs, including the location of the sign on the curb as
+            a fraction of the curb.
         points_id_col (str): Column name of point ID.
         seg_prefix (str): Prefix string for segment name.
         point_id_cols (list): List of points_id_cols to be brought to final df.
         min_segment_len_ft (float, optional): Minimum length of curb segments.
 
     Returns:
-        A geopandas GeoDataFrame containing the curb segments by parking signs (and fire hydrants).
+        A geopandas GeoDataFrame containing the curb segments by parking signs
+        (and fire hydrants).
     """
     logger = get_logger(__name__)
     # Filter curbs to only those in fraction_df
@@ -1199,15 +1219,21 @@ def create_curb_segments_with_parking_asset(
         curb_id = curb_row[curb_id_col]
 
         # Get fractions for this curb
-        fractions = fraction_df[fraction_df[curb_id_col] == curb_id].copy(). \
-            reset_index(drop=True)
+        fractions = (
+            fraction_df[fraction_df[curb_id_col] == curb_id]
+            .copy()
+            .reset_index(drop=True)
+        )
 
         # check if any breaks in the original segment
         if len(fractions) < 1:
             continue
 
         # Add the start/end fraction
-        fractions.loc[len(fractions)] = [None, curb_id, None, 0.0, None, None]
+        fractions.loc[len(fractions)] = {
+            curb_id_col: curb_id,
+            "projected_fraction": 0.0,
+        }
         fractions = fractions.sort_values("projected_fraction")
         fractions["next_frac"] = fractions["projected_fraction"].shift(-1).fillna(1.0)
 
@@ -1313,7 +1339,8 @@ def run_segmentation_by_bus_stops(
                 "segment_length_ft",
                 "is_left_side_oneway",
                 "geometry",
-            ] + segment_id_cols
+            ]
+            + segment_id_cols
         ]
         return nan_to_none(curb_segments)
 
@@ -1353,7 +1380,8 @@ def find_bus_stop_type(
     fraction_df: gpd.GeoDataFrame, asset_type_config: dict
 ) -> gpd.GeoDataFrame:
     """
-    Finds the bus stop type based on the fraction of a curb and finds the bus stop end point.
+    Finds the bus stop type based on the fraction of a curb and finds the bus
+    stop end point.
 
     Args:
         fraction_df (gpd.GeoDataFrame): GeoDataFrame of bus stops snapped to curb.
@@ -1438,8 +1466,9 @@ def create_curb_segments_with_bus_stops(
     Args:
         curbs_clean (gpd.GeoDataFrame): Clean curbs.
         curb_id_col (str): Column name of curb ID.
-        fraction_df (gpd.GeoDataFrame): GeoDataFrame of snapped parking signs to the curb,
-            including the location of the sign on a curb as a fraction of the curb.
+        fraction_df (gpd.GeoDataFrame): GeoDataFrame of snapped parking signs
+            to the curb, including the location of the sign on a curb as
+            a fraction of the curb.
         points_id_col (str): Column name of point ID.
         seg_prefix (str): Prefix string for segment name.
         point_id_cols (list): List of points_id_cols to be brought to final df.
@@ -1585,11 +1614,11 @@ def run_segmentation_by_parking_meters(
         curb_segments["end_mp_id"] = None
         curb_segments[curb_id_col] = curb_segments[curb_id_col].astype(str) + ":PM1"
         cols_to_keep = [
-                            curb_id_col,
-                            "segment_length_ft",
-                            "is_left_side_oneway",
-                            "geometry",
-                        ] + segment_id_cols
+            curb_id_col,
+            "segment_length_ft",
+            "is_left_side_oneway",
+            "geometry",
+        ] + segment_id_cols
         curb_segments = curb_segments[cols_to_keep]
         return nan_to_none(curb_segments)
 
@@ -1625,15 +1654,19 @@ def find_segment_length(
     drop_tiny_segments: bool = False,
 ) -> tuple[bool, float, LineString | None]:
     """
-    Finds segment lengths for each part of a given curb and the geometries of these segments.
+    Finds segment lengths for each part of a given curb and the geometries of
+    these segments.
 
     Args:
         curb_row (pd.Series): A row of data from the curbs GeoDataFrame
-        start_frac (float): Decimal between 0 and 1 representing the start of the curb segment.
-        end_frac (float): Decimal between 0 and 1 representing the start of the curb segment.
+        start_frac (float): Decimal between 0 and 1 representing the start of
+            the curb segment.
+        end_frac (float): Decimal between 0 and 1 representing the start of
+            the curb segment.
         stats (dict): Log of statistics as curbs are processes
         min_segment_len_ft (float, optional): Minimum length of curb segments.
-        drop_tiny_segments (bool, optional): Drop segments shorter than min_segment_len_ft.
+        drop_tiny_segments (bool, optional): Drop segments shorter than
+            min_segment_len_ft.
 
     Returns:
         tuple[bool, float, MultiLineString]:
@@ -1674,7 +1707,8 @@ def make_curb_gdf(
     Adds any curbs not segmented by the current asset type.
 
     Args:
-        segments_data (list): List of dictionaries, where each dict corresponds to one segment.
+        segments_data (list): List of dictionaries, where each dict corresponds
+            to one segment.
         curbs_clean (gpd.GeoDataFrame): Clean curbs segmented by previous asset types.
         point_id_cols (list): List of points_id_cols to be brought to the final df.
         points_id_col (str): Column name of point ID.
@@ -1778,7 +1812,8 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     # Create increasing segment sequence 0, 1, 2, ...
     gdf["segment_seq"] = gdf.groupby("blockface_id").cumcount().astype(int)
 
-    # Recalculate the segment length to overwrite the original value. It may not change any values.
+    # Recalculate the segment length to overwrite the original value.
+    # It may not change any values.
     gdf["segment_length_ft"] = gdf.geometry.length
 
     # Reorder columns
@@ -1801,7 +1836,7 @@ def format_curb_segments(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def create_curb_segments_table(
-    gdf: gpd.GeoDataFrame,output_crs: str = "epsg:4326", test: bool = False
+    gdf: gpd.GeoDataFrame, output_crs: str = "epsg:4326", test: bool = False
 ) -> tuple[gpd.GeoDataFrame, uuid.UUID, str]:
     """
     Creates a new GeoDataFrame containing curb segment data derived from an input
@@ -1857,13 +1892,10 @@ def create_curb_segments_table(
     # Generate new UUID per segment
     if test:
         out["segment_id"] = out.apply(
-            lambda x: uuid.uuid5(MY_NAMESPACE, x['geometry'].wkt),
-            axis=1
+            lambda x: uuid.uuid5(MY_NAMESPACE, x["geometry"].wkt), axis=1
         )
     else:
-        out["segment_id"] = [
-            uuid.UUID(uuid.uuid4().hex) for _ in range(len(gdf_4326))
-        ]
+        out["segment_id"] = [uuid.UUID(uuid.uuid4().hex) for _ in range(len(gdf_4326))]
     out["blockface_id"] = gdf_4326["blockface_id"]
     out["is_left_side_oneway"] = gdf_4326["is_left_side_oneway"]
     out["segment_seq"] = gdf_4326["segment_seq"]
@@ -1882,10 +1914,7 @@ def create_curb_segments_table(
     )
 
     out["downstream_location"] = (
-        gdf_4326["end_mp_id"]
-        .combine_first(end_ps)
-        .combine_first(fh)
-        .combine_first(bs)
+        gdf_4326["end_mp_id"].combine_first(end_ps).combine_first(fh).combine_first(bs)
     )
 
     # Create job ID and run date
@@ -1929,12 +1958,14 @@ def fill_up_down_locations(
     """
     Fills missing upstream and downstream locations for a given DataFrame.
 
-    This function processes a DataFrame containing blockface entries with upstream and downstream
-    location columns. It fills missing upstream and downstream values based on adjacent rows within
-    a group defined by the 'blockface_id' column.
+    This function processes a DataFrame containing blockface entries with
+    upstream and downstream location columns. It fills missing upstream and
+    downstream values based on adjacent rows within a group defined by the
+    'blockface_id' column.
 
     Args:
-        gdf (gpd.GeoDataFrame): DataFrame containing blockface entries with upstream and downstream location columns.
+        gdf (gpd.GeoDataFrame): DataFrame containing blockface entries with
+            upstream and downstream location columns.
 
     Returns:
         gpd.GeoDataFrame: A copy of the input DataFrame with additional columns.
@@ -1999,14 +2030,16 @@ def fill_up_down_locations(
     # Mark same-anchor rows so we can shift within each blockface group
     out["_same_anchor"] = same_anchor
 
-    # If the *next* row is same-anchor, do NOT change this row's downstream if it is already not null
+    # If the *next* row is same-anchor, do NOT change this row's downstream
+    # if it is already not null.
     next_is_same = g["_same_anchor"].shift(-1).fillna(False)
     preserve_prev_down = out[downstream_col].notna() & next_is_same
     out.loc[preserve_prev_down, new_down_col] = out.loc[
         preserve_prev_down, downstream_col
     ]
 
-    # If the *previous* row is same-anchor, do NOT change this row's upstream if it is already not null
+    # If the *previous* row is same-anchor, do NOT change this row's upstream
+    # if it is already not null.
     prev_is_same = g["_same_anchor"].shift(1).fillna(False)
     preserve_next_up = out[upstream_col].notna() & prev_is_same
     out.loc[preserve_next_up, new_up_col] = out.loc[preserve_next_up, upstream_col]
@@ -2300,7 +2333,7 @@ def _aggregate_location_list(
     Core strategy:
     - upstream_locations: the STARTING anchor(s) of the merged segment
     - downstream_locations: all ENDING anchors of each row (junctions + final endpoint)
-    
+
     For non-mixed groups (all tiny or all non-tiny), collect from specified column.
     For mixed groups, apply row-by-row logic based on merge direction.
 
@@ -2328,8 +2361,8 @@ def _aggregate_location_list(
             past_nontiny = True
         if position == "upstream_location":
             if idx == 0:
-            # For upstream: take ONLY the starting anchor of the entire group
-            # Always use first row's upstream
+                # For upstream: take ONLY the starting anchor of the entire group
+                # Always use first row's upstream
                 value = row["upstream_location"]
                 if pd.notna(value):
                     values.append(value)
@@ -2340,7 +2373,8 @@ def _aggregate_location_list(
                 if pd.notna(value):
                     values.append(value)
         else:
-            # For downstream: collect ALL row downstreams except possibly the first if it's tiny
+            # For downstream: collect ALL row downstreams except possibly
+            # the first if it's tiny.
             # (since leading tiny's downstream already became the upstream)
             if idx == 0 and is_tiny[idx]:
                 # Skip first row if it's leading tiny (already in upstream)
@@ -2503,7 +2537,8 @@ def merge_tiny_curb_segments(
                 position="downstream_location",
             )
 
-            # Apply carryover logic: upstream of current row = downstream of previous row
+            # Apply carryover logic: upstream of current row = downstream
+            # of previous row.
             if prev_downstream_locations is not None:
                 upstream_locations = prev_downstream_locations + upstream_locations
 

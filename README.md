@@ -57,6 +57,22 @@ To build the required Python environment, clone this repository, and from the pr
 uv sync
 ```
 
+## Local regression tests
+
+After `uv sync --locked`, run the Survey123, configuration, segmentation, policy,
+and API publication regression tests from the repository root:
+
+```sh
+uv run pytest tests/api_updater tests/sign_loader tests/config_tests tests/curb_segmenter tests/policy_applier -q
+```
+
+This selection uses committed fixtures and mocked external services; it does not
+require a `.env` file, database, ArcGIS credentials, or Gemini calls. Generated
+results go to pytest temporary directories. Inputs, expected results, and test
+descriptions under `tests/*/test_data/` belong in Git; downloaded survey data and
+pipeline exports belong in the ignored `inputs/`, `output/`, or `outputs/`
+directories. Other test suites may require external services.
+
 ## Environment Variables
 
 The project depends on a couple of important external connections, namely:
@@ -230,6 +246,8 @@ This package manages moving data from the staging database schema to a separate 
 that provides the backend to Boston's CDS Curbs API. The final zones and policies are constructed, deduplicating as needed, and new IDs are assigned.
 
 To ensure consistency over equivalent policies, this step also handles generation of policy descriptions (Gemini-based).
+
+The [Chinatown refresh runbook](docs/chinatown_refresh.md) records dedicated configurations, source selection, job lineage, description backfill, validation, and remaining refresh steps. Processing modules and the sign loader accept `--config` while retaining their existing defaults.
 
 Detailed documentation can be found within the package [here](packages/api-updater/README.md).
 

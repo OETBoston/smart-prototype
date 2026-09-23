@@ -51,7 +51,10 @@ def append_curb_segment_policies(
 
 
 def read_policy_applier_tables(
-    curb_segment_job_id: uuid.UUID | None, db_name: str, db_schema: str
+    curb_segment_job_id: uuid.UUID | None,
+    sign_reader_job_id: uuid.UUID | None,
+    db_name: str,
+    db_schema: str,
 ) -> tuple[
     GeoDataFrame,
     DataFrame,
@@ -64,6 +67,10 @@ def read_policy_applier_tables(
     filter = None
     if curb_segment_job_id:
         filter = f"job_id = '{curb_segment_job_id}'"
+
+    sign_policies_filter = (
+        f"job_id = '{sign_reader_job_id}'" if sign_reader_job_id else None
+    )
 
     with SmartCurbDB(dbname=db_name, schema=db_schema) as db:
         df_segments = db.get_data(
@@ -88,6 +95,7 @@ def read_policy_applier_tables(
         df_sign_policies = db.get_data(
             "sign_policies",
             columns=["sign_policy_id", "sign_id", "policy_json", "policy_arrow"],
+            filter=sign_policies_filter,
         )
 
         df_meter_policies = db.get_data(

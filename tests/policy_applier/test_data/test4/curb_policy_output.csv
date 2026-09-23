@@ -1,5 +1,0 @@
-segment_id,policy_list
-f3e75610-f171-55e4-a4e4-416d4ef16eae,"[{""rules"": [{""activity"": ""parking"", ""max_stay"": 2, ""max_stay_unit"": ""hour""}], ""time_spans"": [{""time_of_day_end"": ""00:00"", ""time_of_day_start"": ""16:00""}], ""priority"": 40}]"
-25b09a71-d7e6-59ef-9df9-cd10d286b76a,"[{""rules"": [{""activity"": ""no stopping"", ""purposes"": [""fire_hydrant""]}], ""priority"": 1}, {""rules"": [{""activity"": ""parking"", ""max_stay"": 2, ""max_stay_unit"": ""hour""}], ""time_spans"": [{""time_of_day_end"": ""00:00"", ""time_of_day_start"": ""16:00""}], ""priority"": 40}]"
-18039de4-fd38-5dce-9ba3-b025c6e34f87,"[{""rules"": [{""activity"": ""no stopping"", ""purposes"": [""fire_hydrant""]}], ""priority"": 1}, {""rules"": [{""activity"": ""parking"", ""max_stay"": 2, ""max_stay_unit"": ""hour""}], ""time_spans"": [{""time_of_day_end"": ""00:00"", ""time_of_day_start"": ""16:00""}], ""priority"": 40}]"
-faf8506c-ed09-5f8a-bc15-9077ef7f0111,"[{""rules"": [{""activity"": ""parking"", ""max_stay"": 2, ""max_stay_unit"": ""hour""}], ""time_spans"": [{""time_of_day_end"": ""00:00"", ""time_of_day_start"": ""16:00""}], ""priority"": 40}]"

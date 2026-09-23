@@ -49,8 +49,8 @@ def load_blockface_gdf_from_pg(
         geom_col (str): Name of the geometry column.
         filter_string (str | None): SQL-like filter string.
         target_crs (str): EPSG code of the target projected CRS (e.g., "epsg:4326").
-        reproject (bool): Whether to reproject to the target CRS if the input is geographic,
-            defaults to True.
+        reproject (bool): Whether to reproject to the target CRS if the input
+            is geographic, defaults to True.
 
     Returns:
         gdf (GeoDataFrame): Loaded and (optionally) reprojected GeoDataFrame.
@@ -88,21 +88,25 @@ def load_blockface_gdf_from_pg(
 def load_asset_gdfs_from_pg(
     config: dict,
     target_crs: str,
-):
+) -> dict[str, gpd.GeoDataFrame]:
     """
-    Loads asset GeoDataFrames from a PostgreSQL database based on asset type specifications.
+    Loads asset GeoDataFrames from a PostgreSQL database based on asset type
+    specifications.
 
-    This function retrieves spatial data for specified asset types and their associated locations
-    from a PostgreSQL database and organizes them into GeoDataFrames. The GeoDataFrames are
-    structured according to the provided asset type specifications and coordinate reference settings.
+    This function retrieves spatial data for specified asset types and their
+    associated locations from a PostgreSQL database and organizes them into
+    GeoDataFrames. The GeoDataFrames are structured according to the provided
+    asset type specifications and coordinate reference settings.
 
     Args:
         config (dict): Configuration dictionary containing database and asset settings.
-        target_crs (str): Target coordinate reference system (CRS) for the output GeoDataFrames.
+        target_crs (str): Target coordinate reference system (CRS) for the output
+            GeoDataFrames.
 
     Returns:
         dict: A dictionary where keys are asset types from the asset_dict and values are
-            GeoDataFrames containing the IDs, location IDs, and geometries for these assets.
+            GeoDataFrames containing the IDs, location IDs, and geometries for
+            these assets.
     """
     # set the db parameters from config
     dbname = config["db_name"]
@@ -187,7 +191,8 @@ def load_asset_gdfs_from_pg(
             # Check if curb dataset is already in GeoDataFrame
             cs.confirm_gdf(asset_locations)
 
-            # Merge assets and asset locations and store GeoDataFrames in the collector dictionary
+            # Merge assets and asset locations and store GeoDataFrames in
+            # the collector dictionary.
             assets = assets.merge(asset_locations, on="location_id")
             assets = cs.check_and_set_crs(
                 gdf=gpd.GeoDataFrame(assets, geometry="geometry"),
@@ -211,21 +216,25 @@ def write_curb_segments_to_db(
     job_name: str,
     job_description: str,
     ts: str,
-    debug_mode: bool = True
+    debug_mode: bool = True,
 ) -> None:
     """
-    Writes curb segment data to a database and creates a curb segment job record for the data.
+    Writes curb segment data to a database and creates a curb segment job
+    record for the data.
 
     Args:
-        gdf (gpd.GeoDataFrame): GeoDataFrame object containing the curb segment data to be stored in the database.
+        gdf (gpd.GeoDataFrame): GeoDataFrame object containing the curb segment
+            data to be stored in the database.
         dbname (str): Name of the database where the data will be stored.
         schema (str): Name of the database schema where the data will be saved.
         job_id (uuid.UUID): Unique identifier for the job that generated the data.
-        job_name (str): Name of the job to add as metadata in the `curb_segment_jobs` table.
-        job_description (str): A description of the job, providing additional context about the data
-            being stored.
+        job_name (str): Name of the job to add as metadata in the
+            `curb_segment_jobs` table.
+        job_description (str): A description of the job, providing additional
+            context about the data being stored.
         ts (str): Timestamp of the job execution.
-        debug_mode (bool): If True, then it will not write the blockface data to the database.
+        debug_mode (bool): If True, then it will not write the blockface data
+            to the database.
 
     Returns:
         None
@@ -243,7 +252,6 @@ def write_curb_segments_to_db(
                 }
             )
 
-
             db.append_data("curb_segment_jobs", cs_job)
             db.append_data("curb_segments", gdf)
 
@@ -251,12 +259,12 @@ def write_curb_segments_to_db(
 def _convert_pg_uuid_array_to_list(values: object) -> object:
     """
     Convert PostgreSQL UUID array format back to Python lists.
-    
+
     Converts strings like "{uuid1,uuid2,uuid3}" or "{}" back to lists.
-    
+
     Args:
         values (object): Value that may be a postgres array string format
-        
+
     Returns:
         object: List if values was a postgres array string, otherwise original value
     """
@@ -283,7 +291,7 @@ def write_curb_segments_to_file(
     output_file_name: str,
     file_type: str = "GeoJSON",
     output_crs: str = "epsg:4326",
-    test: bool = False
+    test: bool = False,
 ) -> None:
     """
     Write the curb GeoDataFrame to a file in the specified format.
@@ -307,12 +315,11 @@ def write_curb_segments_to_file(
     """
     # Make a copy to avoid modifying the original
     output_gdf = output_gdf.copy()
-    
+
     # Convert postgres UUID array format back to lists for file output
     for col in ("upstream_loc_list", "downstream_loc_list"):
         if col in output_gdf.columns:
             output_gdf[col] = output_gdf[col].map(_convert_pg_uuid_array_to_list)
-
 
     # Create the output path if it does not exist
     Path(output_path).mkdir(parents=True, exist_ok=True)

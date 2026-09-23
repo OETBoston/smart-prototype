@@ -14,6 +14,7 @@ set before running the script.
 ==============================================================================
 """
 
+import argparse
 from pathlib import Path
 
 import geopandas as gpd
@@ -27,6 +28,7 @@ from preprocess import (
     preprocess_cartegraph_signs,
     preprocess_other_signs,
 )
+from survey123 import load_survey123, load_survey_shapefile
 from utils import check_required_input_columns
 
 
@@ -54,7 +56,7 @@ def upload_sign_tbls(
                 )
 
 
-def main() -> None:
+def main(config_path: Path | None = None) -> None:
     """Main function to run the ETL process for loading parking sign data
     into the database."""
     base_path = Path(__file__).resolve().parent.parent.parent
@@ -66,8 +68,9 @@ def main() -> None:
         # Read in config & files
         logger.info("Loading configuration and input files...")
 
-        config = load_from_yaml(base_path / "config.yaml")
-        logger.info("Loaded config from %s", f"{base_path / 'config.yaml'}")
+        config_path = config_path or base_path / "config.yaml"
+        config = load_from_yaml(config_path)
+        logger.info("Loaded config from %s", config_path)
         if config["data_source_name"].lower() == "cartegraph":
             # Clean for relevant signs
 
@@ -78,6 +81,16 @@ def main() -> None:
             signs_gdf = preprocess_cartegraph_signs(
                 signs_df=cartegraph_df, config=config, base_path=base_path
             )
+
+        elif config["data_source_name"].lower() in ("survey123", "arcgis"):
+            survey_cfg = config.get("survey123", {})
+            if survey_cfg.get("use_shapefile_fallback"):
+                logger.info("Loading survey data from local shapefile export...")
+                signs_gdf = load_survey_shapefile(config=config, base_path=base_path)
+            else:
+                logger.info("Loading survey data from ArcGIS feature service...")
+                signs_gdf = load_survey123(config=config, base_path=base_path)
+            logger.info("Loaded %d survey sign records", len(signs_gdf))
 
         else:
             # assume formatted geospatial file
@@ -111,7 +124,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Load sign assets")
+    parser.add_argument("--config", type=Path, default=None)
+    args = parser.parse_args()
     logger = get_logger(__name__)
     logger.info("Running Sign Loader Pipeline Process...")
     load_dotenv()
-    main()
+    main(args.config)

@@ -320,8 +320,10 @@ def policy_applier(config: PolicyApplierConfig) -> None:
             )
 
     curb_segmenter_job_id = config.source_jobs.curb_segmenter
+    sign_reader_job_id = config.source_jobs.sign_reader
     # satify type checker. actual case handled above.
     assert curb_segmenter_job_id != "auto"
+    assert sign_reader_job_id != "auto"
 
     # Data Ingestion
     (
@@ -333,6 +335,7 @@ def policy_applier(config: PolicyApplierConfig) -> None:
         df_nonsign_features,
     ) = read_policy_applier_tables(
         curb_segment_job_id=curb_segmenter_job_id,
+        sign_reader_job_id=sign_reader_job_id,
         db_name=config.db_name,
         db_schema=config.db_schema,
     )

@@ -1,0 +1,39 @@
+# Chinatown refresh: source job IDs are pinned after each completed stage.
+dbname: cds
+schema: chinatown_cds
+job_name: chinatown-survey123-20260923
+job_description: Full current Chinatown Survey123 snapshot; previous survey footprint
+  plus official Chinatown polygon; driveways excluded
+data_source_name: survey123
+debug_mode: false
+input_crs: EPSG:4326
+output_crs: EPSG:4326
+survey123:
+  service_url: https://services.arcgis.com/sFnw0xNflSi8J0uh/arcgis/rest/services/service_80d5dd0ee96e40f98b991a3234dabe00/FeatureServer
+  portal_url: https://www.arcgis.com
+  parent_layer_id: 0
+  repeat_layer_id: 1
+  parent_layer_name: Form_2
+  repeat_layer_name: sign_repeat
+  where: 1=1
+  repeat_where: 1=1
+  parent_allowlist:
+    csv_path: output/chinatown_run_20260923/survey/parent_globalids.csv
+    csv_column: GlobalID
+  exclude_sign_types:
+  - driveway
+  limit: null
+  attachments:
+    link_level: auto
+    max_workers: 8
+  image_storage:
+    backend: local
+    local_dir: inputs/survey_images/chinatown/20260923
+  field_map:
+    sign_type: sign_type
+    added_date: CreationDate
+    repeat_parent_field: null
+  use_shapefile_fallback: false
+grouping_parameters:
+  grouping_distance_ft: 5
+  grouping_crs: EPSG:2249

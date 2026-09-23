@@ -1,0 +1,11 @@
+db_name: cds
+db_schema: chinatown_cds
+job_name: chinatown-policy-applier-final-review-20260923
+job_description: Chinatown full Survey123 refresh 2026-09-23; explicit source jobs
+  recorded in run manifest
+source_jobs:
+  curb_segmenter: 5ec9b7af-2126-4136-94df-d66891c6c28c
+  sign_reader: 349c2cdc-5c77-4b3f-9c16-1d4c88724e93
+default_parking_anytime: false
+write_to_csv: false
+csv_file_path: curb_policy_output.csv

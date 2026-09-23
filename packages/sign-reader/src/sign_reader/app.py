@@ -125,6 +125,20 @@ def get_pdf_from_url(url: str) -> bytes:
         return None
 
 
+def get_image_from_file(path: str) -> bytes:
+    """Read image or PDF bytes from a local filesystem path.
+
+    Used for sources imported as local files (e.g. the Survey123 importer that
+    stores attachments under inputs/survey_images).
+    """
+    try:
+        with open(path, "rb") as f:
+            return f.read()
+    except Exception as e:
+        print(f"Error reading local file {path}: {e}")
+        return None
+
+
 @st.cache_data()
 def load_data(dbname="cds", schema="staging", sign_reader_job_id=None) -> pd.DataFrame:
     logger.info(f"Connecting to {dbname}.{schema}...")
@@ -191,7 +205,11 @@ if "record_index" not in st.session_state:
 st.sidebar.header("Data Source Settings")
 
 # Schema Selection
-schema_option = st.sidebar.selectbox("Select Schema", options=["staging", "staging_next"], index=0)
+schema_option = st.sidebar.selectbox(
+    "Select Schema",
+    options=["chinatown_cds", "staging", "staging_next"],
+    index=0,
+)
 
 jobs_df = load_jobs(schema=schema_option)
 
@@ -334,10 +352,13 @@ if job_id:
                 try:
                     if uri.startswith("gs://"):
                         img_bytes = get_image_from_gs(uri)
-                    elif is_pdf:
-                        img_bytes = get_pdf_from_url(uri)
+                    elif uri.startswith("http://") or uri.startswith("https://"):
+                        img_bytes = (
+                            get_pdf_from_url(uri) if is_pdf else get_image_from_url(uri)
+                        )
                     else:
-                        img_bytes = get_image_from_url(uri)
+                        # Local filesystem path (e.g. Survey123 image import)
+                        img_bytes = get_image_from_file(uri)
                 except Exception as e:
                     st.error(f"Error loading source: {e}")
 

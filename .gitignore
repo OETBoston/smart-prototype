@@ -219,3 +219,11 @@ outputs
 
 # Zensical docs site
 docs/cds-implementation/site
+
+# Local pipeline artifacts
+output/
+
+# Generated test outputs; inputs and expected results remain versioned.
+/tests/curb_segmenter/test_data/*/curb_segments.geojson
+/tests/curb_segmenter/test_data/*/curb_policy_output.csv
+/tests/policy_applier/test_data/*/curb_policy_output.csv

@@ -13,18 +13,74 @@
 
 # Database settings
 dbname: "cds"
-schema: "staging_test"
-job_name: "test-job"
-job_description: "this is for testing"
+schema: "seaport_cds"
+job_name: "seaport-survey123"
+job_description: "Seaport Sign Survey (Survey123) import from the authoritative parent GlobalID export, excluding driveway records"
 
-# If uploading Cartegraph, source should be "Cartegraph"
-data_source_name: "Cartegraph"
+# Data source selector. One of:
+#   "Cartegraph" -> Cartegraph CSV export (see cartegraph_required_columns below)
+#   "survey123" / "arcgis" -> ArcGIS Online / Survey123 feature service (see survey123 below)
+#   anything else -> generic geospatial file (see other_data_source below)
+data_source_name: "survey123"
 
 # Debug mode (Set this to True for debugging) True does not write to DB.
 debug_mode: False
 signs_path: "data/boston-cartegraph.csv"
 input_crs: "EPSG:4326"
 output_crs: "EPSG:4326"
+
+# ==============================================================================
+# Survey123 / ArcGIS Online import settings (used when data_source_name is
+# "survey123" or "arcgis").
+# ==============================================================================
+survey123:
+  service_url: "https://services.arcgis.com/sFnw0xNflSi8J0uh/arcgis/rest/services/service_80d5dd0ee96e40f98b991a3234dabe00/FeatureServer"
+  portal_url: "https://www.arcgis.com"
+
+  # Layer ids are auto-discovered by name when left null.
+  parent_layer_id: null
+  repeat_layer_id: null
+  parent_layer_name: "Form_2"
+  repeat_layer_name: "sign_repeat"
+
+  # Filter applied to the PARENT survey records (matches the Survey123
+  # "0.CreationDate" filter). Repeat signs follow their matched parents.
+  where: "1=1"
+  # Optional separate filter for the repeat table (defaults to all signs).
+  repeat_where: "1=1"
+  parent_allowlist:
+    csv_path: "inputs/seaport_survey123/parent_globalids.csv"
+    csv_column: "GlobalID"
+  exclude_sign_types:
+    - "driveway"
+  # Optional cap on the number of sign records (handy for testing). null = all.
+  limit: null
+
+  # Which layer holds the photo attachments: "auto" | "parent" | "repeat".
+  attachments:
+    link_level: "auto"
+    max_workers: 8
+
+  # Where to persist downloaded images. backend: "local" | "gcs".
+  #   local -> writes to local_dir, stores the file path as images.uri
+  #   gcs   -> writes to GCS_PREFIX (or prefix below) using GCS_TOKEN_PATH
+  image_storage:
+    backend: "local"
+    local_dir: "inputs/survey_images/seaport"
+    # prefix: "gs://your-bucket/boston/signs"  # overrides GCS_PREFIX when set
+
+  # Optional overrides; left null these are auto-detected from the service.
+  field_map:
+    sign_type: "sign_type"
+    added_date: "CreationDate"
+    repeat_parent_field: null
+
+  # Offline fallback: read the downloaded .shp/.dbf instead of the live service
+  # (loads locations + signs only, no images).
+  use_shapefile_fallback: false
+  shapefile_dir: "inputs/shp-89b853514fd34317abf6f3c1857e0c00"
+  parent_shapefile: "Form_2.shp"
+  repeat_dbf: "sign_repeat.dbf"
 
 # Columns in the input data
 # Required columns if using Cartegraph input

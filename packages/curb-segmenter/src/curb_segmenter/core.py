@@ -18,8 +18,8 @@ set before running the script.
 
 # Packages
 import warnings
-import geopandas as gpd
 
+import geopandas as gpd
 from curb_utils.logging import get_logger
 from dotenv import load_dotenv
 
@@ -28,6 +28,7 @@ from curb_segmenter import io_utils
 from curb_segmenter.config import CurbSegmenterConfig
 
 warnings.filterwarnings("ignore")
+
 
 def load_data(config: CurbSegmenterConfig) -> tuple:
     # Read curb lines
@@ -49,11 +50,11 @@ def load_data(config: CurbSegmenterConfig) -> tuple:
 
 
 def run_curb_segmentation_pipeline(
-        config: CurbSegmenterConfig,
-        curbs: gpd.GeoDataFrame,
-        asset_dict: dict,
-        test_mode: bool = False
-    ) -> None:
+    config: CurbSegmenterConfig,
+    curbs: gpd.GeoDataFrame,
+    asset_dict: dict,
+    test_mode: bool = False,
+) -> None:
     segment_id_cols = []
     # Clean curb lines
     clean_curbs_gdf = cs.clean_curb_geometries(
@@ -96,9 +97,7 @@ def run_curb_segmentation_pipeline(
 
     # Format and create a GeoDataFrame consistent with the `curb_segments` table schema
     curb_segments, job_id, ts = cs.create_curb_segments_table(
-        gdf=curb_segments_by_pm,
-        output_crs=config.output_crs,
-        test=test_mode
+        gdf=curb_segments_by_pm, output_crs=config.output_crs, test=test_mode
     )
 
     # Merge tiny segments
@@ -117,7 +116,7 @@ def run_curb_segmentation_pipeline(
         job_name=config.job_name,
         job_description=config.job_description,
         ts=ts,
-        debug_mode=config.debug_mode
+        debug_mode=config.debug_mode,
     )
 
     # Write curb segments to a local file (for QA)
@@ -129,7 +128,7 @@ def run_curb_segmentation_pipeline(
         output_file_name=config.output_file_name,
         file_type=config.output_file_format,
         output_crs=config.output_crs,
-        test=test_mode
+        test=test_mode,
     )
 
 

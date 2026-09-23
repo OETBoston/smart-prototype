@@ -18,6 +18,16 @@ system_instruction = load_from_txt(INSTRUCTION_PATH)
 prompt = load_from_txt(PROMPT_PATH)
 
 
+def is_missing_description(value: object) -> bool:
+    """Recognize missing text and the placeholders emitted by older runs."""
+    return not isinstance(value, str) or value.strip().casefold() in {
+        "",
+        "no description available",
+        "no policy description provided",
+        "no policy description provided.",
+    }
+
+
 def add_json_to_prompt(prompt: str, policy_json: str) -> str:
     """Adds Policy JSON (String) to the user prompt for processing"""
     return prompt + "\n" + policy_json
@@ -66,7 +76,8 @@ async def generate_description(
             model_opts=model_opts,
         )
 
-        if not response.text:
-            return "NO DESCRIPTION AVAILABLE"
-        else:
-            return response.text
+        if is_missing_description(response.text):
+            raise ValueError(
+                "Gemini returned an empty or placeholder policy description"
+            )
+        return response.text.strip()

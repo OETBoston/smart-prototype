@@ -119,6 +119,9 @@ async def get_policy_descriptions(
         List[str]: A list of generated descriptions.
     """
 
+    if policies_df.empty:
+        return []
+
     sem = asyncio.Semaphore(gemini_concurrent_limit)
 
     instruction_directory = Path(__file__).resolve().parent.parent / "instructions"

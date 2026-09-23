@@ -1,16 +1,17 @@
 """Tests for curb segmentation output."""
+
 from collections.abc import Iterable
 from pathlib import Path
+
 import geopandas as gpd
 import pytest
+import static_curb_segmentation as scs
 from pandas.testing import assert_frame_equal
 
-import static_curb_segmentation as scs
-
-TEST_DATA_DIR = Path("tests/curb_segmenter/test_data")
+TEST_DATA_DIR = Path(__file__).resolve().parent / "test_data"
 
 
-def get_test_directories():
+def get_test_directories() -> list[Path]:
     """Discover all test directories under test_data."""
     return sorted([d for d in TEST_DATA_DIR.iterdir() if d.is_dir()])
 
@@ -20,32 +21,39 @@ def get_test_directories():
     get_test_directories(),
     ids=lambda d: d.name,
 )
-def test_curb_segments_match_expected(test_dir):
+def test_curb_segments_match_expected(test_dir: Path, tmp_path: Path) -> None:
     """
     Runs curb segmentation on static test data
     Then compares output curb_segments.geojson to expected_curb_segments.geojson
     """
     # Run curb segmentation for test data
-    scs.run_static_curb_segmentation_pipeline(test_dir)
+    scs.run_static_curb_segmentation_pipeline(test_dir, output_dir=tmp_path)
 
     # Check outputs
-    actual_path = test_dir / "curb_segments.geojson"
+    actual_path = tmp_path / "curb_segments.geojson"
     expected_path = test_dir / "expected_curb_segments.geojson"
 
-    if not actual_path.exists():
-        pytest.skip("curb_segments.geojson not found")
-    if not expected_path.exists():
-        pytest.skip("expected_curb_segments.geojson not found")
+    assert actual_path.is_file(), "Segmentation did not produce curb_segments.geojson"
+    assert expected_path.is_file(), f"Missing expected fixture: {expected_path}"
 
     # Read and drop segment_id
     # this is bc this changes on each curb segmentation run
-    not_compare_cols = ["segment_id", "job_id", "upstream_location", "downstream_location"]
+    not_compare_cols = [
+        "segment_id",
+        "job_id",
+        "upstream_location",
+        "downstream_location",
+    ]
     actual = gpd.read_file(actual_path).drop(columns=not_compare_cols, errors="ignore")
-    expected = gpd.read_file(expected_path).drop(columns=not_compare_cols, errors="ignore")
-    for col in ['upstream_loc_list', 'downstream_loc_list']:
+    expected = gpd.read_file(expected_path).drop(
+        columns=not_compare_cols, errors="ignore"
+    )
+    for col in ["upstream_loc_list", "downstream_loc_list"]:
         for df in [actual, expected]:
             if col in df.columns:
-                df[col] = df[col].apply(lambda x: sorted(x) if isinstance(x, Iterable) else x)
+                df[col] = df[col].apply(
+                    lambda x: sorted(x) if isinstance(x, Iterable) else x
+                )
 
     # Ensure same column order
     common_cols = sorted(set(actual.columns) & set(expected.columns))
@@ -53,4 +61,13 @@ def test_curb_segments_match_expected(test_dir):
     expected = expected[common_cols].reset_index(drop=True)
 
     # Compare with lenient settings for floating point and dtype
-    assert_frame_equal(actual, expected, check_dtype=False, atol=1e-5, rtol=1e-5, check_names=True)
+    # pandas' numeric tolerance does not apply inside Shapely geometry objects.
+    assert actual.geometry.geom_equals_exact(expected.geometry, tolerance=1e-5).all()
+    assert_frame_equal(
+        actual.drop(columns="geometry"),
+        expected.drop(columns="geometry"),
+        check_dtype=False,
+        atol=1e-5,
+        rtol=1e-5,
+        check_names=True,
+    )

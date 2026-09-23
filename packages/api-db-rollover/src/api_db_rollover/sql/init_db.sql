@@ -9,7 +9,10 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 
 CREATE TABLE IF NOT EXISTS curb_zones (
     curb_zone_id UUID PRIMARY KEY,
-    geometry GEOGRAPHY(LINESTRING),
+    -- GEOMETRY (not GEOGRAPHY): matches live public_cds and is required by the
+    -- api-updater export path (geopandas.to_postgis -> Find_SRID only resolves
+    -- registered geometry columns; a geography column makes the write fail).
+    geometry GEOMETRY(LINESTRING, 4326),
     published_date TIMESTAMP,
     last_updated_date TIMESTAMP,
     start_date TIMESTAMP,

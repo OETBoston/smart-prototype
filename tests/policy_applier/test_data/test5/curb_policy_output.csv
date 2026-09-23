@@ -1,2 +1,0 @@
-segment_id,policy_list
-ee3a1f80-c5b3-53ab-9d51-225363b61521,"[{""name"": ""Park Boston Zone ID 365"", ""rules"": [{""rate"": {""rate"": 200, ""rate_unit"": ""hour""}, ""activity"": ""parking"", ""max_stay"": 120, ""purposes"": [""parking""], ""max_stay_unit"": ""minute""}], ""time_spans"": [{""days_of_week"": [""mon"", ""tue"", ""wed"", ""thu"", ""fri"", ""sat""], ""time_of_day_end"": ""20:00"", ""time_of_day_start"": ""08:00""}], ""priority"": 83}]"

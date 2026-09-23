@@ -16,6 +16,9 @@ class PolicyApplierConfig(BaseModel):
     # Source job ids
     class Jobs(BaseModel):
         curb_segmenter: UUID | Literal["auto"] | None = Field(None)
+        # Which sign-reader run to apply. None applies ALL sign-reader jobs in the
+        # schema, which duplicates readings when a sign appears in multiple jobs.
+        sign_reader: UUID | Literal["auto"] | None = Field(None)
 
     source_jobs: Jobs
 
